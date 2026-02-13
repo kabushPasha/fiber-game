@@ -24,3 +24,12 @@ export function AddCallbackToParentEvent({ event, callback, dispatcher }: AddCal
 
   return <group ref={ref} />; // invisible helper
 }
+
+
+export function AddHitCallback( {callback}: {callback:(e:any) => void}){
+  return <AddCallbackToParentEvent event="hit" callback={callback}/>
+}
+
+export function AddMountCallback( {callback}: {callback:(e:any) => void}){
+  return <AddCallbackToParentEvent event="mount" callback={callback}/>
+}

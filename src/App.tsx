@@ -72,7 +72,10 @@ const App = () => {
               <Player />
             </KeyboardControls>
 
-            {taskActive && <Task onTaskEnd={() => setTaskActive(false)} />}
+            {taskActive &&
+              <Task onTaskEnd={() => setTaskActive(false)} />
+            }
+
 
 
           </Canvas>

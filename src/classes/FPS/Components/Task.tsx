@@ -1,60 +1,37 @@
-import { useEffect, useRef, useState } from "react"
-import * as THREE from "three"
-import { GridPositionProvider } from "../Classes/GridPositionProvider"
-import { AddCallbackToParentEvent } from "./AddCallbackToParentEvent"
+import { AddCallbackToParentEvent, AddHitCallback, AddMountCallback } from "./AddCallbackToParentEvent"
 import { SimpleTarget } from "../../SimpleTarget"
-import { Timer, type TimerHandle } from "./Timer"
+import { Timer } from "./Timer"
+import { AddPositionProvider, useParentPositionProvider } from "./AddPositionProvider"
+import { FinishTaskOnMaxScore, ScoreComponent } from "./ScoreComponent"
+import * as THREE from "three";
+import { playSound } from "../Classes/sounds"
+
+
 interface TaskProps {
-  onTaskEnd?: () => void
+    onTaskEnd?: () => void
 }
 
+
+
 export const Task = ({ onTaskEnd }: TaskProps) => {
-  const gridPositionProvider = useRef(new GridPositionProvider({}))
 
-  const [score, setScore] = useState(0)
-  const timerRef = useRef<TimerHandle>(null)
+    return (
+        <>
+            <group name="Task">
+                <Timer showUI={true} />
+                <AddPositionProvider />
+                <ScoreComponent />
+                <FinishTaskOnMaxScore onFinished={ () => {onTaskEnd?.();}} maxScore={5}/>
 
-  useEffect(() => {
-    if (score > 5) {
-      console.log("Task finished!", timerRef.current?.getTime());      
-      onTaskEnd?.()
-    }
-  }, [score, onTaskEnd])
-
-  return (
-    <>
-      <Timer ref={timerRef} autoStart showUI={true}/>
-
-      <group name="Task">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <SimpleTarget key={i}>
-            <AddCallbackToParentEvent
-              event="hit"
-              callback={(e) => gridPositionProvider.current.setPosition(e.source)}
-            />
-            <AddCallbackToParentEvent
-              event="hit"
-              callback={() => {
-                const snd = new Audio("sfx/bullet-metal-hit.mp3")
-                snd.volume = 0.1
-                snd.play()
-              }}
-            />
-            <AddCallbackToParentEvent
-              event="hit"
-              callback={() => setScore((prev) => prev + 1)}
-            />
-            <AddCallbackToParentEvent
-              event="mount"
-              callback={(e) => gridPositionProvider.current.setPosition(e.source)}
-            />
-            <AddCallbackToParentEvent
-              event="restart"
-              callback={(e) => gridPositionProvider.current.setPosition(e.source)}
-            />
-          </SimpleTarget>
-        ))}
-      </group>
-    </>
-  )
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <SimpleTarget key={i}>
+                        <AddHitCallback   callback={(e) => { e.source.parent.dispatchEvent({ type: "add_score", source: e.source, score: 1 }); }} />
+                        <AddHitCallback   callback={(e) => { useParentPositionProvider(e.source) }} />
+                        <AddHitCallback   callback={(e) => { playSound("sfx/bullet-metal-hit.mp3", 0.1) }} />
+                        <AddMountCallback callback={(e) => { useParentPositionProvider(e.source); }} />
+                    </SimpleTarget>
+                ))}
+            </group>
+        </>
+    )
 }
