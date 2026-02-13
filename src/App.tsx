@@ -1,0 +1,116 @@
+import { Canvas } from "@react-three/fiber"
+import "./App.css"
+import { useRef, useState } from "react"
+import * as THREE from "three"
+
+import {
+  KeyboardControls,
+  Environment
+} from "@react-three/drei"
+
+import { Player } from "./classes/Player"
+import { Pixelated } from "./components/Pixelated"
+import { CrosshairDot } from "./components/CrosshairDot"
+import { Task } from "./classes/FPS/Components/Task"
+
+const App = () => {
+  const [taskActive, setTaskActive] = useState(false)
+
+
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        position: "relative",
+        background: "black",
+      }}
+    >
+
+      <div id="CanvasParent"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+          height: "100%",
+          background: "black",
+          overflow: "hidden"
+        }}>
+
+        <div id="Canvas3D"
+          style={{
+            width: "100%",
+            height: "auto",
+            aspectRatio: "235 / 100",
+          }}>
+
+          <Canvas
+            camera={{ fov: 50, aspect: 2.35 }}
+            gl={{ antialias: false }}
+            style={{ background: "black" }}
+          >
+            <Pixelated resolution={64} />
+            <group name="Lights">
+              <Environment
+                files="textures/hdri/clouds.jpg"
+                background
+                environmentIntensity={1}
+              />
+              <ambientLight intensity={0.3} />
+              <pointLight intensity={0.8} position={[100, 100, 100]} />
+            </group>
+
+            <KeyboardControls
+              map={[
+                { name: "forward", keys: ["ArrowUp", "w", "W"] },
+                { name: "backward", keys: ["ArrowDown", "s", "S"] },
+                { name: "left", keys: ["ArrowLeft", "a", "A"] },
+                { name: "right", keys: ["ArrowRight", "d", "D"] },
+                { name: "jump", keys: ["Space"] },
+              ]}
+            >
+              <Player />
+            </KeyboardControls>
+
+            {taskActive && <Task onTaskEnd={() => setTaskActive(false)} />}
+
+
+          </Canvas>
+        </div>
+      </div>
+
+      <div id="UI">
+        <CrosshairDot size={6} color="white" opacity={0.5} />
+
+        {/* Button to activate task */}
+        {!taskActive && (
+          <button
+            onClick={() => setTaskActive(true)}
+            style={{
+              position: "absolute",
+              bottom: "00px",
+              left: "00%",
+              padding: "10px 20px",
+              fontSize: "16px",
+              cursor: "pointer",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              width: "300px",
+              height: "100px",
+
+            }}
+          >
+            Start Task
+          </button>
+        )}
+
+
+      </div>
+    </div >
+  )
+}
+
+
+export default App
