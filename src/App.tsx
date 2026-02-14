@@ -11,10 +11,25 @@ import {
 import { Player } from "./classes/Player"
 import { Pixelated } from "./components/Pixelated"
 import { CrosshairDot } from "./components/CrosshairDot"
-import { Task } from "./classes/FPS/Components/Task"
+import { GridTask, Task, type TaskDefinition, type TaskProps , AllTasks as tasks} from "./classes/FPS/Components/Task"
+
 
 const App = () => {
-  const [taskActive, setTaskActive] = useState(false)
+  const [activeTask, setActiveTask] = useState<TaskDefinition | null>(null)
+
+
+
+  const buttonStyle: React.CSSProperties = {
+    padding: "10px 20px",
+    fontSize: "16px",
+    cursor: "pointer",
+    backgroundColor: "#4CAF50",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    width: "200px",
+    height: "60px",
+  }
 
 
   return (
@@ -72,11 +87,11 @@ const App = () => {
               <Player />
             </KeyboardControls>
 
-            {taskActive &&
-              <Task onTaskEnd={() => setTaskActive(false)} />
-            }
-
-
+            {activeTask && (
+              <activeTask.component
+                onTaskEnd={() => setActiveTask(null)}
+              />
+            )}
 
           </Canvas>
         </div>
@@ -85,28 +100,18 @@ const App = () => {
       <div id="UI">
         <CrosshairDot size={6} color="white" opacity={0.5} />
 
-        {/* Button to activate task */}
-        {!taskActive && (
-          <button
-            onClick={() => setTaskActive(true)}
-            style={{
-              position: "absolute",
-              bottom: "00px",
-              left: "00%",
-              padding: "10px 20px",
-              fontSize: "16px",
-              cursor: "pointer",
-              backgroundColor: "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              width: "300px",
-              height: "100px",
-
-            }}
-          >
-            Start Task
-          </button>
+        {!activeTask && (
+          <div style={{ position: "absolute", bottom: 0, display: "flex", gap: 10 }}>
+            {tasks.map((task) => (
+              <button
+                key={task.task_name}
+                onClick={() => setActiveTask(task)}
+                style={buttonStyle}
+              >
+                {task.task_name}
+              </button>
+            ))}
+          </div>
         )}
 
 

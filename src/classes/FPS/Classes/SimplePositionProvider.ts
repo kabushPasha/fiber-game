@@ -5,7 +5,7 @@ import * as THREE from 'three';
 export class SimplePositionProvider {
   size: THREE.Vector3;
 
-  constructor(size: THREE.Vector3) {
+  constructor(size: THREE.Vector3 = new THREE.Vector3(3, 3, 0.1)) {
     this.size = size.clone();
   }
 
@@ -21,21 +21,21 @@ export class SimplePositionProvider {
     this.size.copy(size);
   }
 
-  setPosition( obj:any) {
-    obj.position.copy( this.getFreePosition());
+  setPosition(obj: any) {
+    obj.position.copy(this.getFreePosition());
   }
 
   reset() {
-    
+
   }
 }
 
 export class EmptyPositionProvider extends SimplePositionProvider {
 
-  setPosition( ) {
+  setPosition() {
   }
 
   reset() {
-    
+
   }
 }
