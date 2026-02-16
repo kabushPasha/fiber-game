@@ -35,12 +35,12 @@ export function AddScoreChangeCallback({ callback }: { callback: (e: any) => voi
     return <AddCallbackToParentEvent event="score_change" callback={callback} />
 }
 
-export function FinishTaskOnMaxScore({ onFinished, maxScore = 5 }: { onFinished: () => void, maxScore: number }) {
+export function FinishTaskOnMaxScore({ onFinished, maxScore = 5 }: { onFinished: (e:any) => void, maxScore: number }) {
     return <AddScoreChangeCallback callback={
         (e) => {
-            if (e.source.userData.score > 5) {
+            if (e.source.userData.score > maxScore) {
                 console.log("Task finished!", e.source.userData.time);
-                onFinished();
+                onFinished(e);
             }
         }}
     />

@@ -1,6 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
+export type TargetEvent = {
+    event: "mount" | "hit" | "hover" | "tick" | string; // string allows future custom events
+    source: THREE.Object3D;
+    delta: number; // optional, only relevant for hover/tick
+}
+
 type AddCallbackToParentEventProps = {
   event: string; // Event name, e.g., "hit", "hover", "reset"
   callback: (e: any) => void; // Function to run when event fires
@@ -26,10 +32,18 @@ export function AddCallbackToParentEvent({ event, callback, dispatcher }: AddCal
 }
 
 
-export function AddHitCallback( {callback}: {callback:(e:any) => void}){
+export function AddHitCallback( {callback}: {callback:(e:TargetEvent) => void}){
   return <AddCallbackToParentEvent event="hit" callback={callback}/>
 }
 
-export function AddMountCallback( {callback}: {callback:(e:any) => void}){
+export function AddMountCallback( {callback}: {callback:(e:TargetEvent) => void}){
   return <AddCallbackToParentEvent event="mount" callback={callback}/>
+}
+
+export function AddHoverCallback( {callback}: {callback:(e:TargetEvent) => void}){
+  return <AddCallbackToParentEvent event="hover" callback={callback}/>
+}
+
+export function AddTickCallback( {callback}: {callback:(e:TargetEvent) => void}){
+  return <AddCallbackToParentEvent event="tick" callback={callback}/>
 }

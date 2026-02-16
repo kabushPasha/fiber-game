@@ -5,13 +5,15 @@ import * as THREE from "three"
 
 import {
   KeyboardControls,
-  Environment
+  Environment,
+  Html
 } from "@react-three/drei"
 
 import { Player } from "./classes/Player"
 import { Pixelated } from "./components/Pixelated"
 import { CrosshairDot } from "./components/CrosshairDot"
-import { GridTask, Task, type TaskDefinition, type TaskProps , AllTasks as tasks} from "./classes/FPS/Components/Task"
+import { GridTask, Task, type TaskDefinition, type TaskProps, AllTasks as tasks } from "./classes/FPS/Components/Task"
+import { TaskSelector } from "./classes/FPS/UI/TaskSelector"
 
 
 const App = () => {
@@ -64,7 +66,7 @@ const App = () => {
             gl={{ antialias: false }}
             style={{ background: "black" }}
           >
-            <Pixelated resolution={64} />
+            <Pixelated resolution={128} />
             <group name="Lights">
               <Environment
                 files="textures/hdri/clouds.jpg"
@@ -89,7 +91,10 @@ const App = () => {
 
             {activeTask && (
               <activeTask.component
-                onTaskEnd={() => setActiveTask(null)}
+                onTaskEnd={(e) => {
+                  setActiveTask(null)
+                  saveTaskScore(activeTask.task_name, e.source.userData.time);
+                }}
               />
             )}
 
@@ -100,24 +105,25 @@ const App = () => {
       <div id="UI">
         <CrosshairDot size={6} color="white" opacity={0.5} />
 
-        {!activeTask && (
-          <div style={{ position: "absolute", bottom: 0, display: "flex", gap: 10 }}>
-            {tasks.map((task) => (
-              <button
-                key={task.task_name}
-                onClick={() => setActiveTask(task)}
-                style={buttonStyle}
-              >
-                {task.task_name}
-              </button>
-            ))}
-          </div>
-        )}
+        <TaskSelector
+          tasks={tasks}
+          onSelect={(task) => setActiveTask(task)}
+        />
 
 
       </div>
     </div >
   )
+}
+
+export function saveTaskScore(taskName: string, score: number) {
+  const allScores = JSON.parse(localStorage.getItem("taskScores") || "{}");
+  if (!allScores[taskName]) allScores[taskName] = [];
+  allScores[taskName].push({
+    score,
+    timestamp: Date.now(),
+  });
+  localStorage.setItem("taskScores", JSON.stringify(allScores));
 }
 
 
