@@ -58,7 +58,7 @@ export const GridTask = (taskProps: TaskProps) => {
     return (
         <>
             <group name="Task">
-                <TimedTaskComponents {...taskProps} />
+                <TimedTaskComponents {...taskProps} maxScore={30}/>
                 <GridPositionProviderComponent />
 
                 {Array.from({ length: 3 }).map((_, i) => (

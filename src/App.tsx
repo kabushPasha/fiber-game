@@ -105,10 +105,11 @@ const App = () => {
       <div id="UI">
         <CrosshairDot size={6} color="white" opacity={0.5} />
 
-        <TaskSelector
-          tasks={tasks}
-          onSelect={(task) => setActiveTask(task)}
-        />
+        {!activeTask && (
+          <TaskSelector
+            tasks={tasks}
+            onSelect={(task) => setActiveTask(task)}
+          />)}
 
 
       </div>
