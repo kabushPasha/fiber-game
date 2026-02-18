@@ -17,22 +17,9 @@ import { TaskSelector } from "./classes/FPS/UI/TaskSelector"
 
 
 const App = () => {
+
   const [activeTask, setActiveTask] = useState<TaskDefinition | null>(null)
-
-
-
-  const buttonStyle: React.CSSProperties = {
-    padding: "10px 20px",
-    fontSize: "16px",
-    cursor: "pointer",
-    backgroundColor: "#4CAF50",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    width: "200px",
-    height: "60px",
-  }
-
+  const [score, setScore] = useState<number | null>(null)
 
   return (
     <div
@@ -45,13 +32,15 @@ const App = () => {
 
       <div id="CanvasParent"
         style={{
+          position: "fixed",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          width: "100%",
-          height: "100%",
+          width: "100vw",
+          height: "100vh",
           background: "black",
-          overflow: "hidden"
+          overflow: "hidden",
+          inset: 0
         }}>
 
         <div id="Canvas3D"
@@ -93,7 +82,12 @@ const App = () => {
               <activeTask.component
                 onTaskEnd={(e) => {
                   setActiveTask(null)
-                  saveTaskScore(activeTask.task_name, e.source.userData.time);
+                  console.log("TASK END:",e);
+                  saveTaskScore(activeTask.task_name, e.finalScore);
+                  setScore(null);
+                }}
+                onScoreChange={(e) => {
+                  setScore(e.score);
                 }}
               />
             )}
@@ -102,15 +96,41 @@ const App = () => {
         </div>
       </div>
 
-      <div id="UI">
+      <div id="UI" style={{
+        position: "fixed",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
+        inset: 0
+      }}>
         <CrosshairDot size={6} color="white" opacity={0.5} />
 
-        {!activeTask && (
-          <TaskSelector
-            tasks={tasks}
-            onSelect={(task) => setActiveTask(task)}
-          />)}
+        {/**Task Selector */}
+        {!activeTask && (<TaskSelector tasks={tasks} onSelect={(task) => setActiveTask(task)} />)}
 
+        {/**Score Display */}
+        {activeTask && score !== null &&  (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "20px",
+              left: "20px",
+              padding: "10px 16px",
+              background: "rgba(0,0,0,0.6)",
+              color: "white",
+              fontSize: "18px",
+              fontFamily: "monospace",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              pointerEvents: "none",
+            }}
+          >
+            Score: {score.toFixed(2)}
+          </div>
+        )}
 
       </div>
     </div >

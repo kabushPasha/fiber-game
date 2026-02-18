@@ -48,7 +48,7 @@ export const TaskInfoCard: React.FC<TaskInfoCardProps> = ({ task }) => {
     const taskScores = allScores[task.task_name] || [];
 
     const labels = taskScores.length ? taskScores.map((_, i) => `#${i + 1}`) : ["0"];
-    const data = taskScores.length ? taskScores.map((s: any) => (s.score > 0 ? 1 / s.score : 0)) : [0];
+    const data = taskScores.length ? taskScores.map((s: any) => ( s.score )) : [0];
 
     return {
       labels,

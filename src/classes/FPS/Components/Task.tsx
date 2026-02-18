@@ -1,4 +1,4 @@
-import { AddCallbackToParentEvent, AddHitCallback, AddHoverCallback, AddMountCallback, AddTickCallback, type TargetEvent } from "./AddCallbackToParentEvent"
+import { AddCallbackToParentEvent, AddHitCallback, AddHoverCallback, AddMountCallback, AddTickCallback, TickComponent, type TargetEvent } from "./AddCallbackToParentEvent"
 import { SimpleTarget } from "../../SimpleTarget"
 import { Timer } from "./Timer"
 import { AddPositionProvider, GridPositionProviderComponent, useParentPositionProvider } from "./AddPositionProvider"
@@ -8,9 +8,11 @@ import { playSound } from "../Classes/sounds"
 import { RandomReverseVelocity } from "./TragetComponents/RandomReverseVelocity"
 import { ClampToBbox } from "./TragetComponents/ClampToBbox"
 import { UseNoisePosition } from "./TragetComponents/UseNoisePosition"
+import { useRef, useState } from "react"
 
 export interface TaskProps {
-    onTaskEnd?: (e:any) => void,
+    onTaskEnd?: (e: any) => void,
+    onScoreChange?: (e: any) => void,
     children?: React.ReactNode
     maxScore?: number
 }
@@ -20,12 +22,34 @@ export type TaskDefinition = {
     component: React.FC<TaskProps>
 }
 
-export const TimedTaskComponents = (taskProps: TaskProps) => {
-    return (<>
-        <Timer showUI={true} />
-        <ScoreComponent />
-        <FinishTaskOnMaxScore onFinished={(e) => { taskProps.onTaskEnd?.(e); }} maxScore={taskProps.maxScore ?? 5} />
-    </>)
+
+export const OneMinuteTask = (taskProps: TaskProps) => {
+    const timeRef = useRef(0);
+    const finishedRef = useRef(false);
+    const max_time = 5;
+
+    return (
+        <>
+            <TickComponent />
+            <AddTickCallback callback={(e) => {
+                if (finishedRef.current) return;
+
+                timeRef.current += e.delta;
+
+                if (timeRef.current > max_time) {
+                    finishedRef.current = true;
+                    (e as any).finalScore = e.source.userData.score;
+                    taskProps.onTaskEnd?.(e);
+                }
+            }} />
+
+            <ScoreComponent />
+            <AddScoreChangeCallback callback={(e) => {
+                e.score = e.source.userData.score;
+                taskProps.onScoreChange?.(e);
+            }} />
+        </>
+    )
 }
 
 
@@ -34,7 +58,7 @@ export const Task = (taskProps: TaskProps) => {
     return (
         <>
             <group name="Task">
-                <TimedTaskComponents {...taskProps} />
+                <OneMinuteTask {...taskProps} />
                 <AddPositionProvider />
 
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -58,7 +82,7 @@ export const GridTask = (taskProps: TaskProps) => {
     return (
         <>
             <group name="Task">
-                <TimedTaskComponents {...taskProps} maxScore={30}/>
+                <OneMinuteTask {...taskProps} maxScore={30} />
                 <GridPositionProviderComponent />
 
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -87,7 +111,7 @@ export const TrackingTask = (taskProps: TaskProps) => {
     return (
         <>
             <group name="TrackingTask">
-                <TimedTaskComponents {...taskProps} maxScore={5} />
+                <OneMinuteTask {...taskProps} maxScore={5} />
 
 
                 <SimpleTarget>
@@ -115,7 +139,7 @@ export const SmoothTrack2d = (taskProps: TaskProps) => {
     return (
         <>
             <group name="SmoothTrack2d">
-                <TimedTaskComponents {...taskProps} maxScore={5} />
+                <OneMinuteTask {...taskProps} maxScore={5} />
 
                 <SimpleTarget>
                     <AddHoverCallback callback={(e) => { e.source.parent!.dispatchEvent({ type: "add_score", source: e.source, score: e.delta }); }} />
@@ -149,4 +173,5 @@ export const AllTasks: TaskDefinition[] = [
     { task_name: "GridTask", component: GridTask },
     { task_name: "TrackingTask", component: TrackingTask },
     { task_name: "SmoothTrack2d", component: SmoothTrack2d },
+    { task_name: "OneMinuteTask", component: OneMinuteTask }
 ]
