@@ -8,7 +8,9 @@ import { playSound } from "../Classes/sounds"
 import { RandomReverseVelocity } from "./TragetComponents/RandomReverseVelocity"
 import { ClampToBbox } from "./TragetComponents/ClampToBbox"
 import { UseNoisePosition } from "./TragetComponents/UseNoisePosition"
-import { useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { useUI } from "../../../components/UIScreenContext"
+import { UIComponent, useThreeEvent } from "../UI/UIComponent"
 
 export interface TaskProps {
     onTaskEnd?: (e: any) => void,
@@ -23,6 +25,69 @@ export type TaskDefinition = {
 }
 
 
+export const TaskUI = {
+    TimerUI: ({ obj }: { obj?: THREE.Object3D }) => {
+        if (!obj) return;
+        const [time, setTime] = useState(0)
+
+        useThreeEvent(obj, "tick", (e: any) => {
+            setTime(e.source.userData.time)
+        })
+
+        return (
+            <div
+                style={{
+                    position: "absolute",
+                    top: "20px",
+                    left: "20px",
+                    padding: "10px 16px",
+                    background: "rgba(0,0,0,0.6)",
+                    color: "white",
+                    fontSize: "18px",
+                    fontFamily: "monospace",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    pointerEvents: "none",
+                    width: "200px",
+                }}
+            >
+                Score: {time}
+            </div>
+        )
+    },
+
+    ScoreUI: ({ obj }: { obj?: THREE.Object3D }) => {
+        if (!obj) return;
+        const [score, setScore] = useState(0)
+
+        useThreeEvent(obj, "score_change", (e: any) => {
+            setScore(e.source.userData.score)
+        })
+
+        return (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "20px",
+                left: "20px",
+                padding: "10px 16px",
+                background: "rgba(0,0,0,0.6)",
+                color: "white",
+                fontSize: "18px",
+                fontFamily: "monospace",
+                borderRadius: "8px",
+                border: "1px solid rgba(255,255,255,0.2)",
+                pointerEvents: "none",
+              }}
+            >
+              Score: {score.toFixed(2)}
+            </div>
+        )
+    },
+}
+
+
+
 export const OneMinuteTask = (taskProps: TaskProps) => {
     const timeRef = useRef(0);
     const finishedRef = useRef(false);
@@ -31,10 +96,13 @@ export const OneMinuteTask = (taskProps: TaskProps) => {
     return (
         <>
             <TickComponent />
+            <UIComponent Component={TaskUI.TimerUI} />
+            <UIComponent Component={TaskUI.ScoreUI} />
+
             <AddTickCallback callback={(e) => {
                 if (finishedRef.current) return;
-
                 timeRef.current += e.delta;
+                e.source.userData.time = timeRef.current + e.delta;
 
                 if (timeRef.current > max_time) {
                     finishedRef.current = true;
@@ -159,11 +227,6 @@ export const SmoothTrack2d = (taskProps: TaskProps) => {
         </>
     )
 }
-
-
-
-
-
 
 
 

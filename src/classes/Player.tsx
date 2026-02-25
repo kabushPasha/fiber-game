@@ -1,11 +1,16 @@
 import { PointerLockControls, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import * as THREE from "three"
+import { useUI } from "../components/UIScreenContext"
+import { CrosshairDot } from "../components/CrosshairDot"
+
+
 
 const SPEED = 5
 
 export function Player() {
+  const { mount } = useUI()
   const controls = useRef<any>(null)
   const [, get] = useKeyboardControls()
   const { camera } = useThree()
@@ -21,6 +26,16 @@ export function Player() {
     controls.current.moveForward(z)
     controls.current.moveRight(x)
   })
+
+  useEffect(() => {
+    const unmount = mount(() =>
+      <CrosshairDot size={6} color="white" opacity={0.5} />
+    )
+    
+    return unmount
+  }, [])
+
+
 
   return (
     <PointerLockControls
