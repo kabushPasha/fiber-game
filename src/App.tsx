@@ -1,14 +1,9 @@
 import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import { useRef, useState } from "react"
-import * as THREE from "three"
+import * as THREE from "three/webgpu"
 
-import {
-  KeyboardControls,
-  Environment,
-  Html
-} from "@react-three/drei"
-
+import { KeyboardControls, Environment, Html } from "@react-three/drei"
 import { Player } from "./classes/Player"
 import { Pixelated } from "./components/Pixelated"
 import { CrosshairDot } from "./components/CrosshairDot"
@@ -16,6 +11,8 @@ import { GridTask, Task, type TaskDefinition, type TaskProps, AllTasks as tasks 
 import { TaskSelector } from "./classes/FPS/UI/TaskSelector"
 import { UIScreenProvider } from "./components/UIScreenContext"
 import { TaskSelectorPawn } from "./classes/FPS/Components/TaskSelector"
+import { AuroraBackground } from "./classes/shaders/Aurora"
+import { SdfBackground, TestSDF } from "./classes/shaders/Raymarcher"
 
 
 const App = () => {
@@ -50,18 +47,32 @@ const App = () => {
             }}>
 
             <Canvas
-              camera={{ fov: 50, aspect: 2.35 }}
-              gl={{ antialias: false }}
+              camera={{ fov: 50, aspect: 2.35, position: [0, 1.75, 3] }}
+              //gl={{ antialias: false }}
+              gl={async (props) => {
+                const renderer = new THREE.WebGPURenderer({
+                  ...props,
+                  antialias: false,
+                } as any)
+
+                await renderer.init()
+                return renderer
+              }}
               style={{ background: "black" }}
+
             >
+
               <Pixelated resolution={128} />
 
+
               <group name="Lights">
+                {/** 
                 <Environment
                   files="textures/hdri/clouds.jpg"
-                  background
+                  //background
                   environmentIntensity={1}
                 />
+                */}
                 <ambientLight intensity={0.3} />
                 <pointLight intensity={0.8} position={[100, 100, 100]} />
               </group>
@@ -78,7 +89,13 @@ const App = () => {
                 <Player />
               </KeyboardControls>
 
-              <TaskSelectorPawn/>
+              
+              
+{/*               <TaskSelectorPawn/> 
+ */}
+
+              <AuroraBackground />
+              <TestSDF />
 
 
             </Canvas>

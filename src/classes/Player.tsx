@@ -38,6 +38,8 @@ export function Player() {
 
 
   return (
+
+    
     <PointerLockControls
       ref={controls}
       camera={camera}
