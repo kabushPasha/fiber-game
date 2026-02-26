@@ -134,7 +134,7 @@ export const raymarch = Fn(([sdfSceneFN]: [any]) => {
 export function SdfBackgroundSimple() {
     const { scene } = useThree()
     useEffect(() => {
-        
+
         const sdfScene = Fn(([position]: [any]) => {
             const sphere = shapes.sphere(position.sub(vec3(0, 1, -5)), 2)
             const distance = sphere.toVar()
@@ -159,25 +159,22 @@ export function SdfBackgroundSimple() {
 }
 
 
-
-
-
 /** REACT LIKE */
 export class SdfSceneBuilder {
-  objects: Array<(p: any) => any> = [];
+    operations: Array<(sdf: any, p: any) => any> = [];
 
-  // generic push function
-  add(fn: (p: any) => any) {
-    this.objects.push(fn);
-  }
+    // Add an operation
+    add(op: (sdf: any, p: any) => any) { this.operations.push(op); }
 
-  build() {
-    return Fn(([p]: [any]) => {
-      if (this.objects.length === 0) return vec2(float(1000), 0); // empty scene
-      const dist = this.objects.map(fn => fn(p));
-      return vec2(dist.reduce((a, b) => min(a, b)), 1);
-    });
-  }
+    build() {
+        return Fn(([p]: [any]) => {
+            const sdf = vec2(float(1000), 0).toVar();
+            for (const op of this.operations) {
+                sdf.assign(op(sdf, p)); // assign result properly
+            }
+            return sdf;
+        });
+    }
 }
 
 // React Context
@@ -188,24 +185,24 @@ export function useSdfScene() {
     return ctx;
 }
 
-type SdfObjectProps = { fn: (p: any) => any; };
+type SdfObjectProps = { op: (sdf: any, p: any) => any };
 
-export function SdfObject({ fn }: SdfObjectProps) {
-  const builder = useSdfScene();
-  useEffect(() => { builder.add(fn);  }, [builder, fn]);
-  return null;
+export function SdfObject({ op }: SdfObjectProps) {
+    const builder = useSdfScene();
+    useEffect(() => {
+        builder.add(op);
+    }, [builder, op]);
+    return null;
 }
 
+
 export function SdfSphere({ position, radius }: { position: any; radius: any }) {
-  return <SdfObject fn={(p: any) => shapes.sphere(sub(p, position), radius)} />;
+    return <SdfObject op={(sdf, p) => vec2(min(sdf.x, shapes.sphere(sub(p, position), radius)), 1)} />;
 }
 
 export function SdfPlane({ y }: { y: any }) {
-  return <SdfObject fn={(p: any) => sub(p.y, y)} />;
+    return <SdfObject op={(sdf, p) => vec2(min(sdf.x, p.y.sub(y)), 1)} />;
 }
-
-
-
 
 
 export function SdfBackground({ children }: { children?: React.ReactNode }) {
@@ -237,14 +234,12 @@ export function SdfBackground({ children }: { children?: React.ReactNode }) {
     );
 }
 
-
 export function TestSDF() {
     return <SdfBackground>
         <SdfSphere position={vec3(0, 1, -5)} radius={2} />
         <SdfSphere position={vec3(2, 1, -3)} radius={1} />
         <SdfPlane y={0} />
     </SdfBackground>;
-
 }
 
 

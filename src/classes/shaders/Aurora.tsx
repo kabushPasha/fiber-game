@@ -3,7 +3,7 @@ import { uv, Fn, vec4, positionWorld, cameraPosition, normalize, sub, greaterTha
 import { getViewPosition, cameraWorldMatrix, cameraProjectionMatrixInverse, max, exp2, mat2, Var, time, abs, clamp, array, cos, div, screenUV, sin, vec3, vec2, fract, floor, length, mul, add, step, mix, smoothstep, hash, dot, float, uvec3, uint, ivec3, Loop, pow } from 'three/tsl';
 
 import * as TSL from 'three/tsl'
-import { useThree } from '@react-three/fiber';
+import { useLoader, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 
 // creates a 2d rotatin matrix that rotates by a radians  float-mat2
@@ -305,4 +305,17 @@ export function AuroraBackground() {
     const { scene } = useThree()
     useEffect(() => { scene.background = AuroraMaterial();  }, [])
     return null;
+}
+
+
+
+
+export function SimpleBackground() {
+    const colorMap = useLoader(THREE.TextureLoader, "textures/hdri/clouds.jpg")
+    colorMap.mapping = THREE.EquirectangularReflectionMapping;
+    colorMap.colorSpace = THREE.SRGBColorSpace;
+
+    const { scene } = useThree()
+    useEffect(() => { scene.background = colorMap;  }, [])
+    return null;    
 }

@@ -11,8 +11,16 @@ import { GridTask, Task, type TaskDefinition, type TaskProps, AllTasks as tasks 
 import { TaskSelector } from "./classes/FPS/UI/TaskSelector"
 import { UIScreenProvider } from "./components/UIScreenContext"
 import { TaskSelectorPawn } from "./classes/FPS/Components/TaskSelector"
-import { AuroraBackground } from "./classes/shaders/Aurora"
+import { AuroraBackground, SimpleBackground } from "./classes/shaders/Aurora"
 import { SdfBackground, TestSDF } from "./classes/shaders/Raymarcher"
+
+
+
+import {extend} from "@react-three/fiber"
+import {MeshStandardNodeMaterial} from "three/webgpu"
+import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
+extend({MeshStandardNodeMaterial})
+
 
 
 const App = () => {
@@ -89,13 +97,22 @@ const App = () => {
                 <Player />
               </KeyboardControls>
 
-              
-              
-{/*               <TaskSelectorPawn/> 
- */}
+
+
+              {/*
+               <TaskSelectorPawn/> 
+              */}
 
               <AuroraBackground />
               <TestSDF />
+              <SimpleBackground />
+
+              <mesh>
+                <planeGeometry args={[5, 5]} />
+              </mesh>
+
+              <TestTslShader/>
+
 
 
             </Canvas>
