@@ -11,7 +11,7 @@ export type TerrainData = {
     height: number;
     hf_height: number;
     hf_size: number;
-    texture: THREE.Texture;
+    hf_tex: THREE.Texture;
     getHeightAtPos: (worldPos: THREE.Vector3) => number;
 };
 
@@ -34,8 +34,8 @@ type Props = {
 
 export function TerrainProvider({
     textureUrl,
-    hf_size = 200,
-    hf_height = 20,
+    hf_size = 512,
+    hf_height = 50,
     children,
 }: Props) {
 
@@ -59,16 +59,12 @@ export function TerrainProvider({
         function getHeightAtPos(worldPos: THREE.Vector3): number {
             const worldX = worldPos.z;
             const worldZ = worldPos.x;
-
             let u = (worldX / hf_size + 0.5) % 1;
             let v = (worldZ / hf_size + 0.5) % 1;
-
             if (u < 0) u += 1;
             if (v < 0) v += 1;
-
             const i = Math.floor(u * (width - 1));
             const j = Math.floor(v * (height - 1));
-
             return heights[j * width + i] * hf_height;
         }
 
@@ -78,7 +74,7 @@ export function TerrainProvider({
             height,
             hf_height,
             hf_size,
-            texture: hf_tex,
+            hf_tex,
             getHeightAtPos,
         };
 

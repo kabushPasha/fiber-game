@@ -15,12 +15,13 @@ import { TestSDF } from "./classes/shaders/Raymarcher"
 import { extend } from "@react-three/fiber"
 import { MeshStandardNodeMaterial, } from "three/webgpu"
 import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
-import { Terrain, TerrainPlane } from "./classes/Terrain"
+import { Terrain, TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
 import { Suspense } from "react"
 import { TerrainSampler } from "./classes/TerrainSampler"
+import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -58,7 +59,7 @@ const App = () => {
             }}>
 
             <Canvas
-              camera={{ fov: 50, aspect: 2.35, position: [0, 1.75, 3] }}
+              camera={{ fov: 50, aspect: 2.35, position: [0, 1.75, 0] }}
               //gl={{ antialias: false }}
               gl={async (props) => {
                 const renderer = new THREE.WebGPURenderer({
@@ -95,12 +96,18 @@ const App = () => {
                       { name: "jump", keys: ["Space"] },
                     ]}
                   >
-                    <Player >
-                      <TerrainSampler />
-                      <TerrainPlane />
+                    <TerrainProvider textureUrl="/textures/HFs/height.png">
+                      <Player >
+                        <TerrainSampler />
+                        <TerrainPlane />
+                      </Player>
+                      <Terrain />
 
 
-                    </Player>
+                    </TerrainProvider>
+
+
+
 
                   </KeyboardControls>
 
@@ -113,7 +120,6 @@ const App = () => {
 
                   {false && <TestTslShader />}
 
-                  {1 && <Terrain />}
 
                   {/**
                   <RigidBody type="fixed">

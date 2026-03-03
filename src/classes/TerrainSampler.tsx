@@ -1,15 +1,16 @@
 import { useThree, useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
+import { useTerrain } from "./Terrain/TerrainProvider";
 
 
 export function TerrainSampler() {
-  const { scene, camera } = useThree();
+  const { camera } = useThree();
+  const terrain = useTerrain();
   const groupRef = useRef<THREE.Group>(null);
   const worldPos = new THREE.Vector3();
 
   useFrame(() => {
-    const terrain = scene.userData.terrain;
     if (!terrain || !groupRef.current) return;
 
     const parent = groupRef.current.parent;

@@ -6,7 +6,7 @@ import { useUI } from "../components/UIScreenContext"
 import { CrosshairDot } from "../components/CrosshairDot"
 
 
-const SPEED = 15
+const SPEED = 5;
 
 interface PlayerProps {
   children?: ReactNode
@@ -30,6 +30,7 @@ export function Player({ children }: PlayerProps) {
 
     controls.current.moveForward(z)
     controls.current.moveRight(x)
+    
     
     playerRef.current.position.copy(camera.position);
     
