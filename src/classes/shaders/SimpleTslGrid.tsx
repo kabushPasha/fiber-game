@@ -1,9 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
-import { float, mix, modelWorldMatrix, positionLocal, sin, uniform, uv, vec3, vec4 } from "three/tsl";
+import {  mix, modelWorldMatrix, positionLocal, sin, uniform, uv, vec3, vec4 } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
-
-
 
 
 export function TestTslShader() {
