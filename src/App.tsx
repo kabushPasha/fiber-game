@@ -77,14 +77,11 @@ const App = () => {
 
                   {0 && <Pixelated resolution={128} />}
 
-
                   <group name="Lights">
-                    <ambientLight intensity={0.3} />
-                    <pointLight intensity={0.8} position={[100, 100, 100]} />
+                    <ambientLight intensity={0.2} />
+                    <pointLight intensity={0.00} position={[100, 100, 100]} />
+                    <directionalLight position={[10, 5, 0]} intensity={0.6} />
                   </group>
-
-
-
 
 
                   <KeyboardControls
@@ -101,9 +98,7 @@ const App = () => {
                         <TerrainSampler />
                         <TerrainPlane />
                       </Player>
-                      <Terrain />
-
-
+                      {0 && <Terrain />}
                     </TerrainProvider>
 
 

@@ -12,6 +12,7 @@ export type TerrainData = {
     hf_height: number;
     hf_size: number;
     hf_tex: THREE.Texture;
+    hf_nml: THREE.Texture;
     getHeightAtPos: (worldPos: THREE.Vector3) => number;
 };
 
@@ -22,7 +23,6 @@ export function useTerrain() {
     if (!ctx) throw new Error("useTerrain must be used inside TerrainProvider");
     return ctx;
 }
-
 
 /** PROVIDER */
 type Props = {
@@ -35,18 +35,22 @@ type Props = {
 export function TerrainProvider({
     textureUrl,
     hf_size = 512,
-    hf_height = 50,
+    hf_height = 25,
     children,
 }: Props) {
 
     const hf_tex = useLoader(TextureLoader, textureUrl);
-
     hf_tex.wrapS = THREE.RepeatWrapping;
     hf_tex.wrapT = THREE.RepeatWrapping;
     hf_tex.colorSpace = THREE.NoColorSpace;
     hf_tex.minFilter = THREE.NearestFilter;
     hf_tex.magFilter = THREE.NearestFilter;
     hf_tex.generateMipmaps = false;
+
+    const hf_nml = useLoader(TextureLoader, "/textures/HFs/height_N.png");
+    hf_nml.wrapS = THREE.RepeatWrapping;
+    hf_nml.wrapT = THREE.RepeatWrapping;
+    hf_nml.colorSpace = THREE.NoColorSpace;
 
     const { width, height } = hf_tex.image as HTMLImageElement;
 
@@ -59,13 +63,37 @@ export function TerrainProvider({
         function getHeightAtPos(worldPos: THREE.Vector3): number {
             const worldX = worldPos.z;
             const worldZ = worldPos.x;
+
             let u = (worldX / hf_size + 0.5) % 1;
             let v = (worldZ / hf_size + 0.5) % 1;
+
             if (u < 0) u += 1;
             if (v < 0) v += 1;
-            const i = Math.floor(u * (width - 1));
-            const j = Math.floor(v * (height - 1));
-            return heights[j * width + i] * hf_height;
+
+            // Convert to continuous pixel space
+            const x = u * (width - 1);
+            const y = v * (height - 1);
+
+            const x0 = Math.floor(x);
+            const x1 = Math.min(x0 + 1, width - 1);
+            const y0 = Math.floor(y);
+            const y1 = Math.min(y0 + 1, height - 1);
+
+            const tx = x - x0; // fractional part in x
+            const ty = y - y0; // fractional part in y
+
+            // Sample 4 neighboring heights
+            const h00 = heights[y0 * width + x0];
+            const h10 = heights[y0 * width + x1];
+            const h01 = heights[y1 * width + x0];
+            const h11 = heights[y1 * width + x1];
+
+            // Bilinear interpolation
+            const hx0 = THREE.MathUtils.lerp(h00, h10, tx);
+            const hx1 = THREE.MathUtils.lerp(h01, h11, tx);
+            const h = THREE.MathUtils.lerp(hx0, hx1, ty);
+
+            return h * hf_height;
         }
 
         return {
@@ -75,6 +103,7 @@ export function TerrainProvider({
             hf_height,
             hf_size,
             hf_tex,
+            hf_nml,
             getHeightAtPos,
         };
 
@@ -88,7 +117,7 @@ export function TerrainProvider({
 }
 
 
-function textureToHeightData(    hf_tex: THREE.Texture,): number[] {
+function textureToHeightData(hf_tex: THREE.Texture,): number[] {
     const img = hf_tex.image as HTMLImageElement;
     const { width, height } = img;
 

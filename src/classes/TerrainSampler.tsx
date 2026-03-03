@@ -10,19 +10,32 @@ export function TerrainSampler() {
   const groupRef = useRef<THREE.Group>(null);
   const worldPos = new THREE.Vector3();
 
-  useFrame(() => {
-    if (!terrain || !groupRef.current) return;
+useFrame((state, delta) => {
+  if (!terrain || !groupRef.current) return;
 
-    const parent = groupRef.current.parent;
-    if (!parent) return;
-    
-    parent.getWorldPosition(worldPos);
+  const parent = groupRef.current.parent;
+  if (!parent) return;
 
-    const sampledHeight = terrain.getHeightAtPos(worldPos);
+  parent.getWorldPosition(worldPos);
 
-    parent.position.setY(sampledHeight);
-    camera.position.setY(sampledHeight + 1.75);
-  });
+  const targetHeight = terrain.getHeightAtPos(worldPos);
+
+  // Smooth parent Y
+  parent.position.y = THREE.MathUtils.damp(
+    parent.position.y,
+    targetHeight,
+    8,        // smoothing factor (higher = snappier)
+    delta
+  );
+
+  // Smooth camera Y
+  camera.position.y = THREE.MathUtils.damp(
+    camera.position.y,
+    targetHeight + 1.75,
+    8,
+    delta
+  );
+});
 
   return <group ref={groupRef} />;
 }

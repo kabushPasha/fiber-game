@@ -6,7 +6,7 @@ import { useUI } from "../components/UIScreenContext"
 import { CrosshairDot } from "../components/CrosshairDot"
 
 
-const SPEED = 5;
+const SPEED = 35;
 
 interface PlayerProps {
   children?: ReactNode
@@ -33,8 +33,7 @@ export function Player({ children }: PlayerProps) {
     
     
     playerRef.current.position.copy(camera.position);
-    
-  })
+  }, -10)
 
   useEffect(() => {
     const unmount = mount(() =>
