@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import type { GameObjectEventMap } from "../../GameObjectEventMap";
 
 export type TargetEvent = {
   event: "mount" | "hit" | "hover" | "tick" | string; // string allows future custom events
@@ -51,8 +52,12 @@ export function AddTickCallback({ callback }: { callback: (e: TargetEvent) => vo
 export function TickComponent() {
   const ref = useRef<THREE.Object3D>(null!);
 
-  useFrame((_, delta) => {    
-    ref.current.parent!.dispatchEvent({ type: "tick", source: ref.current.parent, delta })
+
+  useFrame((_, delta) => {
+    const parent = ref.current.parent as THREE.Object3D<GameObjectEventMap> | null
+    if (!parent) return
+
+    parent.dispatchEvent({ type: "tick", source: parent, delta })
   })
 
   return (<group name="TickComponent" ref={ref} />)

@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useFrame } from "@react-three/fiber"
 import * as THREE from 'three';
+import type { GameObjectEventMap } from "./GameObjectEventMap";
+
+
+
+
 
 
 type SimpleTargetProps = {
@@ -8,7 +13,7 @@ type SimpleTargetProps = {
 }
 
 export const SimpleTarget = ({ position = [0, 0, 0], children }: React.PropsWithChildren<SimpleTargetProps>) => {
-    const ref = useRef<THREE.Mesh>(null!)
+    const ref = useRef<THREE.Mesh<any,any,GameObjectEventMap>>(null!)
     const [hovered, setHover] = useState(false)    
 
     // Simple rotation animation
@@ -16,7 +21,7 @@ export const SimpleTarget = ({ position = [0, 0, 0], children }: React.PropsWith
         //if (ref.current) { ref.current.rotation.x += delta }
 
         ref.current.dispatchEvent({ type: "tick", source: ref.current, delta })
-        if (hovered) (ref.current as any)?.dispatchEvent({ type: "hover", source: ref.current, delta })
+        if (hovered) ref.current.dispatchEvent({ type: "hover", source: ref.current, delta })
     })
 
     // This is our “hit event” handler

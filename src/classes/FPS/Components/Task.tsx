@@ -8,8 +8,9 @@ import { RandomReverseVelocity } from "./TragetComponents/RandomReverseVelocity"
 import { ClampToBbox } from "./TragetComponents/ClampToBbox"
 import { UseNoisePosition } from "./TragetComponents/UseNoisePosition"
 import React, { useRef, useState } from "react"
-import { useUI } from "../../../components/UIScreenContext"
+//import { useUI } from "../../../components/UIScreenContext"
 import { UIComponent, useThreeEvent } from "../UI/UIComponent"
+import type { GameObject } from "../../GameObjectEventMap";
 
 export interface TaskProps {
     onTaskEnd?: (e: any) => void,
@@ -130,9 +131,9 @@ export const Task = (taskProps: TaskProps) => {
 
                 {Array.from({ length: 3 }).map((_, i) => (
                     <SimpleTarget key={i}>
-                        <AddHitCallback callback={(e) => { e.source.parent.dispatchEvent({ type: "add_score", source: e.source, score: 1 }); }} />
+                        <AddHitCallback callback={(e) => { (e.source.parent! as GameObject).dispatchEvent({ type: "add_score", source: e.source, score: 1 }); }} />
                         <AddHitCallback callback={(e) => { useParentPositionProvider(e.source) }} />
-                        <AddHitCallback callback={(e) => { playSound("sfx/bullet-metal-hit.mp3", 0.1) }} />
+                        <AddHitCallback callback={() => { playSound("sfx/bullet-metal-hit.mp3", 0.1) }} />
                         <AddMountCallback callback={(e) => { useParentPositionProvider(e.source); }} />
 
                         <boxGeometry args={[1, 1, 1]} />
@@ -154,9 +155,9 @@ export const GridTask = (taskProps: TaskProps) => {
 
                 {Array.from({ length: 3 }).map((_, i) => (
                     <SimpleTarget key={i}>
-                        <AddHitCallback callback={(e) => { e.source.parent.dispatchEvent({ type: "add_score", source: e.source, score: 1 }); }} />
+                        <AddHitCallback callback={(e) => { (e.source.parent! as GameObject).dispatchEvent({ type: "add_score", source: e.source, score: 1 }); }} />
                         <AddHitCallback callback={(e) => { useParentPositionProvider(e.source) }} />
-                        <AddHitCallback callback={(e) => { playSound("sfx/bullet-metal-hit.mp3", 0.1) }} />
+                        <AddHitCallback callback={() => { playSound("sfx/bullet-metal-hit.mp3", 0.1) }} />
                         <AddMountCallback callback={(e) => { useParentPositionProvider(e.source); }} />
 
                         <boxGeometry args={[1, 1, 1]} />
@@ -185,8 +186,8 @@ export const TrackingTask = (taskProps: TaskProps) => {
                     <AddMountCallback callback={(e) => { e.source.userData.v = new THREE.Vector3(1, 0, 0); }} />
 
 
-                    <AddHoverCallback callback={(e) => { e.source.parent!.dispatchEvent({ type: "add_score", source: e.source, score: e.delta }); }} />
-                    <AddHoverCallback callback={(e) => { playSound("sfx/bullet-metal-hit.mp3", 0.002) }} />
+                    <AddHoverCallback callback={(e) => { (e.source.parent! as GameObject).dispatchEvent({ type: "add_score", source: e.source, score: e.delta }); }} />
+                    <AddHoverCallback callback={() => { playSound("sfx/bullet-metal-hit.mp3", 0.002) }} />
                     <MoveByVel />
                     <RandomReverseVelocity minDelay={4} maxDelay={6} />
                     <ClampToBbox size={new THREE.Vector3(6, 2, 2)} />
@@ -209,8 +210,8 @@ export const SmoothTrack2d = (taskProps: TaskProps) => {
                 <OneMinuteTask {...taskProps} maxScore={5} />
 
                 <SimpleTarget>
-                    <AddHoverCallback callback={(e) => { e.source.parent!.dispatchEvent({ type: "add_score", source: e.source, score: e.delta }); }} />
-                    <AddHoverCallback callback={(e) => { playSound("sfx/bullet-metal-hit.mp3", 0.002) }} />
+                    <AddHoverCallback callback={(e) => { (e.source.parent! as GameObject).dispatchEvent({ type: "add_score", source: e.source, score: e.delta }); }} />
+                    <AddHoverCallback callback={() => { playSound("sfx/bullet-metal-hit.mp3", 0.002) }} />
 
                     <UseNoisePosition
                         frequency={0.5}

@@ -44,7 +44,7 @@ type TaskInfoCardProps = {
 
 export const TaskInfoCard: React.FC<TaskInfoCardProps> = ({ task }) => {
   const getChartData = () => {
-    const allScores = JSON.parse(localStorage.getItem("taskScores") || "{}");
+    const allScores: Record<string, number[]> = JSON.parse(localStorage.getItem("taskScores") || "{}");
     const taskScores = allScores[task.task_name] || [];
 
     const labels = taskScores.length ? taskScores.map((_, i) => `#${i + 1}`) : ["0"];

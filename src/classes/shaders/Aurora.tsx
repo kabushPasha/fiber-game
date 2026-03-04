@@ -302,6 +302,7 @@ export const AuroraMaterial = Fn(() => {
 
 export function AuroraBackground() {
     const { scene } = useThree()
+    //@ts-ignore
     useEffect(() => { scene.background = AuroraMaterial();  }, [])
     return null;
 }

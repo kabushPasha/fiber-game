@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useUI } from "../../../components/UIScreenContext";
+import type { GameObjectEventMap } from "../../GameObjectEventMap";
 
-export function useThreeEvent<K extends string>(
-    object: THREE.EventDispatcher | null | undefined,
+export function useThreeEvent<K extends keyof GameObjectEventMap>(
+    object: THREE.EventDispatcher<GameObjectEventMap> | null | undefined,
     eventName: K,
-    handler: (event: any) => void
+    handler: (event: GameObjectEventMap[K]) => void
 ) {
     const handlerRef = useRef(handler)
     // Always keep latest handler
@@ -19,7 +20,7 @@ export function useThreeEvent<K extends string>(
     }, [object, eventName])
 }
 
-export function UIComponent({ Component }: { Component: React.ComponentType<{ obj: THREE.Object3D }>;}) {
+export function UIComponent({ Component }: { Component: React.ComponentType<{ obj: THREE.Object3D }>; }) {
     const ref = useRef<THREE.Object3D>(null!);
     const { mount } = useUI();
 

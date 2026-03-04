@@ -15,7 +15,7 @@ import { TestSDF } from "./classes/shaders/Raymarcher"
 import { extend } from "@react-three/fiber"
 import { MeshStandardNodeMaterial, } from "three/webgpu"
 import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
-import { Terrain, TerrainPlane } from "./classes/Terrain/Terrain"
+import { TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 import { Physics } from "@react-three/rapier";
@@ -96,16 +96,11 @@ const App = () => {
                   >
                     <TerrainProvider textureUrl="/textures/HFs/height.png">
                       <Player >
-                        <TerrainSampler />
+                        {1 && <TerrainSampler />}
                         {1 && <TerrainPlane />}
-
-                        { 1 && <Grass />}
+                        {1 && <Grass />}
 
                       </Player>
-                      {0 && <Terrain />}
-
-
-
                     </TerrainProvider>
 
 

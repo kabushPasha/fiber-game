@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { AddCallbackToParentEvent } from "./AddCallbackToParentEvent";
+import type { GameObject } from "../../GameObjectEventMap";
 
 interface ScoreComponentProps {
     onScoreChange?: (source: THREE.Object3D) => void; // optional callback for parent
@@ -10,7 +11,7 @@ export const ScoreComponent = ({ onScoreChange }: ScoreComponentProps) => {
     const ref = useRef<THREE.Object3D>(null!);
 
     useEffect(() => {
-        const parent = ref.current?.parent as THREE.Group;
+        const parent = ref.current?.parent as GameObject;
         parent.userData.score = 0;
         if (!parent) return;
 
