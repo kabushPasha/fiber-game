@@ -90,6 +90,7 @@ export function TerrainPlane() {
         
 
 
+        mat.colorNode = vec3(0.3,0.9,0.6);
         //mat.colorNode = normalTS;
 
         return mat;

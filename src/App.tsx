@@ -22,6 +22,7 @@ import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
 import { Suspense } from "react"
 import { TerrainSampler } from "./classes/TerrainSampler"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
+import { Grass } from "./classes/Terrain/Grass"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -75,7 +76,7 @@ const App = () => {
               <Suspense>
                 <Physics>
 
-                  {0 && <Pixelated resolution={128} />}
+                  {0 && <Pixelated resolution={256} />}
 
                   <group name="Lights">
                     <ambientLight intensity={0.2} />
@@ -96,9 +97,15 @@ const App = () => {
                     <TerrainProvider textureUrl="/textures/HFs/height.png">
                       <Player >
                         <TerrainSampler />
-                        <TerrainPlane />
+                        {1 && <TerrainPlane />}
+
+                        { 1 && <Grass />}
+
                       </Player>
                       {0 && <Terrain />}
+
+
+
                     </TerrainProvider>
 
 
@@ -109,8 +116,8 @@ const App = () => {
                   {0 && <TaskSelectorPawn />}
 
                   <AuroraBackground />
-                  <TestSDF />
-                  <SimpleBackground />
+                  {false && <TestSDF />}
+                  {1 && <SimpleBackground />}
 
 
                   {false && <TestTslShader />}
