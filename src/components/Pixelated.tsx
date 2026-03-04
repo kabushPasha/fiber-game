@@ -2,7 +2,7 @@ import { useThree } from "@react-three/fiber"
 import { useEffect } from "react"
 import * as THREE from "three"
 
-export function Pixelated({resolution = 256}) {
+export function Pixelated({ resolution = 256 }) {
   const { gl, camera } = useThree()
 
   useEffect(() => {
@@ -11,7 +11,16 @@ export function Pixelated({resolution = 256}) {
     gl.domElement.style.imageRendering = "crisp-edges"
 
     function onResize() {
-      const camAspect = camera.aspect      
+      let camAspect: number
+
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camAspect = camera.aspect
+      } else if (camera instanceof THREE.OrthographicCamera) {
+        camAspect = (camera.right - camera.left) /
+          (camera.top - camera.bottom)
+      } else {
+        return
+      }
 
       // Calculate width and height in “virtual pixels”
       let width: number

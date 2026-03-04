@@ -19,7 +19,7 @@ export function AddCallbackToParentEvent({ event, callback, dispatcher }: AddCal
 
   useEffect(() => {
     // If dispatcher is provided, use it; otherwise use parent
-    const targetDispatcher = dispatcher ?? ref.current?.parent;
+    const targetDispatcher = (dispatcher ?? ref.current?.parent) as THREE.EventDispatcher<any>;
     if (!targetDispatcher) return;
 
     targetDispatcher.addEventListener(event, callback);

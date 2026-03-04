@@ -1,12 +1,12 @@
 import { PointerLockControls, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
-import { useEffect, useRef, ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
 import { useUI } from "../components/UIScreenContext"
 import { CrosshairDot } from "../components/CrosshairDot"
 
 
-const SPEED = 35;
+const SPEED = 5;
 
 interface PlayerProps {
   children?: ReactNode

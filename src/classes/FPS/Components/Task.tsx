@@ -1,14 +1,13 @@
-import { AddCallbackToParentEvent, AddHitCallback, AddHoverCallback, AddMountCallback, AddTickCallback, TickComponent, type TargetEvent } from "./AddCallbackToParentEvent"
+import {  AddHitCallback, AddHoverCallback, AddMountCallback, AddTickCallback, TickComponent } from "./AddCallbackToParentEvent"
 import { SimpleTarget } from "../../SimpleTarget"
-import { Timer } from "./Timer"
 import { AddPositionProvider, GridPositionProviderComponent, useParentPositionProvider } from "./AddPositionProvider"
-import { AddScoreChangeCallback, FinishTaskOnMaxScore, ScoreComponent } from "./ScoreComponent"
+import { AddScoreChangeCallback, ScoreComponent } from "./ScoreComponent"
 import * as THREE from "three";
 import { playSound } from "../Classes/sounds"
 import { RandomReverseVelocity } from "./TragetComponents/RandomReverseVelocity"
 import { ClampToBbox } from "./TragetComponents/ClampToBbox"
 import { UseNoisePosition } from "./TragetComponents/UseNoisePosition"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useRef, useState } from "react"
 import { useUI } from "../../../components/UIScreenContext"
 import { UIComponent, useThreeEvent } from "../UI/UIComponent"
 

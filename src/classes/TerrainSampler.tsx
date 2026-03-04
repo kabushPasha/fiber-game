@@ -10,7 +10,7 @@ export function TerrainSampler() {
   const groupRef = useRef<THREE.Group>(null);
   const worldPos = new THREE.Vector3();
 
-useFrame((state, delta) => {
+useFrame((_, delta) => {
   if (!terrain || !groupRef.current) return;
 
   const parent = groupRef.current.parent;

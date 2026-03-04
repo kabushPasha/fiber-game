@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react"
+import {  useRef, useState } from "react"
 import { useFrame } from "@react-three/fiber"
 import { Html } from "@react-three/drei"
 import * as THREE from "three";
@@ -15,7 +15,7 @@ export const Timer = ((timerProps: TimerProps) => {
 
   const [time, setTime] = useState(0)
 
-  const ref = useRef<THREE.Object3D>(null!);
+  const ref = useRef<THREE.Object3D>(null!);  
 
   // Advance time every frame
   useFrame((_, delta) => {

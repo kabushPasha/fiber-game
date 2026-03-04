@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls, Box } from "@react-three/drei"
+import { KeyboardControls } from "@react-three/drei"
 import { Player } from "./classes/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -18,7 +18,7 @@ import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
 import { Terrain, TerrainPlane } from "./classes/Terrain/Terrain"
 
 
-import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
+import { Physics } from "@react-three/rapier";
 import { Suspense } from "react"
 import { TerrainSampler } from "./classes/TerrainSampler"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"

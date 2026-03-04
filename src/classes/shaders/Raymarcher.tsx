@@ -1,7 +1,7 @@
 import { useThree } from "@react-three/fiber";
 import { createContext, useContext, useEffect, useMemo } from "react";
-import { abs, bool, Break, cameraPosition, cameraProjectionMatrixInverse, cameraWorldMatrix, clamp, dot, float, Fn, getViewPosition, If, length, Loop, min, normalize, screenUV, sqrt, sub, uniform, vec2, vec3, vec4 } from "three/tsl";
-import * as THREE from 'three/webgpu'
+import { abs,  Break, cameraPosition, cameraProjectionMatrixInverse, cameraWorldMatrix, clamp, dot, float, Fn, getViewPosition, If, length, Loop, min, normalize, screenUV, sqrt, sub, uniform, vec2, vec3, vec4 } from "three/tsl";
+//import * as THREE from 'three/webgpu'
 
 export const shapes = {
     sphere: Fn(([position, radius]: [any, any]) => {
@@ -111,7 +111,7 @@ export const raymarch = Fn(([sdfSceneFN]: [any]) => {
     const accumulatedDistance = float(0).toVar()
     const distance = float(0).toVar("SDF_Distance")
     const position = vec3(0).toVar("SDF_WorldPos")
-    const bg = bool(false).toVar("SDF_Bg_Hit")
+    //const bg = bool(false).toVar("SDF_Bg_Hit")
 
     Loop({ start: 0, end: maxSteps }, () => {
         position.assign(rayOrigin.add(rayDirection.mul(accumulatedDistance)))
@@ -149,7 +149,7 @@ export function SdfBackgroundSimple() {
         const diffuse = calcDiffuse(N, sun_dir).mul(0.5);
         const ambient = calcAmbientLight(N);
         const shadow = calcSoftshadow(P, sun_dir, 0.01, 2.5, sdfScene);
-        const ao = calcAO(P, N, sdfScene);
+        //const ao = calcAO(P, N, sdfScene);
         //@ts-ignore
         scene.background = diffuse.mul(shadow).add(ambient).mul(0.5);
 
@@ -221,7 +221,7 @@ export function SdfBackground({ children }: { children?: React.ReactNode }) {
         const diffuse = calcDiffuse(N, sunDir).mul(0.5);
         const ambient = calcAmbientLight(N);
         const shadow = calcSoftshadow(P, sunDir, 0.01, 2.5, sdfScene);
-        const ao = calcAO(P, N, sdfScene);
+        //const ao = calcAO(P, N, sdfScene);
 
         //@ts-ignore
         scene.background = diffuse.mul(shadow).add(ambient).mul(0.5);
