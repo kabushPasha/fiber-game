@@ -3,7 +3,7 @@ import "./App.css"
 import * as THREE from "three/webgpu"
 
 import { KeyboardControls } from "@react-three/drei"
-import { Player } from "./classes/Player"
+import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
 import { TaskSelectorPawn } from "./classes/FPS/Components/TaskSelector"
@@ -20,9 +20,10 @@ import { TerrainPlane } from "./classes/Terrain/Terrain"
 
 import { Physics } from "@react-three/rapier";
 import { Suspense } from "react"
-import { TerrainSampler } from "./classes/TerrainSampler"
+import { SmoothCamera, TerrainSampler } from "./classes/Terrain/TerrainSampler"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { Grass } from "./classes/Terrain/Grass"
+import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -96,10 +97,15 @@ const App = () => {
                   >
                     <TerrainProvider textureUrl="/textures/HFs/height.png">
                       <Player >
-                        {1 && <TerrainSampler />}
+                        <MoveByVel />
+                        {0 && <TerrainSampler />}
                         {1 && <TerrainPlane />}
                         {1 && <Grass />}
 
+                        <Jump />     
+                        <GroundClamp />                   
+
+                        <SmoothCamera />
                       </Player>
                     </TerrainProvider>
 

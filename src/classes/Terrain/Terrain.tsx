@@ -67,6 +67,7 @@ export function TerrainPlane() {
 
     const material = useMemo(() => {
         const mat = new MeshStandardNodeMaterial();
+        mat.side = THREE.DoubleSide
 
         const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
         const samplePos = worldPos.div(hf_size).add(-0.5).zx.mul(vec2(1, -1));
@@ -89,6 +90,7 @@ export function TerrainPlane() {
         mat.normalNode = transformNormalToView(normalTS);        
 
         mat.colorNode = vec3(0.3,0.9,0.6);
+        //mat.colorNode = vec3(1,0.1,0.1);
 
         return mat;
     }, []);

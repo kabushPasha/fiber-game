@@ -2,11 +2,12 @@ import { PointerLockControls, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
-import { useUI } from "../components/UIScreenContext"
-import { CrosshairDot } from "../components/CrosshairDot"
+import { useUI } from "../../components/UIScreenContext"
+import { CrosshairDot } from "../../components/CrosshairDot"
+import { GameObject3D } from "../GameObjectContext"
 
 
-const SPEED = 5;
+const SPEED = 25;
 
 interface PlayerProps {
   children?: ReactNode
@@ -28,29 +29,40 @@ export function Player({ children }: PlayerProps) {
     const z = (Number(forward) - Number(backward)) * SPEED * delta
     const x = (Number(right) - Number(left)) * SPEED * delta
 
-    controls.current.moveForward(z)
-    controls.current.moveRight(x)
-    
-    
-    playerRef.current.position.copy(camera.position);
+
+    // get camera Directions
+    const cam_forward = new THREE.Vector3()
+    camera.getWorldDirection(cam_forward)
+    cam_forward.y = 0
+    cam_forward.normalize()
+    const cam_right = new THREE.Vector3().crossVectors(cam_forward, new THREE.Vector3(0, 1, 0)).normalize()
+
+    const move = new THREE.Vector3()
+    move.addScaledVector(cam_forward, z)
+    move.addScaledVector(cam_right, x)
+
+    if (move.lengthSq() > 0) {
+      move.normalize().multiplyScalar(SPEED * delta)
+      playerRef.current.position.add(move)
+    }
+
   }, -10)
 
   useEffect(() => {
     const unmount = mount(() =>
       <CrosshairDot size={6} color="white" opacity={0.5} />
     )
-    
     return unmount
   }, [])
 
   return (
-    <group name="Player" ref={playerRef}>
-      <PointerLockControls
-        ref={controls}
-        camera={camera}
-        pointerSpeed={0.1}
-      />
-      {children}
-    </group>
+    <GameObject3D ref={playerRef} name="Player">
+        <PointerLockControls
+          ref={controls}
+          camera={camera}
+          pointerSpeed={0.1}
+        />
+        {children}
+    </GameObject3D>
   )
 }
