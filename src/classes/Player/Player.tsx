@@ -7,7 +7,8 @@ import { CrosshairDot } from "../../components/CrosshairDot"
 import { GameObject3D } from "../GameObjectContext"
 
 
-const SPEED = 25;
+const SPEED = 10
+const SPRINT_SPEED = 25 // sprint speed
 
 interface PlayerProps {
   children?: ReactNode
@@ -15,16 +16,24 @@ interface PlayerProps {
 
 export function Player({ children }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
-
   const { mount } = useUI()
   const controls = useRef<any>(null)
   const [, get] = useKeyboardControls()
   const { camera } = useThree()
 
+  const currentSpeed = useRef(SPEED)
+
+
   useFrame((_, delta) => {
     if (!controls.current?.isLocked) return
 
-    const { forward, backward, left, right } = get()
+    const { forward, backward, left, right, shift } = get()
+
+
+    // Target Speed
+    const targetSpeed = shift ? SPRINT_SPEED : SPEED
+    currentSpeed.current = THREE.MathUtils.damp(currentSpeed.current, targetSpeed, 10, delta)
+
 
     const z = (Number(forward) - Number(backward)) * SPEED * delta
     const x = (Number(right) - Number(left)) * SPEED * delta
@@ -42,8 +51,11 @@ export function Player({ children }: PlayerProps) {
     move.addScaledVector(cam_right, x)
 
     if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(SPEED * delta)
+      move.normalize().multiplyScalar(currentSpeed.current * delta)
       playerRef.current.position.add(move)
+      playerRef.current.userData.is_moving = true;
+    } else {
+      playerRef.current.userData.is_moving = false;      
     }
 
   }, -10)
