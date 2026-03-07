@@ -20,10 +20,10 @@ import { TerrainPlane } from "./classes/Terrain/Terrain"
 
 import { Physics } from "@react-three/rapier";
 import { Suspense } from "react"
-import { SmoothCamera, TerrainSampler } from "./classes/Terrain/TerrainSampler"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
+import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -61,7 +61,7 @@ const App = () => {
             }}>
 
             <Canvas
-              camera={{ fov: 50, aspect: 2.35, position: [0, 1.75, 0] }}
+              camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
               //gl={{ antialias: false }}
               gl={async (props) => {
                 const renderer = new THREE.WebGPURenderer({
@@ -98,16 +98,19 @@ const App = () => {
                   >
                     <TerrainProvider textureUrl="/textures/HFs/height.png">
                       <Player >
-                        <MoveByVel />
-                        {0 && <TerrainSampler />}
-                        {1 && <TerrainPlane />}
-                        {1 && <Grass />}
+                        <WorldPositionConstraint>
+                          {1 && <TerrainPlane />}
+                          {1 && <Grass />}
+                        </WorldPositionConstraint>
 
-                        <Jump />     
-                        <GroundClamp />                   
+                        {1 && <MoveByVel />}
+                        <Jump />
+                        <GroundClamp />
 
-                        <SmoothCamera />
                       </Player>
+
+
+
                     </TerrainProvider>
 
 
@@ -134,27 +137,13 @@ const App = () => {
                   */}
 
 
-
-
-
                 </Physics>
               </Suspense>
             </Canvas>
           </div>
         </div>
 
-        <div id="UI" style={{
-          position: "fixed",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          width: "100vw",
-          height: "100vh",
-          overflow: "hidden",
-          inset: 0
-        }}>
 
-        </div>
       </div >
     </UIScreenProvider>
   )

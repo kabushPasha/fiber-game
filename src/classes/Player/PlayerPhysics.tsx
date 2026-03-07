@@ -2,7 +2,6 @@ import { useFrame } from "@react-three/fiber"
 import { useGameObject3D } from "../GameObjectContext"
 import * as THREE from "three";
 import { useKeyboardControls } from "@react-three/drei";
-import { useEffect } from "react";
 import { useTerrain } from "../Terrain/TerrainProvider";
 
 
@@ -11,19 +10,14 @@ export function MoveByVel() {
 
     const force = new THREE.Vector3(0, -30, 0);
 
-    useEffect(() => {
-        if (!objectRef.current.userData.vel)
-            objectRef.current.userData.vel = new THREE.Vector3(0, 0, 0)
-            objectRef.current.userData.canJump = true;
-    }, [objectRef])
-
     useFrame((_, delta) => {
-        if (!objectRef.current) return
-        
-        const vel = objectRef.current.userData.vel
+        const obj = objectRef.current
+        if (!obj) return
+
+        const vel: THREE.Vector3 = obj.userData.vel ??= new THREE.Vector3(0, 0, 0)
 
         // Move object
-        objectRef.current.position.addScaledVector(vel, delta)
+        obj.position.addScaledVector(vel, delta)
         // Gravity
         vel.addScaledVector(force, delta)
 

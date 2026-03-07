@@ -22,20 +22,23 @@ export { GameObject3DContext }
 interface GameObject3DProps {
   children?: ReactNode
   name?: string
+  [key: string]: any // allow any other <group> props
 }
 
 export const GameObject3D = forwardRef<THREE.Group, GameObject3DProps>(
-  ({ children, name }, forwardedRef) => {
+  ({ children, name, ...groupProps }, forwardedRef) => {
     const internalRef = useRef<THREE.Group>(null!)
 
     const ref = (forwardedRef ?? internalRef) as React.MutableRefObject<THREE.Group>
 
     return (
       <GameObject3DContext.Provider value={{ objectRef: ref }}>
-        <group ref={ref} name={name}>
+        <group ref={ref} name={name} {...groupProps}>
           {children}
         </group>
       </GameObject3DContext.Provider>
     )
   }
 )
+
+
