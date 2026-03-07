@@ -19,7 +19,7 @@ export function MoveByVel() {
 
     useFrame((_, delta) => {
         if (!objectRef.current) return
-
+        
         const vel = objectRef.current.userData.vel
 
         // Move object

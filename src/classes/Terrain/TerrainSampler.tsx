@@ -127,25 +127,50 @@ export function SmoothCamera({ smooth = 6, offset = [0, 1.75, 0] }: SmoothCamera
 
 
 type HeadBobProps = {
-  standingAmplitude?: number
-  standingFrequency?: number
-  runningAmplitude?: number
-  runningFrequency?: number
+  maxSpeed?: number
+
+  walkAmplitude?: number
+  runAmplitude?: number
+
+  swayAmplitude?: number
+  rollAmplitude?: number
+
+  walkStepLength?: number
+  runStepLength?: number
+
   blendSpeed?: number
+
+  idleAmplitude?: number
+  idleFrequency?: number
+
   children?: ReactNode
 }
 
 export function HeadBob({
-  standingAmplitude = 0.1,
-  standingFrequency = 0.2,
-  runningAmplitude = 0.2,
-  runningFrequency = 2,
-  blendSpeed = 8,
+  maxSpeed = 24,
+
+  walkAmplitude = 0.2,
+  runAmplitude = 0.2,
+
+  swayAmplitude = 0.2,
+  rollAmplitude = 0.05,
+
+  walkStepLength = 10,
+  runStepLength = 15,
+
+  blendSpeed = 10,
+
+  idleAmplitude = 0.1,
+  idleFrequency = 0.25,
+
   children
 }: HeadBobProps) {
+
   const groupRef = useRef<THREE.Group>(null!)
-  const offset = useRef(0)
-  const blend = useRef(0) // 0 = standing, 1 = running
+
+  const phase = useRef(0)
+  const idlePhase = useRef(0)
+  const blend = useRef(0)
 
   const { objectRef } = useGameObject3D()
 
@@ -154,22 +179,58 @@ export function HeadBob({
     const g = groupRef.current
     if (!g) return
 
-    // compute target blend from velocity
-    const targetBlend = objectRef.current.userData.is_moving || 0;
+    const vel = objectRef.current.userData.vel
+    const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
 
-
+    // normalize speed
+    const targetBlend = THREE.MathUtils.clamp(speed / maxSpeed, 0, 1)
     blend.current = THREE.MathUtils.damp(blend.current, targetBlend, blendSpeed, delta)
+    console.log(targetBlend);
 
-    // advance offset
-    offset.current += delta * Math.PI * 2
+    // blend step length
+    const stepLength = THREE.MathUtils.lerp(
+      walkStepLength,
+      runStepLength,
+      blend.current
+    )
 
-    // compute y for standing and running separately
-    const yStanding = Math.sin(offset.current * standingFrequency) * standingAmplitude
-    const yRunning = Math.sin(offset.current * runningFrequency) * runningAmplitude
+    // step-synced phase
+    if (speed > 0.01) {
+      const distance = speed * delta
+      phase.current += (distance / stepLength) * Math.PI * 2
+    }
 
-    // blend final position
-    g.position.y = THREE.MathUtils.lerp(yStanding, yRunning, blend.current)
+    idlePhase.current += delta * idleFrequency * Math.PI * 2
 
+    const sin = Math.sin(phase.current)
+    const cos = Math.cos(phase.current)
+
+    // amplitude scaling
+    const amplitude = THREE.MathUtils.lerp(
+      walkAmplitude,
+      runAmplitude,
+      blend.current
+    )
+
+    // vertical bob
+    const yMove = Math.sin(phase.current * 2) * amplitude
+
+    // side sway
+    const xMove = cos * swayAmplitude * blend.current
+
+    // camera roll
+    const roll = cos * rollAmplitude * blend.current
+
+    // idle breathing
+    const idle =
+      Math.sin(idlePhase.current) *
+      idleAmplitude *
+      (1 - blend.current)
+
+    g.position.y = yMove + idle
+    g.position.x = xMove
+
+    g.rotation.z = roll
   })
 
   return <group ref={groupRef}>{children}</group>

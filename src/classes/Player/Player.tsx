@@ -23,18 +23,16 @@ export function Player({ children }: PlayerProps) {
 
   const currentSpeed = useRef(SPEED)
 
-
   useFrame((_, delta) => {
     if (!controls.current?.isLocked) return
 
     const { forward, backward, left, right, shift } = get()
 
-
     // Target Speed
     const targetSpeed = shift ? SPRINT_SPEED : SPEED
     currentSpeed.current = THREE.MathUtils.damp(currentSpeed.current, targetSpeed, 10, delta)
 
-
+    // Input Vectors
     const z = (Number(forward) - Number(backward)) * SPEED * delta
     const x = (Number(right) - Number(left)) * SPEED * delta
 
@@ -50,12 +48,19 @@ export function Player({ children }: PlayerProps) {
     move.addScaledVector(cam_forward, z)
     move.addScaledVector(cam_right, x)
 
+    const vel = playerRef.current.userData.vel
     if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(currentSpeed.current * delta)
-      playerRef.current.position.add(move)
+      move.normalize().multiplyScalar(currentSpeed.current)
+
+      vel.x = move.x
+      vel.z = move.z
+
+      //playerRef.current.position.add(move)
       playerRef.current.userData.is_moving = true;
     } else {
-      playerRef.current.userData.is_moving = false;      
+      vel.x = 0
+      vel.z = 0
+      playerRef.current.userData.is_moving = false;
     }
 
   }, -10)
@@ -69,12 +74,12 @@ export function Player({ children }: PlayerProps) {
 
   return (
     <GameObject3D ref={playerRef} name="Player">
-        <PointerLockControls
-          ref={controls}
-          camera={camera}
-          pointerSpeed={0.1}
-        />
-        {children}
+      <PointerLockControls
+        ref={controls}
+        camera={camera}
+        pointerSpeed={0.1}
+      />
+      {children}
     </GameObject3D>
   )
 }
