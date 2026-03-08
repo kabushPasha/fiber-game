@@ -47,7 +47,7 @@ export function TerrainProvider({
     hf_tex.magFilter = THREE.NearestFilter;
     hf_tex.generateMipmaps = false;
 
-    const hf_nml = useLoader(TextureLoader, "/textures/HFs/height_N.png");
+    const hf_nml = useLoader(TextureLoader, "textures/HFs/height_N.png");
     hf_nml.wrapS = THREE.RepeatWrapping;
     hf_nml.wrapT = THREE.RepeatWrapping;
     hf_nml.colorSpace = THREE.NoColorSpace;

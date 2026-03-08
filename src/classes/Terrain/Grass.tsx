@@ -23,7 +23,7 @@ import { MeshStandardNodeMaterial, StorageInstancedBufferAttribute } from "three
 import { useTerrain } from "./TerrainProvider"
 
 export function Grass() {
-    const { nodes } = useGLTF("/models/Grass.glb")
+    const { nodes } = useGLTF("models/Grass.glb")
     const meshRef = useRef<THREE.InstancedMesh>(null!)
     console.log(nodes);
 

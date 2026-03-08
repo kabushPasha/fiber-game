@@ -97,7 +97,7 @@ const App = () => {
                         { name: "shift", keys: ["Shift"] },
                       ]}
                     >
-                      <TerrainProvider textureUrl="/textures/HFs/height.png">
+                      <TerrainProvider textureUrl="textures/HFs/height.png">
                         <Player >
                           <WorldPositionConstraint>
                             {1 && <TerrainPlane />}
