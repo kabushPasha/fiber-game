@@ -50,15 +50,30 @@ export function HeadBob({
   const phase = useRef(0)
   const idlePhase = useRef(0)
   const blend = useRef(0)
+  const groundBlend = useRef(1)
 
   const { objectRef } = useGameObject3D()
+
+  const lastVelY = useRef(0)
+  const landingOffset = useRef(0)
+  const landingTarget = useRef(0)
 
   useFrame((_, delta) => {
 
     const g = groupRef.current
     if (!g) return
 
-    const vel: THREE.Vector3 = objectRef.current.parent!.userData.vel ??= new THREE.Vector3(0, 0, 0)
+    const parent = objectRef.current.parent!
+    const vel: THREE.Vector3 = parent.userData.vel ??= new THREE.Vector3(0, 0, 0)
+    const groundDistance: number = parent.userData.ground_distance ?? 0
+
+    const targetGroundBlend = 1 - THREE.MathUtils.smoothstep(groundDistance, 0.1, .25)
+    groundBlend.current = THREE.MathUtils.damp(
+      groundBlend.current,
+      targetGroundBlend,
+      blendSpeed,
+      delta
+    )
 
     const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z)
     // normalize speed
@@ -88,16 +103,16 @@ export function HeadBob({
       walkAmplitude,
       runAmplitude,
       blend.current
-    )
+    ) * groundBlend.current
 
     // vertical bob
     const yMove = Math.sin(phase.current * 2) * amplitude
 
     // side sway
-    const xMove = cos * swayAmplitude * blend.current
+    const xMove = cos * swayAmplitude * blend.current * groundBlend.current
 
     // camera roll
-    const roll = cos * rollAmplitude * blend.current
+    const roll = cos * rollAmplitude * blend.current * groundBlend.current
 
     // idle breathing
     const idle =
@@ -105,7 +120,38 @@ export function HeadBob({
       idleAmplitude *
       (1 - blend.current)
 
-    g.position.y = yMove + idle
+
+    // Fall BOB --------------------------------
+    const velY = parent.userData.vel?.y ?? 0
+    const deltaVelY = lastVelY.current - velY
+
+    // Detect landing: big downward velocity stop near ground
+    if (deltaVelY < -10 && velY === 0 && groundDistance <= 0.05) {
+      // proportional to how fast we landed
+      const impactStrength = THREE.MathUtils.clamp(-deltaVelY * 0.005, 0, 0.25)*0 + 4
+      landingTarget.current = impactStrength
+    }
+
+    // Smoothly damp landingOffset toward landingTarget
+    landingOffset.current = THREE.MathUtils.damp(
+      landingOffset.current,
+      landingTarget.current,
+      8, // higher = snappier, lower = softer
+      delta
+    )
+
+    // Slowly decay the landingTarget itself so we don’t trigger instant again
+    landingTarget.current = THREE.MathUtils.damp(
+      landingTarget.current,
+      0,
+      6, // slower decay for smoother feel
+      delta
+    )
+    lastVelY.current = velY
+
+
+    // Finalize Offsets ---------------------
+    g.position.y = yMove + idle - landingOffset.current
     g.position.x = xMove
 
     g.rotation.z = roll

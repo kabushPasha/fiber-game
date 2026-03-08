@@ -1,11 +1,13 @@
-import { PointerLockControls, useKeyboardControls } from "@react-three/drei"
+import {  useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
 import { useUI } from "../../components/UIScreenContext"
 import { CrosshairDot } from "../../components/CrosshairDot"
 import { GameObject3D } from "../GameObjectContext"
-import { SmoothCamera } from "../Terrain/TerrainSampler"
+import { SmoothCamera } from "../ParentConstraints/SmoothChild"
+import { useMouseLock } from "./MouseLock"
+import { CameraController } from "./CameraController"
 
 
 const SPEED = 10
@@ -17,61 +19,20 @@ interface PlayerProps {
 
 export function Player({ children }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
-  const neckRef = useRef<THREE.Group>(null!)
   const { mount } = useUI()
-  const controls = useRef<any>(null)
   const [, get] = useKeyboardControls()
-  const { camera, gl } = useThree()
+  const { } = useThree()
+
+  const { isLocked } = useMouseLock()
 
   const currentSpeed = useRef(SPEED)
-  const yaw = useRef(0)
-  const pitch = useRef(0)
-  const sensitivity = 0.0005
 
-  useEffect(() => {
-    const canvas = gl.domElement
-
-    const onClick = () => {
-      canvas.requestPointerLock()
-    }
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (document.pointerLockElement !== canvas) return
-
-      yaw.current -= e.movementX * sensitivity
-      pitch.current -= e.movementY * sensitivity
-
-      // clamp pitch
-      pitch.current = THREE.MathUtils.clamp(
-        pitch.current,
-        -Math.PI / 2,
-        Math.PI / 2
-      )
-    }
-
-    canvas.addEventListener("click", onClick)
-    document.addEventListener("mousemove", onMouseMove)
-
-    return () => {
-      canvas.removeEventListener("click", onClick)
-      document.removeEventListener("mousemove", onMouseMove)
-    }
-  }, [])
-
-
-
+  const orient = new THREE.Quaternion()
+  const player_forward = new THREE.Vector3()
+  const player_right = new THREE.Vector3()
 
   useFrame((_, delta) => {
-    if (!playerRef.current) return
-    if (!neckRef.current) return
-    playerRef.current.rotation.y = yaw.current
-    neckRef.current.rotation.x = pitch.current
-
-
-
-    //if (!controls.current?.isLocked) return
-    const canvas = gl.domElement
-    if (document.pointerLockElement !== canvas) return
+    if (!isLocked) return
 
     const { forward, backward, left, right, shift } = get()
 
@@ -79,36 +40,29 @@ export function Player({ children }: PlayerProps) {
     const targetSpeed = shift ? SPRINT_SPEED : SPEED
     currentSpeed.current = THREE.MathUtils.damp(currentSpeed.current, targetSpeed, 10, delta)
 
-    // Input Vectors
-    const z = (Number(forward) - Number(backward)) * SPEED * delta
-    const x = (Number(right) - Number(left)) * SPEED * delta
-
-
     // get camera Directions
-    const cam_forward = new THREE.Vector3()
-    playerRef.current.getWorldDirection(cam_forward)
-    cam_forward.y = 0
-    cam_forward.normalize()
-    const cam_right = new THREE.Vector3().crossVectors(cam_forward, new THREE.Vector3(0, 1, 0)).normalize()
+    playerRef.current.getWorldQuaternion(orient)
+    player_forward.set(0, 0, -1).applyQuaternion(orient)
+    player_right.set(1, 0, 0).applyQuaternion(orient)
 
+    // Input Vectors
+    const z = (Number(forward) - Number(backward))
+    const x = (Number(right) - Number(left))
+
+    // construct move
     const move = new THREE.Vector3()
-    move.addScaledVector(cam_forward, -z)
-    move.addScaledVector(cam_right, -x)
+    move.addScaledVector(player_forward, z)
+    move.addScaledVector(player_right, x)
 
     const vel = playerRef.current.userData.vel
-    console.log("player",vel)
+
     if (move.lengthSq() > 0) {
       move.normalize().multiplyScalar(currentSpeed.current)
-
       vel.x = move.x
       vel.z = move.z
-
-      //playerRef.current.position.add(move)
-      playerRef.current.userData.is_moving = true;
     } else {
       vel.x = 0
       vel.z = 0
-      playerRef.current.userData.is_moving = false;
     }
 
   }, -10)
@@ -128,13 +82,11 @@ export function Player({ children }: PlayerProps) {
 
   return (
     <GameObject3D ref={playerRef} name="Player">
-      {0 && <PointerLockControls ref={controls} camera={camera} pointerSpeed={0.1} />}
       {children}
 
-        <GameObject3D ref={neckRef} name="PlayerNeck" position={[0,2,0]}>
-          {1 && <SmoothCamera />}
-        </GameObject3D>
-
+      <CameraController>
+        {1 && <SmoothCamera />}
+      </CameraController>
 
     </GameObject3D>
   )

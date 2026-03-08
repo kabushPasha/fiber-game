@@ -24,6 +24,7 @@ import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
+import { MouseLockProvider } from "./classes/Player/MouseLock"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -85,38 +86,33 @@ const App = () => {
                     <directionalLight position={[10, 5, 0]} intensity={0.6} />
                   </group>
 
+                  <MouseLockProvider>
+                    <KeyboardControls
+                      map={[
+                        { name: "forward", keys: ["ArrowUp", "w", "W"] },
+                        { name: "backward", keys: ["ArrowDown", "s", "S"] },
+                        { name: "left", keys: ["ArrowLeft", "a", "A"] },
+                        { name: "right", keys: ["ArrowRight", "d", "D"] },
+                        { name: "jump", keys: ["Space"] },
+                        { name: "shift", keys: ["Shift"] },
+                      ]}
+                    >
+                      <TerrainProvider textureUrl="/textures/HFs/height.png">
+                        <Player >
+                          <WorldPositionConstraint>
+                            {1 && <TerrainPlane />}
+                            {1 && <Grass />}
+                          </WorldPositionConstraint>
 
-                  <KeyboardControls
-                    map={[
-                      { name: "forward", keys: ["ArrowUp", "w", "W"] },
-                      { name: "backward", keys: ["ArrowDown", "s", "S"] },
-                      { name: "left", keys: ["ArrowLeft", "a", "A"] },
-                      { name: "right", keys: ["ArrowRight", "d", "D"] },
-                      { name: "jump", keys: ["Space"] },
-                      { name: "shift", keys: ["Shift"] },
-                    ]}
-                  >
-                    <TerrainProvider textureUrl="/textures/HFs/height.png">
-                      <Player >
-                        <WorldPositionConstraint>
-                          {1 && <TerrainPlane />}
-                          {1 && <Grass />}
-                        </WorldPositionConstraint>
+                          {1 && <MoveByVel />}
+                          <Jump />
+                          <GroundClamp />
 
-                        {1 && <MoveByVel />}
-                        <Jump />
-                        <GroundClamp />
+                        </Player>
+                      </TerrainProvider>
 
-                      </Player>
-
-
-
-                    </TerrainProvider>
-
-
-
-
-                  </KeyboardControls>
+                    </KeyboardControls>
+                  </MouseLockProvider>
 
                   {0 && <TaskSelectorPawn />}
 

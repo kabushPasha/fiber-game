@@ -67,7 +67,13 @@ export function GroundClamp() {
             obj.position.y = groundY
             obj.userData.vel.y = 0
             obj.userData.canJump = true
+            obj.userData.grounded = true                        
         }
+        else {
+            obj.userData.grounded = false            
+        }
+
+        obj.userData.ground_distance = obj.position.y - groundY;
     })
 
     return null

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
+import { LateralTilt } from "../Player/LateralTilt";
 
 
 
@@ -78,18 +79,17 @@ export function SmoothChild({
 
 type SmoothCameraProps = {
   smooth?: number
-  offset?: [number, number, number]
 }
 
-export function SmoothCamera({ smooth = 6, offset = [0, 0, 0] }: SmoothCameraProps) {
+export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
   const { camera } = useThree()
 
   return (
     <SmoothChild smooth={smooth}>
       <HeadBob>
-        <group position={offset}>
-          <primitive object={camera} />
-        </group>
+        <LateralTilt maxTilt={0.15} damping={6}>
+            <primitive object={camera} position={[0,0,0]} />
+        </LateralTilt>
       </HeadBob>
     </SmoothChild>
   )
