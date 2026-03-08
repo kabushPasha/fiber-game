@@ -89,10 +89,10 @@ const App = () => {
                   <MouseLockProvider>
                     <KeyboardControls
                       map={[
-                        { name: "forward", keys: ["ArrowUp", "w", "W"] },
-                        { name: "backward", keys: ["ArrowDown", "s", "S"] },
-                        { name: "left", keys: ["ArrowLeft", "a", "A"] },
-                        { name: "right", keys: ["ArrowRight", "d", "D"] },
+                        { name: "forward", keys: ["ArrowUp", "w", "W" , "Ц", "ц"] },
+                        { name: "backward", keys: ["ArrowDown", "s", "S", "Ы" ,"ы"] },
+                        { name: "left", keys: ["ArrowLeft", "a", "A", "Ф" ,"ф"] },
+                        { name: "right", keys: ["ArrowRight", "d", "D", "В" ,"в"] },
                         { name: "jump", keys: ["Space"] },
                         { name: "shift", keys: ["Shift"] },
                       ]}
