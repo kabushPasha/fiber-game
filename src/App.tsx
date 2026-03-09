@@ -25,13 +25,38 @@ import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
-import { WebGPUPostProcessing } from "./classes/PostProcessing/PostProcessing"
-import { Desaturate, NormalView, PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
+import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
+
+import { folder, useControls } from 'leva';
 
 extend({ MeshStandardNodeMaterial })
 
 
+
 const App = () => {
+
+  const settings = useControls("PostProcessing",
+    {
+      "Fog": folder({
+        add_fog: true,
+        density: {
+          value: 0.25,
+          min: 0.01,
+          max: 5,
+          step: 0.01,
+        },
+        heightFalloff: {
+          value: 0.01,
+          min: 0.001,
+          max: 0.1,
+          step: 0.001,
+        }
+      })
+    }
+  )
+
+
+
   return (
     <UIScreenProvider>
       <div
@@ -76,14 +101,16 @@ const App = () => {
                 return renderer
               }}
               style={{ background: "black" }}
-            >             
+            >
 
-              <WebGPUPostProcessingProvider >
-                <PP_FogPass />
-              </WebGPUPostProcessingProvider>
+
 
 
               <Suspense>
+
+                <WebGPUPostProcessingProvider >
+                  {settings.add_fog && <PP_FogPass density={settings.density * 0.01} heightFalloff={settings.heightFalloff} />}
+                </WebGPUPostProcessingProvider>
 
                 <Physics>
 

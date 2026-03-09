@@ -25,7 +25,6 @@ import { useTerrain } from "./TerrainProvider"
 export function Grass() {
     const { nodes } = useGLTF("models/Grass.glb")
     const meshRef = useRef<THREE.InstancedMesh>(null!)
-    console.log(nodes);
 
     const gridSize = 50
     const spacing = 2

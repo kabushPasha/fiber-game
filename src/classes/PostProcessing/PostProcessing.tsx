@@ -1,3 +1,5 @@
+// EXAMPLE
+
 import * as THREE from "three/webgpu"
 import {
     pass,
@@ -5,8 +7,8 @@ import {
     output,
     transformedNormalView,
     metalness,
-    blendColor,
-    depth,
+    //blendColor,
+    //depth,
     emissive,
 } from "three/tsl";
 import { useThree, useFrame } from "@react-three/fiber"
@@ -37,10 +39,10 @@ export function WebGPUPostProcessing() {
 
         // Get texture nodes
         const scenePassColor = scenePass.getTextureNode("output");
-        const scenePassNormal = scenePass.getTextureNode("normal");
-        const scenePassDepth = scenePass.getTextureNode("depth");
-        const scenePassMetalness = scenePass.getTextureNode("metalness");
-        const scenePassEmissive = scenePass.getTextureNode("emissive");
+        //const scenePassNormal = scenePass.getTextureNode("normal");
+        //const scenePassDepth = scenePass.getTextureNode("depth");
+        //const scenePassMetalness = scenePass.getTextureNode("metalness");
+        //const scenePassEmissive = scenePass.getTextureNode("emissive");
 
 
         // Passes
