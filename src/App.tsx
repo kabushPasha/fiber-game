@@ -25,9 +25,9 @@ import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
+import { WebGPUPostProcessing } from "./classes/PostProcessing/PostProcessing"
 
 extend({ MeshStandardNodeMaterial })
-
 
 
 const App = () => {
@@ -64,6 +64,7 @@ const App = () => {
             <Canvas
               camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
               //gl={{ antialias: false }}
+
               gl={async (props) => {
                 const renderer = new THREE.WebGPURenderer({
                   ...props,
@@ -75,7 +76,9 @@ const App = () => {
               }}
               style={{ background: "black" }}
             >
+              <WebGPUPostProcessing />
               <Suspense>
+
                 <Physics>
 
                   {0 && <Pixelated resolution={256} />}
@@ -89,10 +92,10 @@ const App = () => {
                   <MouseLockProvider>
                     <KeyboardControls
                       map={[
-                        { name: "forward", keys: ["ArrowUp", "w", "W" , "Ц", "ц"] },
-                        { name: "backward", keys: ["ArrowDown", "s", "S", "Ы" ,"ы"] },
-                        { name: "left", keys: ["ArrowLeft", "a", "A", "Ф" ,"ф"] },
-                        { name: "right", keys: ["ArrowRight", "d", "D", "В" ,"в"] },
+                        { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
+                        { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
+                        { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
+                        { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
                         { name: "jump", keys: ["Space"] },
                         { name: "shift", keys: ["Shift"] },
                       ]}
