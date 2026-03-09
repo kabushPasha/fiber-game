@@ -26,6 +26,7 @@ import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessing } from "./classes/PostProcessing/PostProcessing"
+import { Desaturate, NormalView, PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -75,8 +76,13 @@ const App = () => {
                 return renderer
               }}
               style={{ background: "black" }}
-            >
-              <WebGPUPostProcessing />
+            >             
+
+              <WebGPUPostProcessingProvider >
+                <PP_FogPass />
+              </WebGPUPostProcessingProvider>
+
+
               <Suspense>
 
                 <Physics>
