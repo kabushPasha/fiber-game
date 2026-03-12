@@ -28,7 +28,7 @@ import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
 import { folder, Leva, useControls } from 'leva';
-import { SnowSprites, SnowSpritesUI } from "./classes/Terrain/SnowSprites"
+import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
 import { TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
 import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterCompute"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
@@ -139,8 +139,7 @@ const App = () => {
                           <Player >
                             <WorldPositionConstraint>
                               {1 && <TerrainPlane />}
-                              {0 && <Grass />}
-                              {1  && <TerrainScatterUI />}
+                              {1 && <Grass />}                              
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
@@ -152,6 +151,7 @@ const App = () => {
                           </Player>
 
                           {0 && <TerrainScatterCompute />}
+                          {1  && <TerrainScatterUI />}
 
                         </TerrainProvider>
 

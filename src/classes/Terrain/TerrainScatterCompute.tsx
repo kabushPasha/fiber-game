@@ -4,7 +4,7 @@ import { useTerrain } from "./TerrainProvider"
 import { useFrame } from "@react-three/fiber"
 import { usePlayer } from "../Player/PlayerContext"
 
-export function TerrainScatterCompute({ count = 10000, size = 200 }) {
+export function TerrainScatterCompute({ count = 100, size = 200 }) {
     const meshRef = useRef<THREE.InstancedMesh>(null!)
     const dummy = new THREE.Object3D()
 
@@ -117,8 +117,8 @@ export function TerrainScatterCompute({ count = 10000, size = 200 }) {
             frustumCulled={false}
             ref={meshRef}
             args={[undefined, undefined, count]}
-            //onPointerOver={handleOver}
-            //onPointerOut={handleOut}
+            onPointerOver={handleOver}
+            onPointerOut={handleOut}
         >
             <boxGeometry />
             <meshStandardMaterial vertexColors />

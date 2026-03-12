@@ -3,6 +3,9 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 import { useLoader } from "@react-three/fiber";
 import { useMemo } from "react";
+import { Fn, texture, vec2 } from "three/tsl";
+import type { Node } from "three/webgpu";
+import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
 
 /** CONTEXT */
 export type TerrainData = {
@@ -14,6 +17,7 @@ export type TerrainData = {
     hf_tex: THREE.Texture;
     hf_nml: THREE.Texture;
     getHeightAtPos: (worldPos: THREE.Vector3) => number;
+    tsl_sampleHeight : ShaderNodeFn<[Node]>
 };
 
 export const TerrainContext = createContext<TerrainData | null>(null);
@@ -96,6 +100,12 @@ export function TerrainProvider({
             return h * hf_height;
         }
 
+        const tsl_sampleHeight = Fn(([worldPos]: [Node]) => {
+            const samplePos = worldPos.zx.div(hf_size).add(-0.5).mul(vec2(1, -1));
+            const heightSample = texture(hf_tex, samplePos).x.mul(hf_height);
+            return heightSample;
+        })
+
         return {
             heights,
             width,
@@ -105,6 +115,7 @@ export function TerrainProvider({
             hf_tex,
             hf_nml,
             getHeightAtPos,
+            tsl_sampleHeight,
         };
 
     }, [heights, width, height, hf_size, hf_height, hf_tex]);

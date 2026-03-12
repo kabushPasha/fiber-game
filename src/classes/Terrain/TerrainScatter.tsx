@@ -1,38 +1,45 @@
-import { useGLTF } from "@react-three/drei"
 import { useRef, useMemo } from "react"
 import * as THREE from "three"
 import {
-    attribute,
+    cameraPosition,
+    clamp,
     float,
     instanceIndex,
     length,
     mix,
     mod,
-    modelWorldMatrix,
     modelWorldMatrixInverse,
     normalLocal,
     positionLocal,
+    rand,
+    screenUV,
+    step,
     storage,
-    texture,
     transformNormalToView,
-    uv,
-    vec2,
     vec3,
-    vec4
+    vec4,
 } from "three/tsl"
-import { MeshStandardNodeMaterial, StorageInstancedBufferAttribute } from "three/webgpu"
+import { MeshStandardNodeMaterial, Node, StorageInstancedBufferAttribute } from "three/webgpu"
 import { useTerrain } from "./TerrainProvider"
 import { folder, useControls } from "leva"
+import { Fn } from "three/src/nodes/TSL.js"
+
 
 export type TerrainScatterProps = {
     gridSize?: number
     spacing?: number
+    rotation_random?: number
+    scale?: number
+    scale_random?: number
 }
 
 
 export function TerrainScatter({
     gridSize = 5,
-    spacing = 1
+    spacing = 1,
+    rotation_random = 1,
+    scale = 1,
+    scale_random = 1,
 }: TerrainScatterProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null!)
 
@@ -60,11 +67,11 @@ export function TerrainScatter({
                 )
 
                 // random rotation for natural look
-                dummy.rotation.y = Math.random() * Math.PI * 2
+                dummy.rotation.y = Math.random() * Math.PI * 2 * rotation_random
 
                 // slight scale variation
-                //const s = 2 + Math.random() * 2.0
-                //dummy.scale.set(s, s, s)
+                const s = scale * (1 - Math.random() * scale_random)
+                dummy.scale.set(s, s, s)
 
                 dummy.updateMatrix()
                 dummy.matrix.toArray(transforms, index * 16)
@@ -73,9 +80,9 @@ export function TerrainScatter({
         }
 
         return transforms
-    }, [gridSize, spacing])
+    }, [gridSize, spacing,scale,scale_random,rotation_random])
 
-    const { hf_size, hf_tex, hf_height, hf_nml } = useTerrain()
+    const { hf_size, hf_tex, hf_height, tsl_sampleHeight } = useTerrain()
 
     // Create material after mesh exists
     const sticky_material = useMemo(() => {
@@ -86,28 +93,26 @@ export function TerrainScatter({
         const transformsStorage = storage(new StorageInstancedBufferAttribute(instanceTransforms, 16))
         const instanceMatrix = transformsStorage.element(instanceIndex)
 
-        const objCenter = modelWorldMatrix.mul(vec4(0, 0, 0, 1)).setY(float(0.0));
+        //const objCenter = modelWorldMatrix.mul(vec4(0, 0, 0, 1)).setY(float(0.0));
+        const objCenter = cameraPosition.setY(float(0.0)); // Obj we Follow
+        const instanceCenter = instanceMatrix.mul(vec4(0, 0, 0, 1));
 
-        // Calc snapped Position
-        const instanceCenter = instanceMatrix.mul(vec4(0, 0, 0, 1))
-        const rel_pos = instanceCenter.sub(objCenter).setY(float(0));
-        const mod_rel_pos = mod(rel_pos.add(zone_size / 2.0), zone_size).sub(zone_size / 2.0)
+        // Calc snapped Position        
+        const mod_rel_pos = SnappedRelativePosition(instanceCenter, objCenter, zone_size);
         const snap_offset = mod_rel_pos.add(objCenter).sub(instanceCenter);
 
         // Sample Height
-        //const samplePos = instanceCenter.add(snap_offset).div(hf_size).add(-0.5).zx.mul(vec2(1, -1));
-        const samplePos = instanceMatrix.mul(vec4(0.0, 0.0, 0.0, 1.0)).add(snap_offset).div(hf_size).add(-0.5).zx.mul(vec2(1, -1));
-        const heightSample = texture(hf_tex, samplePos).x.mul(hf_height).add(0.001);
+        const worldCenter = instanceMatrix.mul(vec4(0.0, 0.0, 0.0, 1.0)).add(snap_offset)
+        const heightSample = tsl_sampleHeight(worldCenter);
 
         const distance_sacle = length(mod_rel_pos).sub(0).div(zone_size * 0.5).oneMinus().clamp(0, 1).pow(1)
         //const scaled_localPos = positionLocal.mul(vec3(1, distance_sacle, 1))
         // Scale to root 
         const scaled_localPos = mix(positionLocal, vec3(0.0), distance_sacle.oneMinus());
+        const final_local_pos = positionLocal;
 
-        const out_local_pos = scaled_localPos;
-        const instancePos = instanceMatrix.mul(vec4(out_local_pos, 1))
+        const instancePos = instanceMatrix.mul(vec4(final_local_pos, 1))
         const final_pos = instancePos.add(snap_offset.setY(heightSample));
-
 
         // Final Position
         mat.positionNode = modelWorldMatrixInverse.mul(final_pos).xyz;
@@ -115,6 +120,17 @@ export function TerrainScatter({
         // Normal
         const normalWorld = instanceMatrix.mul(vec4(normalLocal, 0)).xyz
         mat.normalNode = transformNormalToView(normalWorld)
+
+        //Dithered Alpha
+        const distanceFactor = length(mod_rel_pos).div(zone_size * 0.5);
+        const distanceFactor_clamped = clamp(distanceFactor.oneMinus(), 0.0, 1.0);
+        //different tresholds
+        const threshold = rand(screenUV.xy);
+        //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
+        const alpha = step(threshold, distanceFactor_clamped.pow(0.5));
+
+        mat.maskNode = alpha;
+        mat.transparent = true;
 
         return mat
     }, [instanceTransforms, hf_size, hf_tex, hf_height, zone_size])
@@ -133,8 +149,6 @@ export function TerrainScatter({
         />
     )
 }
-
-
 
 
 // -- UI WRAPPER ---
@@ -165,9 +179,37 @@ export function TerrainScatterUI({
                 min: 0.1,
                 max: 10,
                 step: 0.1
+            },
+            rotation_random: {
+                value: props.rotation_random ?? 0,
+                min: 0.0,
+                max: 1.0,
+                step: 0.01
+            },
+            scale: {
+                value: props.scale ?? 1,
+                min: 0.01,
+                max: 10,
+                step: 0.01
+            },
+            scale_random: {
+                value: props.scale_random ?? 0,
+                min: 0.0,
+                max: 1.0,
+                step: 0.01
             }
         }, { collapsed: true })
     })
 
     return <TerrainScatter {...props} {...controls} />
 }
+
+
+export const SnappedRelativePosition = Fn(
+    ([instanceCenter, objCenter, zone_size]: [Node, Node, Node]) => {
+        // relative position to the object center, ignoring Y
+        const rel_pos = instanceCenter.sub(objCenter).setY(float(0));
+        // modulo for snapping within zone size
+        return mod(rel_pos.add(zone_size.div(2.0)), zone_size).sub(zone_size.div(2.0));
+    }
+);
