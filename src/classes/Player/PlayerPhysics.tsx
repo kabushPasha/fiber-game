@@ -26,7 +26,7 @@ export function MoveByVel() {
             objectRef.current.position.y = 0
             vel.y = 0
         }
-    })
+    }, -6)
 
     return null
 }

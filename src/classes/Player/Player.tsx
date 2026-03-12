@@ -8,6 +8,7 @@ import { GameObject3D } from "../GameObjectContext"
 import { SmoothCamera } from "../ParentConstraints/SmoothChild"
 import { useMouseLock } from "./MouseLock"
 import { CameraController } from "./CameraController"
+import { usePlayer } from "./PlayerContext"
 
 
 const SPEED = 10
@@ -19,6 +20,12 @@ interface PlayerProps {
 
 export function Player({ children }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
+  // Register Our Player
+  const { setPlayer } = usePlayer()
+  useEffect(() => {
+    if (playerRef.current) setPlayer(playerRef.current)
+  }, [playerRef, setPlayer])
+
   const { mount } = useUI()
   const [, get] = useKeyboardControls()
   const { } = useThree()

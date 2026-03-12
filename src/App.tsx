@@ -27,7 +27,11 @@ import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositi
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
-import { folder, useControls } from 'leva';
+import { folder, Leva, useControls } from 'leva';
+import { SnowSprites, SnowSpritesUI } from "./classes/Terrain/SnowSprites"
+import { TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
+import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterCompute"
+import { PlayerProvider } from "./classes/Player/PlayerContext"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -54,8 +58,6 @@ const App = () => {
       })
     }
   )
-
-
 
   return (
     <UIScreenProvider>
@@ -86,6 +88,7 @@ const App = () => {
               height: "auto",
               aspectRatio: "235 / 100",
             }}>
+            <Leva collapsed />
 
             <Canvas
               camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
@@ -104,63 +107,69 @@ const App = () => {
             >
 
 
-
-
               <Suspense>
+                <PlayerProvider>
 
-                <WebGPUPostProcessingProvider >
-                  {settings.add_fog && <PP_FogPass density={settings.density * 0.01} heightFalloff={settings.heightFalloff} />}
-                </WebGPUPostProcessingProvider>
+                  <WebGPUPostProcessingProvider >
+                    {settings.add_fog && <PP_FogPass density={settings.density * 0.01} heightFalloff={settings.heightFalloff} />}
+                  </WebGPUPostProcessingProvider>
 
-                <Physics>
+                  <Physics>
 
-                  {0 && <Pixelated resolution={256} />}
+                    {0 && <Pixelated resolution={256} />}
 
-                  <group name="Lights">
-                    <ambientLight intensity={0.2} />
-                    <pointLight intensity={0.00} position={[100, 100, 100]} />
-                    <directionalLight position={[10, 5, 0]} intensity={0.6} />
-                  </group>
+                    <group name="Lights">
+                      <ambientLight intensity={0.2} />
+                      <pointLight intensity={0.00} position={[100, 100, 100]} />
+                      <directionalLight position={[10, 5, 0]} intensity={0.6} />
+                    </group>
 
-                  <MouseLockProvider>
-                    <KeyboardControls
-                      map={[
-                        { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
-                        { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
-                        { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
-                        { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
-                        { name: "jump", keys: ["Space"] },
-                        { name: "shift", keys: ["Shift"] },
-                      ]}
-                    >
-                      <TerrainProvider textureUrl="textures/HFs/height.png">
-                        <Player >
-                          <WorldPositionConstraint>
-                            {1 && <TerrainPlane />}
-                            {1 && <Grass />}
-                          </WorldPositionConstraint>
+                    <MouseLockProvider>
+                      <KeyboardControls
+                        map={[
+                          { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
+                          { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
+                          { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
+                          { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
+                          { name: "jump", keys: ["Space"] },
+                          { name: "shift", keys: ["Shift"] },
+                        ]}
+                      >
+                        <TerrainProvider textureUrl="textures/HFs/height.png">
+                          <Player >
+                            <WorldPositionConstraint>
+                              {1 && <TerrainPlane />}
+                              {0 && <Grass />}
+                              {1  && <TerrainScatterUI />}
+                            </WorldPositionConstraint>
 
-                          {1 && <MoveByVel />}
-                          <Jump />
-                          <GroundClamp />
+                            {1 && <MoveByVel />}
+                            <Jump />
+                            <GroundClamp />
 
-                        </Player>
-                      </TerrainProvider>
+                            
 
-                    </KeyboardControls>
-                  </MouseLockProvider>
+                          </Player>
 
-                  {0 && <TaskSelectorPawn />}
+                          {0 && <TerrainScatterCompute />}
 
-                  <AuroraBackground />
-                  {false && <TestSDF />}
-                  {1 && <SimpleBackground />}
+                        </TerrainProvider>
+
+                      </KeyboardControls>
+                    </MouseLockProvider>
+
+                    {0 && <TaskSelectorPawn />}
+                    {0 && <AuroraBackground />}
+                    {false && <TestSDF />}
+                    {1 && <SimpleBackground />}
 
 
-                  {false && <TestTslShader />}
+                    <SnowSpritesUI active={true} showControls={true} />
+
+                    {false && <TestTslShader />}
 
 
-                  {/**
+                    {/**
                   <RigidBody type="fixed">
                     <Box position={[0,0,0]} args = {[10,1,10]}>
                       <meshStandardMaterial color = "springgreen" />
@@ -169,7 +178,8 @@ const App = () => {
                   */}
 
 
-                </Physics>
+                  </Physics>
+                </PlayerProvider>
               </Suspense>
             </Canvas>
           </div>
