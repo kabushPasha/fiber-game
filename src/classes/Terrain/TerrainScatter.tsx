@@ -23,6 +23,7 @@ import { MeshStandardNodeMaterial, Node, StorageInstancedBufferAttribute } from 
 import { useTerrain } from "./TerrainProvider"
 import { folder, useControls } from "leva"
 import { Fn } from "three/src/nodes/TSL.js"
+import { useGLTF } from "@react-three/drei"
 
 
 export type TerrainScatterProps = {
@@ -31,6 +32,7 @@ export type TerrainScatterProps = {
     rotation_random?: number
     scale?: number
     scale_random?: number
+    offset_random?: number
 }
 
 
@@ -40,10 +42,17 @@ export function TerrainScatter({
     rotation_random = 1,
     scale = 1,
     scale_random = 1,
+    offset_random = 0,
 }: TerrainScatterProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null!)
 
+    const { nodes } = useGLTF("models/Tree.glb")
     const geometry = useMemo(() => {
+        console.log(nodes);
+        return (nodes.file1 as THREE.Mesh).geometry;
+
+
+
         const g = new THREE.BoxGeometry(1, 1, 1)
         g.translate(0, 0.5, 0)
         return g
@@ -60,11 +69,15 @@ export function TerrainScatter({
 
         for (let x = 0; x < gridSize; x++) {
             for (let z = 0; z < gridSize; z++) {
+
                 dummy.position.set(
                     (x - gridSize / 2) * spacing + Math.random() * 0,
                     0,
                     (z - gridSize / 2) * spacing + Math.random() * 0
                 )
+
+                const rand_offset = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5)
+                dummy.position.addScaledVector(rand_offset, spacing * offset_random)
 
                 // random rotation for natural look
                 dummy.rotation.y = Math.random() * Math.PI * 2 * rotation_random
@@ -80,7 +93,7 @@ export function TerrainScatter({
         }
 
         return transforms
-    }, [gridSize, spacing,scale,scale_random,rotation_random])
+    }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random])
 
     const { hf_size, hf_tex, hf_height, tsl_sampleHeight } = useTerrain()
 
@@ -129,11 +142,12 @@ export function TerrainScatter({
         //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
         const alpha = step(threshold, distanceFactor_clamped.pow(0.5));
 
-        mat.maskNode = alpha;
+        //mat.maskNode = alpha;
         mat.transparent = true;
 
         return mat
     }, [instanceTransforms, hf_size, hf_tex, hf_height, zone_size])
+
 
 
     return (
@@ -168,7 +182,7 @@ export function TerrainScatterUI({
     const controls = useControls("Terrain", {
         Scatter: folder({
             gridSize: {
-                value: props.gridSize ?? 50,
+                value: props.gridSize ?? 5,
                 min: 1,
                 max: 1000,
                 step: 1
@@ -177,7 +191,7 @@ export function TerrainScatterUI({
             spacing: {
                 value: props.spacing ?? 5,
                 min: 0.1,
-                max: 10,
+                max: 100,
                 step: 0.1
             },
             rotation_random: {
@@ -194,6 +208,12 @@ export function TerrainScatterUI({
             },
             scale_random: {
                 value: props.scale_random ?? 0,
+                min: 0.0,
+                max: 1.0,
+                step: 0.01
+            },
+            offset_random: {
+                value: props.offset_random ?? 0,
                 min: 0.0,
                 max: 1.0,
                 step: 0.01

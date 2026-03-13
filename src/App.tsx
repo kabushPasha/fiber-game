@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls } from "@react-three/drei"
+import { KeyboardControls, SoftShadows } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -30,7 +30,7 @@ import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessi
 import { folder, Leva, useControls } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
 import { TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
-import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterCompute"
+import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterInteractive"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
 
 extend({ MeshStandardNodeMaterial })
@@ -103,9 +103,8 @@ const App = () => {
                 await renderer.init()
                 return renderer
               }}
-              style={{ background: "black" }}
+              style={{ background: "black" }}              
             >
-
 
               <Suspense>
                 <PlayerProvider>
@@ -116,12 +115,12 @@ const App = () => {
 
                   <Physics>
 
-                    {0 && <Pixelated resolution={256} />}
+                    {1 && <Pixelated resolution={128} />}
 
                     <group name="Lights">
                       <ambientLight intensity={0.2} />
                       <pointLight intensity={0.00} position={[100, 100, 100]} />
-                      <directionalLight position={[10, 5, 0]} intensity={0.6} />
+                      <directionalLight position={[10, 5, 0]} intensity={0.6} castShadow/>
                     </group>
 
                     <MouseLockProvider>

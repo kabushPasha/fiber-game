@@ -42,6 +42,7 @@ export function TerrainScatterCompute({ count = 100, size = 200 }) {
             // clamp to terrain
             const height = terrain.getHeightAtPos(data.position)
             data.position.setY(height)
+            data.scale = 1;
 
             // set dummy
             dummy.position.copy(data.position)
@@ -119,6 +120,7 @@ export function TerrainScatterCompute({ count = 100, size = 200 }) {
             args={[undefined, undefined, count]}
             onPointerOver={handleOver}
             onPointerOut={handleOut}
+            castShadow
         >
             <boxGeometry />
             <meshStandardMaterial vertexColors />

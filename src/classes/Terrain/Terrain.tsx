@@ -98,7 +98,7 @@ export function TerrainPlane() {
 
     return (
         <group name="TerrainPlane" ref={ref}>
-            <mesh rotation-x={-Math.PI / 2} material={material}>
+            <mesh rotation-x={-Math.PI / 2} material={material} receiveShadow>
                 {1 && <planeGeometry args={[size, size, n_blocks, n_blocks]} />}
 
 

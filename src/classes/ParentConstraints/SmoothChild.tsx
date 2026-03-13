@@ -88,7 +88,7 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
     <SmoothChild smooth={smooth}>
       <HeadBob>
         <LateralTilt maxTilt={0.15} damping={6}>
-            <primitive object={camera} position={[0,0,0]} />
+            <primitive object={camera} position={[0,0,30]} />
         </LateralTilt>
       </HeadBob>
     </SmoothChild>
