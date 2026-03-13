@@ -4,7 +4,9 @@ import {
     cameraPosition,
     clamp,
     float,
+    instancedArray,
     instanceIndex,
+    int,
     length,
     mix,
     mod,
@@ -16,14 +18,17 @@ import {
     step,
     storage,
     transformNormalToView,
+    uniform,
     vec3,
     vec4,
 } from "three/tsl"
 import { MeshStandardNodeMaterial, Node, StorageInstancedBufferAttribute } from "three/webgpu"
 import { useTerrain } from "./TerrainProvider"
 import { folder, useControls } from "leva"
-import { Fn } from "three/src/nodes/TSL.js"
+import { Fn, mat4 } from "three/src/nodes/TSL.js"
 import { useGLTF } from "@react-three/drei"
+import { useFrame, useThree } from "@react-three/fiber"
+import { usePlayer } from "../Player/PlayerContext"
 
 
 export type TerrainScatterProps = {
@@ -50,8 +55,6 @@ export function TerrainScatter({
     const geometry = useMemo(() => {
         console.log(nodes);
         return (nodes.file1 as THREE.Mesh).geometry;
-
-
 
         const g = new THREE.BoxGeometry(1, 1, 1)
         g.translate(0, 0.5, 0)
@@ -150,6 +153,65 @@ export function TerrainScatter({
 
 
 
+    // -------------   Compute Position Updates ----------------------------------
+
+    const { gl } = useThree();
+    //@ts-ignore
+    const renderer = gl as THREE.WebGPURenderer
+
+    const uniforms = useMemo(
+        () => ({
+            playerPosition: uniform( new THREE.Vector3(0,0,0)),
+        }),
+        []
+    );
+
+    const transformsBuffer = useMemo(() => {
+        return storage(new StorageInstancedBufferAttribute(instanceTransforms, 16))
+    }, [instanceTransforms])
+
+    // update Fn
+    const computeUpdate = useMemo(() => {
+        return Fn(() => {
+            const instanceMatrix = transformsBuffer.element(instanceIndex)
+            //.mulAssign(translationMatrix(vec3(0, 0.01, 0.01)))
+            
+            const worldPos = instanceMatrix.mul(vec4(0, 0, 0, 1));            
+            const offset = instanceMatrix.element(int(3));           
+
+            // Snap Around Player
+            const player_relative_pos = SnappedRelativePosition(worldPos, uniforms.playerPosition, zone_size);
+            const wrapped_world = player_relative_pos.add(uniforms.playerPosition);
+            //Get Height
+            const heightSample = tsl_sampleHeight(wrapped_world);
+            offset.assign(offset.setX(wrapped_world.x).setZ(wrapped_world.z).setY(heightSample));
+
+            //instanceMatrix.assign();
+        })().compute(count);
+    }, [transformsBuffer, count, tsl_sampleHeight,uniforms]);
+
+    const {player} = usePlayer();
+
+    useFrame(() => {
+        const world_pos = new THREE.Vector3(0,0,0)
+        player?.getWorldPosition(world_pos);
+        uniforms.playerPosition.value = world_pos;
+        renderer.compute(computeUpdate)
+    })
+
+    // Create material after mesh exists
+    const compute_mat = useMemo(() => {
+        const mat = new MeshStandardNodeMaterial()
+        mat.side = THREE.DoubleSide
+
+        mat.positionNode = transformsBuffer.element(instanceIndex).mul(positionLocal)
+        // Normal
+        const normalWorld =  transformsBuffer.element(instanceIndex).mul(vec4(normalLocal, 0)).xyz
+        mat.normalNode = transformNormalToView(normalWorld)
+
+        return mat
+    }, [hf_size, hf_tex, hf_height, zone_size, transformsBuffer])
+
     return (
         <instancedMesh
             frustumCulled={false}
@@ -157,7 +219,7 @@ export function TerrainScatter({
             position={[0, 0, 0]}
             args={[
                 geometry,
-                sticky_material,
+                compute_mat,
                 count
             ]}
         />
@@ -233,3 +295,12 @@ export const SnappedRelativePosition = Fn(
         return mod(rel_pos.add(zone_size.div(2.0)), zone_size).sub(zone_size.div(2.0));
     }
 );
+
+export const translationMatrix = Fn(([offset]: [any]) => {
+    return mat4(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        offset.x, offset.y, offset.z, 1.0
+    );
+})

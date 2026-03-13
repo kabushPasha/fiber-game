@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
 import { LateralTilt } from "../Player/LateralTilt";
+import { useMouseLock } from "../Player/MouseLock";
 
 
 
@@ -81,14 +82,33 @@ type SmoothCameraProps = {
   smooth?: number
 }
 
+
 export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
   const { camera } = useThree()
+  const targetZ = useRef(camera.position.z) // target for smooth scroll
+
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      targetZ.current += e.deltaY * 0.01 // adjust scroll speed
+      targetZ.current = Math.max(0, targetZ.current) // clamp to positive Z
+    }
+
+    document.addEventListener("wheel", onWheel)
+    return () => {
+      document.removeEventListener("wheel", onWheel)
+    }
+  }, [])
+
+  useFrame(() => {
+    // Smoothly interpolate camera z toward targetZ
+    camera.position.z += (targetZ.current - camera.position.z) * 0.1 // smooth factor
+  })
 
   return (
     <SmoothChild smooth={smooth}>
       <HeadBob>
         <LateralTilt maxTilt={0.15} damping={6}>
-            <primitive object={camera} position={[0,0,30]} />
+          <primitive object={camera} />
         </LateralTilt>
       </HeadBob>
     </SmoothChild>

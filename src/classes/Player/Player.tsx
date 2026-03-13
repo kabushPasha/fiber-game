@@ -1,4 +1,4 @@
-import {  useKeyboardControls } from "@react-three/drei"
+import {  Sphere, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
@@ -95,6 +95,7 @@ export function Player({ children }: PlayerProps) {
         {1 && <SmoothCamera />}
       </CameraController>
 
+      <Sphere />
     </GameObject3D>
   )
 }

@@ -152,7 +152,8 @@ const App = () => {
                           {0 && <TerrainScatterCompute />}
                           {1  && <TerrainScatterUI />}
 
-                        </TerrainProvider>
+
+                        </TerrainProvider>w
 
                       </KeyboardControls>
                     </MouseLockProvider>
