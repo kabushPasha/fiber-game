@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls, SoftShadows } from "@react-three/drei"
+import { Box, KeyboardControls, SoftShadows, useGLTF } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -19,7 +19,7 @@ import { TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 import { Physics } from "@react-three/rapier";
-import { Suspense } from "react"
+import { Suspense, useMemo } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
@@ -29,7 +29,7 @@ import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessi
 
 import { folder, Leva, useControls } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
-import { TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
+import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
 import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterInteractive"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
 
@@ -38,6 +38,14 @@ extend({ MeshStandardNodeMaterial })
 
 
 const App = () => {
+
+  // Load Tree
+  const { nodes } = useGLTF("models/Tree.glb")
+  const tree_mesh = useMemo(() => {
+    return (nodes.file1 as THREE.Mesh).geometry
+  }, [nodes])
+
+
 
   const settings = useControls("PostProcessing",
     {
@@ -103,7 +111,7 @@ const App = () => {
                 await renderer.init()
                 return renderer
               }}
-              style={{ background: "black" }}              
+              style={{ background: "black" }}
             >
 
               <Suspense>
@@ -120,7 +128,7 @@ const App = () => {
                     <group name="Lights">
                       <ambientLight intensity={0.2} />
                       <pointLight intensity={0.00} position={[100, 100, 100]} />
-                      <directionalLight position={[10, 5, 0]} intensity={0.6} castShadow/>
+                      <directionalLight position={[10, 5, 0]} intensity={0.6} castShadow />
                     </group>
 
                     <MouseLockProvider>
@@ -138,22 +146,47 @@ const App = () => {
                           <Player >
                             <WorldPositionConstraint>
                               {1 && <TerrainPlane />}
-                              {1 && <Grass />}                              
+                              {0 && <Grass />}
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
                             <Jump />
                             <GroundClamp />
 
-                            
-
                           </Player>
 
                           {0 && <TerrainScatterCompute />}
-                          {1  && <TerrainScatterUI />}
+                          {1 && <TerrainScatterUI
+                            name="Trees"
+                            gridSize={10}
+                            scale={5}
+                            spacing={10}
+                            rotation_random={1}
+                            offset_random={1}
+                          >
+                            <TerrainFadeMaterial />
+                            <LoadGltfGeo url="models/Tree.glb" />
+                          </TerrainScatterUI>
+                          }
+
+                          {1 && <TerrainScatterUI
+                            name="Grass"
+                            gridSize={30}
+                            scale={4}
+                            spacing={2}
+                            rotation_random={1}
+                            offset_random={0}
+                            scale_random={0.5}
+                          >
+                            {0 && <TerrainFadeMaterial />}
+                            <TerrainPivotMaterial />
+                            <LoadGltfGeo url="models/Grass.glb" />
+                          </TerrainScatterUI>
+                          }
 
 
-                        </TerrainProvider>w
+
+                        </TerrainProvider>
 
                       </KeyboardControls>
                     </MouseLockProvider>

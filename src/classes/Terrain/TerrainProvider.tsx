@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 import { useLoader } from "@react-three/fiber";
 import { useMemo } from "react";
-import { Fn, texture, vec2 } from "three/tsl";
+import { floor, Fn, rand, texture, vec2, vec3 } from "three/tsl";
 import type { Node } from "three/webgpu";
 import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
 
@@ -16,8 +16,10 @@ export type TerrainData = {
     hf_size: number;
     hf_tex: THREE.Texture;
     hf_nml: THREE.Texture;
-    getHeightAtPos: (worldPos: THREE.Vector3) => number;
+    getHeightAtPos: (worldPos: THREE.Vector3) => number;    
     tsl_sampleHeight : ShaderNodeFn<[Node]>
+    tsl_sampleN : ShaderNodeFn<[Node]>
+    tsl_sampleColor : ShaderNodeFn<[Node]>
 };
 
 export const TerrainContext = createContext<TerrainData | null>(null);
@@ -47,9 +49,9 @@ export function TerrainProvider({
     hf_tex.wrapS = THREE.RepeatWrapping;
     hf_tex.wrapT = THREE.RepeatWrapping;
     hf_tex.colorSpace = THREE.NoColorSpace;
-    hf_tex.minFilter = THREE.NearestFilter;
-    hf_tex.magFilter = THREE.NearestFilter;
-    hf_tex.generateMipmaps = false;
+    //hf_tex.minFilter = THREE.NearestFilter;
+    //hf_tex.magFilter = THREE.NearestFilter;
+    //hf_tex.generateMipmaps = false;
 
     const hf_nml = useLoader(TextureLoader, "textures/HFs/height_N.png");
     hf_nml.wrapS = THREE.RepeatWrapping;
@@ -100,11 +102,28 @@ export function TerrainProvider({
             return h * hf_height;
         }
 
+        const tsl_ws2sample = Fn(([worldPos]: [Node]) => {
+            return worldPos.zx.div(hf_size).add(-0.5).mul(vec2(1, -1));             
+        })
+
         const tsl_sampleHeight = Fn(([worldPos]: [Node]) => {
-            const samplePos = worldPos.zx.div(hf_size).add(-0.5).mul(vec2(1, -1));
+            const samplePos = tsl_ws2sample(worldPos);
             const heightSample = texture(hf_tex, samplePos).x.mul(hf_height);
             return heightSample;
         })
+
+        const tsl_sampleN = Fn(([worldPos]: [Node]) => {
+            const samplePos = tsl_ws2sample(worldPos);
+            const hf_N = texture(hf_nml, samplePos);
+            return hf_N;
+        })
+
+        const tsl_sampleColor = Fn(([worldPos]: [Node]) => {
+            //const hf_N = texture(hf_nml, samplePos);
+            //return hf_N;
+            return vec3(0.3,0.9,0.6);
+        })
+
 
         return {
             heights,
@@ -116,6 +135,8 @@ export function TerrainProvider({
             hf_nml,
             getHeightAtPos,
             tsl_sampleHeight,
+            tsl_sampleN,
+            tsl_sampleColor,
         };
 
     }, [heights, width, height, hf_size, hf_height, hf_tex]);
