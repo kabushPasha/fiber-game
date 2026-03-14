@@ -172,6 +172,7 @@ export function SnowSprites({
         const sprite = new THREE.Sprite(material);
         sprite.count = count;
         sprite.frustumCulled = false;
+        sprite.raycast = () => {}; 
 
         return sprite;
 

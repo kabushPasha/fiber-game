@@ -1,10 +1,19 @@
 import * as THREE from "three"
-import { useRef, useLayoutEffect } from "react"
+import { useRef, useLayoutEffect, useMemo } from "react"
 import { useTerrain } from "./TerrainProvider"
-import { useFrame } from "@react-three/fiber"
+import {  useFrame } from "@react-three/fiber"
 import { usePlayer } from "../Player/PlayerContext"
+import { createInstanceTransforms, type TerrainScatterProps } from "./TerrainScatter"
+import { ScatterUIWrapper } from "./Scatter/ScatterUI"
 
-export function TerrainScatterCompute({ count = 100, size = 200 }) {
+export function TerrainScatterInteractive({
+    gridSize = 10,
+    spacing = 10,
+    rotation_random = 1,
+    scale = 1,
+    scale_random = 0.3,
+    offset_random = 0.5,
+}: TerrainScatterProps) {
     const meshRef = useRef<THREE.InstancedMesh>(null!)
     const dummy = new THREE.Object3D()
 
@@ -14,50 +23,73 @@ export function TerrainScatterCompute({ count = 100, size = 200 }) {
     const terrain = useTerrain()
     const { player } = usePlayer()
 
-    // store positions and scales to make updates easier
-    const instanceData = useRef(
-        Array.from({ length: count }, () => ({
-            position: new THREE.Vector3(),
-            scale: Math.random() + 0.5,
-            rotation: new THREE.Euler(
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            )
-        }))
-    )
+    const count = useMemo(() => { return gridSize * gridSize }, [gridSize])
 
+    // keep a ref for mutable instance data
+    const instanceDataRef = useRef<{
+        position: THREE.Vector3;
+        scale: number;
+        rotation: THREE.Euler;
+    }[]>([]);
+    const colorsRef = useRef<Float32Array | null>(null)
+
+    // recreate instanceData whenever gridSize changes
     useLayoutEffect(() => {
-        const mesh = meshRef.current
-        const colors = new Float32Array(count * 3)
+        const mesh = meshRef.current!;
+        const count = gridSize * gridSize;
+        const transforms = createInstanceTransforms({ gridSize, spacing, scale, scale_random, rotation_random, offset_random });
 
-        instanceData.current.forEach((data, i) => {
-            // random initial position within size cube
-            data.position.set(
-                (Math.random() - 0.5) * size,
-                (Math.random() - 0.5) * size,
-                (Math.random() - 0.5) * size
-            )
+        instanceDataRef.current = Array.from({ length: count }, () => ({
+            position: new THREE.Vector3(),
+            scale: 1,
+            rotation: new THREE.Euler(),
+        }));
 
-            // clamp to terrain
-            const height = terrain.getHeightAtPos(data.position)
-            data.position.setY(height)
-            data.scale = 1;
+        // Initialize colors buffer (reuse if exists)
+        if (!colorsRef.current || colorsRef.current.length !== count * 3) {
+            colorsRef.current = new Float32Array(count * 3)
+        }
+        const colors = colorsRef.current
+        const dummy = new THREE.Object3D();
+        const pos = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const scaleVec = new THREE.Vector3();
+        const matrix = new THREE.Matrix4();
 
-            // set dummy
-            dummy.position.copy(data.position)
-            dummy.rotation.copy(data.rotation)
-            dummy.scale.setScalar(data.scale)
-            dummy.updateMatrix()
-            mesh.setMatrixAt(i, dummy.matrix)
+        for (let i = 0; i < count; i++) {
+            matrix.fromArray(transforms, i * 16);
+            matrix.decompose(pos, quat, scaleVec);
 
-            // default color
-            yellow.toArray(colors, i * 3)
-        })
+            const data = instanceDataRef.current[i];
+            data.position.copy(pos);
+            data.rotation.setFromQuaternion(quat);
+            data.scale = scaleVec.x;
 
-        mesh.instanceMatrix.needsUpdate = true
-        mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3)
-    }, [count, size])
+            const height = terrain.getHeightAtPos(data.position);
+            data.position.y = height;
+
+            dummy.position.copy(data.position);
+            dummy.rotation.copy(data.rotation);
+            dummy.scale.setScalar(data.scale);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(i, dummy.matrix);
+
+            yellow.toArray(colors, i * 3);
+        }
+
+        mesh.instanceMatrix.needsUpdate = true;
+        // Only set instanceColor once, never replace it
+        if (!mesh.instanceColor) {
+            mesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3)
+        } else {
+            mesh.instanceColor.array = colors
+            mesh.instanceColor.needsUpdate = true
+        }
+
+        meshRef.current.computeBoundingSphere();
+        meshRef.current.computeBoundingBox();
+
+    }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random, terrain]);
 
     const handleOver = (e: any) => {
         e.stopPropagation()
@@ -75,43 +107,39 @@ export function TerrainScatterCompute({ count = 100, size = 200 }) {
     }
 
     useFrame(() => {
-        if (!meshRef.current || !player) return
-        const mesh = meshRef.current
+        if (!meshRef.current || !player) return;
+        //const start = performance.now(); // start timing
 
-        instanceData.current.forEach((data, i) => {
-            // check distance from player
-            const dx = data.position.x - player.position.x
-            const dy = data.position.y - player.position.y
-            const dz = data.position.z - player.position.z
+        const mesh = meshRef.current;
+        const zoneSize = gridSize * spacing;
+        const halfSize = zoneSize / 2;
 
-            const halfSize = size * 0.5
+        instanceDataRef.current.forEach((data, i) => {
+            let dx = data.position.x - player.position.x;
+            let dz = data.position.z - player.position.z;
 
-            // wrap in x
-            if (dx > halfSize) data.position.x -= size
-            else if (dx < -halfSize) data.position.x += size
+            if (dx > halfSize) data.position.x -= zoneSize;
+            else if (dx < -halfSize) data.position.x += zoneSize;
 
-            // wrap in y
-            if (dy > halfSize) data.position.y -= size
-            else if (dy < -halfSize) data.position.y += size
+            if (dz > halfSize) data.position.z -= zoneSize;
+            else if (dz < -halfSize) data.position.z += zoneSize;
 
-            // wrap in z
-            if (dz > halfSize) data.position.z -= size
-            else if (dz < -halfSize) data.position.z += size
+            // Y based on terrain
+            const height = terrain.getHeightAtPos(data.position);
+            data.position.y = height;
 
-            // clamp to terrain height again
-            const height = terrain.getHeightAtPos(data.position)
-            data.position.setY(height)
+            dummy.position.copy(data.position);
+            dummy.rotation.copy(data.rotation);
+            dummy.scale.setScalar(data.scale);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(i, dummy.matrix);
+        });
 
-            // update instance matrix
-            dummy.position.copy(data.position)
-            dummy.rotation.copy(data.rotation)
-            dummy.scale.setScalar(data.scale)
-            dummy.updateMatrix()
-            mesh.setMatrixAt(i, dummy.matrix)
-        })
+        mesh.instanceMatrix.needsUpdate = true;
+        meshRef.current.computeBoundingSphere();
+        meshRef.current.computeBoundingBox();
 
-        mesh.instanceMatrix.needsUpdate = true
-    })
+    });
 
     return (
         <instancedMesh
@@ -127,3 +155,5 @@ export function TerrainScatterCompute({ count = 100, size = 200 }) {
         </instancedMesh>
     )
 }
+
+export const TerrainScatterInteractiveUI = ScatterUIWrapper(TerrainScatterInteractive)

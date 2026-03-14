@@ -2,7 +2,7 @@
 import { RigidBody, HeightfieldCollider } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import { MeshStandardNodeMaterial } from "three/webgpu";
-import { modelWorldMatrix, positionLocal, vec3, vec4, texture, vec2,  modelWorldMatrixInverse, transformNormalToView, rand, floor } from "three/tsl";
+import { modelWorldMatrix, positionLocal, vec3, vec4, texture, vec2, modelWorldMatrixInverse, transformNormalToView } from "three/tsl";
 import { useTerrain } from "./TerrainProvider";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -51,7 +51,7 @@ export function Terrain() {
 export function TerrainPlane() {
     const ref = useRef<THREE.Group>(null!);
 
-    const { hf_size, width,  hf_tex, hf_height, hf_nml, tsl_sampleColor } = useTerrain();
+    const { hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor } = useTerrain();
 
     const block_size = hf_size / (width - 1);
     const n_blocks = 1024 * 2 + 1;
@@ -87,7 +87,7 @@ export function TerrainPlane() {
         const normalMap = texture(hf_nml, samplePos);
         const normalTS = normalMap.mul(2.0).sub(1.0);
 
-        mat.normalNode = transformNormalToView(normalTS);        
+        mat.normalNode = transformNormalToView(normalTS);
 
         mat.colorNode = tsl_sampleColor(worldPos);
         //mat.colorNode = vec3(1,0.1,0.1);
@@ -97,11 +97,9 @@ export function TerrainPlane() {
 
 
     return (
-        <group name="TerrainPlane" ref={ref}>
-            <mesh rotation-x={-Math.PI / 2} material={material} receiveShadow>
+        <group name="TerrainPlane" ref={ref} >
+            <mesh rotation-x={-Math.PI / 2} material={material} receiveShadow name="TerrainPlaneMesh" raycast={()=>{}}>
                 {1 && <planeGeometry args={[size, size, n_blocks, n_blocks]} />}
-
-
             </mesh>
         </group>
     );

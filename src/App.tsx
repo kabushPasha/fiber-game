@@ -21,7 +21,6 @@ import { TerrainPlane } from "./classes/Terrain/Terrain"
 import { Physics } from "@react-three/rapier";
 import { Suspense, useMemo } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
-import { Grass } from "./classes/Terrain/Grass"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
@@ -30,8 +29,9 @@ import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessi
 import { folder, Leva, useControls } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
 import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
-import { TerrainScatterCompute } from "./classes/Terrain/TerrainScatterInteractive"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
+import { TerrainScatterInteractiveUI } from "./classes/Terrain/TerrainScatterInteractive"
+import { RaycastOnClick } from "./classes/Player/RaycastOnClick"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -145,8 +145,7 @@ const App = () => {
                         <TerrainProvider textureUrl="textures/HFs/height.png">
                           <Player >
                             <WorldPositionConstraint>
-                              {1 && <TerrainPlane />}
-                              {0 && <Grass />}
+                              {1 && <TerrainPlane />}                              
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
@@ -155,7 +154,12 @@ const App = () => {
 
                           </Player>
 
-                          {0 && <TerrainScatterCompute />}
+                          {1 && <TerrainScatterInteractiveUI 
+                            name="Boxes"
+                            gridSize={30}
+                            spacing={0.75}
+                          />}
+
                           {1 && <TerrainScatterUI
                             name="Trees"
                             gridSize={10}
@@ -185,7 +189,6 @@ const App = () => {
                           }
 
 
-
                         </TerrainProvider>
 
                       </KeyboardControls>
@@ -201,6 +204,7 @@ const App = () => {
 
                     {false && <TestTslShader />}
 
+                    <RaycastOnClick />
 
                     {/**
                   <RigidBody type="fixed">
