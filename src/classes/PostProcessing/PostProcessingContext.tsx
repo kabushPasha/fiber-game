@@ -34,11 +34,11 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     // Register/unregister effect
     const registerEffect = (effect: (currentNode: any) => any) => {
         effectsRef.current.push(effect);
-        console.log("REGISTER EFFECT", effectsRef.current);
+        //console.log("REGISTER EFFECT", effectsRef.current);
         runEffects();
 
         return () => {
-            console.log("UNREGISTER EFFECT")
+            //console.log("UNREGISTER EFFECT")
             effectsRef.current = effectsRef.current.filter(e => e !== effect);
             runEffects(); // rerun remaining effects
         };
@@ -54,7 +54,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
 
         postProcessingRef.current.outputNode = scenePassRef.current.getTextureNode("output"); // reset
         effectsRef.current.forEach(effect => {
-            console.log("APPLIED EFFECT");
+            //console.log("APPLIED EFFECT");
             const node = effect(postProcessingRef.current!.outputNode);
             if (node) postProcessingRef.current!.outputNode = node;
         });
@@ -148,52 +148,3 @@ export function Desaturate() {
     return null;
 }
 
-interface PP_FogPassProps {
-    density?: number;
-    heightFalloff?: number;
-}
-
-export function PP_FogPass({
-    density = 0.0025,
-    heightFalloff = 0.01,
-}: PP_FogPassProps) {
-    const { scenePass } = useWebGPUPostProcessing();
-    const { camera } = useThree();
-
-
-    const uniforms = useMemo(
-        () => ({
-            density: uniform(density),
-            heightFalloff: uniform(heightFalloff)
-        }),
-        []
-    );
-
-    const effect = useCallback((inputNode: any) => {
-        if (!scenePass) return null;
-
-        //console.log("REGISTER FOG")
-
-        const depth = scenePass.getTextureNode("depth");
-        const fog = FogNode(
-            depth,
-            camera as THREE.PerspectiveCamera,
-            uniforms.heightFalloff,
-            uniforms.density
-        ).mul(1);
-
-        return mix(inputNode, vec3(0.3, 0.6, 0.9), fog);
-        //return fog;
-
-    }, [scenePass, camera]); // NOT density
-
-    PostProcessingEffect(effect);
-    
-    useEffect(() => {
-        uniforms.density.value = density;
-        uniforms.heightFalloff.value = heightFalloff;
-    }, [density, heightFalloff])
-
-
-    return null;
-}

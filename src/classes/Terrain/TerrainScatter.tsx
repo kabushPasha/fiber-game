@@ -85,7 +85,7 @@ export function createInstanceTransforms(props: TerrainScatterProps) {
 // ---------- CONTEXT --------------------------
 
 import { createContext, useContext } from "react"
-import { ScatterUIWrapper } from "./Scatter/ScatterUI"
+import { useTerrainScatterControls } from "./Scatter/ScatterUI"
 
 export type ScatterContextType = {
     transformsBuffer: Node
@@ -104,6 +104,7 @@ export function useScatter() {
 // ---------- Provider --------------------------
 
 export type TerrainScatterProps = {
+    visible?: boolean
     geometry?: THREE.BufferGeometry | null
     gridSize?: number
     spacing?: number
@@ -113,19 +114,13 @@ export type TerrainScatterProps = {
     offset_random?: number
     children?: React.ReactNode
     name?: string
+    showUI?: boolean
 }
 
-export function TerrainScatter({
-    geometry: inputGeometry = null,
-    gridSize = 5,
-    spacing = 1,
-    rotation_random = 1,
-    scale = 1,
-    scale_random = 1,
-    offset_random = 0,
-    children = null,
-    name = "Scattered",
-}: TerrainScatterProps) {
+export function TerrainScatter(_props: TerrainScatterProps) {
+    const props = useTerrainScatterControls(_props)
+    const { geometry: inputGeometry, gridSize, spacing, rotation_random, scale, scale_random,offset_random, children, name,} = props;
+
     const meshRef = useRef<THREE.InstancedMesh>(null!)
 
     const geometry = useMemo(() => {
@@ -197,7 +192,6 @@ export function TerrainScatter({
     }, [instanceTransforms, hf_size, hf_tex, hf_height, zone_size])
 
 
-
     // -------------   Compute Position Updates ----------------------------------
 
     const { gl } = useThree();
@@ -239,6 +233,7 @@ export function TerrainScatter({
     const { player } = usePlayer();
 
     useFrame(() => {
+        if (!props.visible) return;
         const world_pos = new THREE.Vector3(0, 0, 0)
         player?.getWorldPosition(world_pos);
         uniforms.playerPosition.value = world_pos;
@@ -261,6 +256,7 @@ export function TerrainScatter({
     return (
         <ScatterContext.Provider value={{ transformsBuffer, instanceMatrix, zone_size }}>
             <instancedMesh
+                visible={props.visible}
                 frustumCulled={false}
                 ref={meshRef}
                 position={[0, 0, 0]}
@@ -269,17 +265,13 @@ export function TerrainScatter({
                     compute_mat,
                     count
                 ]}
-                name = {name}
+                name={name}
             >
                 {children}
             </instancedMesh>
         </ScatterContext.Provider>
     )
 }
-
-export const TerrainScatterUI = ScatterUIWrapper(TerrainScatter)
-
-
 
 export const SnappedRelativePosition = Fn(
     ([instanceCenter, objCenter, zone_size]: [Node, Node, Node]) => {
@@ -298,7 +290,6 @@ export const translationMatrix = Fn(([offset]: [any]) => {
         offset.x, offset.y, offset.z, 1.0
     );
 })
-
 
 // ------- MATERIALS ---------------
 export function TerrainFadeMaterial() {
@@ -339,7 +330,6 @@ export function TerrainFadeMaterial() {
 
     return <primitive object={material} attach="material" />
 }
-
 
 // ------- MATERIALS ---------------
 export function TerrainPivotMaterial() {
@@ -389,7 +379,6 @@ export function TerrainPivotMaterial() {
         mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
         //mat.colorNode = mix(base_color, bright_color, uv_mix);
 
-
         return mat
 
     }, [instanceMatrix, zone_size, tsl_sampleHeight, tsl_sampleN])
@@ -399,12 +388,9 @@ export function TerrainPivotMaterial() {
 
 
 
-
 export const remapFromMin = (value: any, min: any) => {
     return clamp(value.sub(min).div(float(1.0).sub(min)), 0.0, 1.0)
 }
-
-
 
 export function LoadGltfGeo({ url }: { url: string }) {
     const { nodes } = useGLTF(url) as any
@@ -423,7 +409,7 @@ export function LoadGltfGeo({ url }: { url: string }) {
         return firstMesh.geometry
     }, [nodes, url])
 
-    if (!geometry) return null
+    if (!geometry) return null    
 
     return <primitive object={geometry} attach="geometry" />
 }

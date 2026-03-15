@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { Box, KeyboardControls, SoftShadows, useGLTF } from "@react-three/drei"
+import { Box, KeyboardControls, SoftShadows, Stats, useGLTF } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -24,49 +24,23 @@ import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
-import { PP_FogPass, WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
+import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
 import { folder, Leva, useControls } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
-import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatterUI } from "./classes/Terrain/TerrainScatter"
+import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatter } from "./classes/Terrain/TerrainScatter"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
-import { TerrainScatterInteractiveUI } from "./classes/Terrain/TerrainScatterInteractive"
+import { TerrainScatterInteractive } from "./classes/Terrain/TerrainScatterInteractive"
 import { RaycastOnClick } from "./classes/Player/RaycastOnClick"
+import { PP_FogPass } from "./classes/PostProcessing/Effects/PP_FogPass"
+import { PP_PixelHighlights } from "./classes/PostProcessing/Effects/PP_PixelatedPass"
+import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsContext"
 
 extend({ MeshStandardNodeMaterial })
 
 
 
 const App = () => {
-
-  // Load Tree
-  const { nodes } = useGLTF("models/Tree.glb")
-  const tree_mesh = useMemo(() => {
-    return (nodes.file1 as THREE.Mesh).geometry
-  }, [nodes])
-
-
-
-  const settings = useControls("PostProcessing",
-    {
-      "Fog": folder({
-        add_fog: true,
-        density: {
-          value: 0.25,
-          min: 0.01,
-          max: 5,
-          step: 0.01,
-        },
-        heightFalloff: {
-          value: 0.01,
-          min: 0.001,
-          max: 0.1,
-          step: 0.001,
-        }
-      })
-    }
-  )
-
   return (
     <UIScreenProvider>
       <div
@@ -113,13 +87,19 @@ const App = () => {
               }}
               style={{ background: "black" }}
             >
+              <Stats />
+
 
               <Suspense>
                 <PlayerProvider>
 
-                  <WebGPUPostProcessingProvider >
-                    {settings.add_fog && <PP_FogPass density={settings.density * 0.01} heightFalloff={settings.heightFalloff} />}
-                  </WebGPUPostProcessingProvider>
+                  <CameraUniformsProvider>
+                    <WebGPUPostProcessingProvider >
+                      {0 && <PP_PixelHighlights />}
+                      <PP_FogPass density={0.25 * 0.01} heightFalloff={0.01}/>
+                      
+                    </WebGPUPostProcessingProvider>
+                  </CameraUniformsProvider>
 
                   <Physics>
 
@@ -145,7 +125,7 @@ const App = () => {
                         <TerrainProvider textureUrl="textures/HFs/height.png">
                           <Player >
                             <WorldPositionConstraint>
-                              {1 && <TerrainPlane />}                              
+                              {1 && <TerrainPlane />}
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
@@ -154,13 +134,14 @@ const App = () => {
 
                           </Player>
 
-                          {1 && <TerrainScatterInteractiveUI 
+                          {1 && <TerrainScatterInteractive
                             name="Boxes"
                             gridSize={30}
-                            spacing={0.75}
+                            spacing={1.1}
+                            visible={false}
                           />}
 
-                          {1 && <TerrainScatterUI
+                          {1 && <TerrainScatter
                             name="Trees"
                             gridSize={10}
                             scale={5}
@@ -170,10 +151,10 @@ const App = () => {
                           >
                             <TerrainFadeMaterial />
                             <LoadGltfGeo url="models/Tree.glb" />
-                          </TerrainScatterUI>
+                          </TerrainScatter>
                           }
 
-                          {1 && <TerrainScatterUI
+                          {1 && <TerrainScatter
                             name="Grass"
                             gridSize={30}
                             scale={4}
@@ -185,7 +166,7 @@ const App = () => {
                             {0 && <TerrainFadeMaterial />}
                             <TerrainPivotMaterial />
                             <LoadGltfGeo url="models/Grass.glb" />
-                          </TerrainScatterUI>
+                          </TerrainScatter>
                           }
 
 

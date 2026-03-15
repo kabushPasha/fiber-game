@@ -1,11 +1,28 @@
 import { useThree } from "@react-three/fiber"
+import { folder, useControls } from "leva"
 import { useEffect } from "react"
 import * as THREE from "three"
 
 export function Pixelated({ resolution = 256 }) {
   const { gl, camera } = useThree()
 
+  const controls = useControls("Render", {
+    Pixelate:folder({
+      enabled: true, 
+      resolution: { value: resolution, options: [128,256,512], },
+    }, { collapsed: true })
+  })
+
+
   useEffect(() => {
+    if (!controls.enabled) {
+      // reset canvas to default rendering if disabled
+      gl.domElement.style.imageRendering = "auto"
+      gl.setSize(window.innerWidth, window.innerHeight, false)
+      console.log(window.innerWidth)
+      return
+    }
+
     // Make upscaled canvas look pixelated
     gl.domElement.style.imageRendering = "pixelated"
     gl.domElement.style.imageRendering = "crisp-edges"
@@ -27,11 +44,11 @@ export function Pixelated({ resolution = 256 }) {
       let height: number
 
       if (camAspect > 1) {
-        width = resolution * camAspect
-        height = resolution
+        width = controls.resolution * camAspect
+        height = controls.resolution
       } else {
-        width = resolution
-        height = resolution / camAspect
+        width = controls.resolution
+        height = controls.resolution / camAspect
       }
 
       // Render at low resolution, but scale to canvas size
@@ -41,7 +58,7 @@ export function Pixelated({ resolution = 256 }) {
     onResize()
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
-  }, [gl, camera, resolution])
+  }, [gl, camera, resolution,controls])
 
   return null
 }

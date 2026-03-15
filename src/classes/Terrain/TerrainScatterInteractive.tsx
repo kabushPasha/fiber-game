@@ -1,19 +1,16 @@
 import * as THREE from "three"
 import { useRef, useLayoutEffect, useMemo } from "react"
 import { useTerrain } from "./TerrainProvider"
-import {  useFrame } from "@react-three/fiber"
+import { useFrame } from "@react-three/fiber"
 import { usePlayer } from "../Player/PlayerContext"
 import { createInstanceTransforms, type TerrainScatterProps } from "./TerrainScatter"
-import { ScatterUIWrapper } from "./Scatter/ScatterUI"
+import { useTerrainScatterControls } from "./Scatter/ScatterUI"
 
-export function TerrainScatterInteractive({
-    gridSize = 10,
-    spacing = 10,
-    rotation_random = 1,
-    scale = 1,
-    scale_random = 0.3,
-    offset_random = 0.5,
-}: TerrainScatterProps) {
+export function TerrainScatterInteractive(_props: TerrainScatterProps) {
+    const props = useTerrainScatterControls(_props)
+    const { geometry: inputGeometry, gridSize, spacing, rotation_random, scale, scale_random, offset_random, children, name, } = props;
+
+
     const meshRef = useRef<THREE.InstancedMesh>(null!)
     const dummy = new THREE.Object3D()
 
@@ -108,6 +105,7 @@ export function TerrainScatterInteractive({
 
     useFrame(() => {
         if (!meshRef.current || !player) return;
+        if (!props.visible) return;
         //const start = performance.now(); // start timing
 
         const mesh = meshRef.current;
@@ -141,8 +139,11 @@ export function TerrainScatterInteractive({
 
     });
 
+    //if (!props.active) return null;
+
     return (
         <instancedMesh
+            visible={props.visible}
             frustumCulled={false}
             ref={meshRef}
             args={[undefined, undefined, count]}
@@ -155,5 +156,3 @@ export function TerrainScatterInteractive({
         </instancedMesh>
     )
 }
-
-export const TerrainScatterInteractiveUI = ScatterUIWrapper(TerrainScatterInteractive)
