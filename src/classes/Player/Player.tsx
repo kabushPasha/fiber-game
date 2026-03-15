@@ -1,4 +1,4 @@
-import {  Sphere, useKeyboardControls } from "@react-three/drei"
+import { Sphere, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
@@ -76,7 +76,27 @@ export function Player({ children }: PlayerProps) {
 
   useEffect(() => {
     const unmount = mount(() =>
-      <CrosshairDot size={6} color="white" opacity={0.5} />
+      <>
+        <CrosshairDot size={6} color="white" opacity={0.5} />
+        <div
+          style={{
+            position: "fixed",     // stays in place even when scrolling
+            bottom: 0,             // align to bottom
+            left: 0,               // align to left
+            padding: "10px",       // optional padding
+            color: "#ffffff66",        // text color
+            backgroundColor: "rgba(0,0,0,0.5)", // optional background for readability
+            fontSize: "24px",
+            zIndex: 1000           // make sure it's on top
+          }}
+        >
+          Controls:<br />
+          WASD - Move<br />
+          SHIFT - Sprint<br />
+          MouseScroll - Zoom IN/OUT
+        </div>
+      </>
+
     )
     return unmount
   }, [])
@@ -95,7 +115,7 @@ export function Player({ children }: PlayerProps) {
         {1 && <SmoothCamera />}
       </CameraController>
 
-      <Sphere />
+      <Sphere scale={0.5} />
     </GameObject3D>
   )
 }

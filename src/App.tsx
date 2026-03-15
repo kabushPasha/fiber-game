@@ -103,7 +103,7 @@ const App = () => {
 
                   <Physics>
 
-                    {1 && <Pixelated resolution={128} />}
+                    <Pixelated resolution={128} enabled={false}/>
 
                     <group name="Lights">
                       <ambientLight intensity={0.2} />
@@ -148,6 +148,7 @@ const App = () => {
                             spacing={10}
                             rotation_random={1}
                             offset_random={1}
+                            visible = {false}
                           >
                             <TerrainFadeMaterial />
                             <LoadGltfGeo url="models/Tree.glb" />

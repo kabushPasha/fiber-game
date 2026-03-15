@@ -3,12 +3,12 @@ import { folder, useControls } from "leva"
 import { useEffect } from "react"
 import * as THREE from "three"
 
-export function Pixelated({ resolution = 256 }) {
+export function Pixelated({ resolution = 256,enabled = true }) {
   const { gl, camera } = useThree()
 
   const controls = useControls("Render", {
     Pixelate:folder({
-      enabled: true, 
+      enabled: enabled, 
       resolution: { value: resolution, options: [128,256,512], },
     }, { collapsed: true })
   })

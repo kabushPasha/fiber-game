@@ -140,70 +140,12 @@ export function TerrainScatter(_props: TerrainScatterProps) {
 
     const { hf_size, hf_tex, hf_height, tsl_sampleHeight } = useTerrain()
 
-    // Create material after mesh exists
-    const sticky_material = useMemo(() => {
-        const mat = new MeshStandardNodeMaterial()
-        mat.side = THREE.DoubleSide
-
-        // Positions
-        const transformsStorage = storage(new StorageInstancedBufferAttribute(instanceTransforms, 16))
-        const instanceMatrix = transformsStorage.element(instanceIndex)
-
-        //const objCenter = modelWorldMatrix.mul(vec4(0, 0, 0, 1)).setY(float(0.0));
-        const objCenter = cameraPosition.setY(float(0.0)); // Obj we Follow
-        const instanceCenter = instanceMatrix.mul(vec4(0, 0, 0, 1));
-
-        // Calc snapped Position        
-        const mod_rel_pos = SnappedRelativePosition(instanceCenter, objCenter, zone_size);
-        const snap_offset = mod_rel_pos.add(objCenter).sub(instanceCenter);
-
-        // Sample Height
-        const worldCenter = instanceMatrix.mul(vec4(0.0, 0.0, 0.0, 1.0)).add(snap_offset)
-        const heightSample = tsl_sampleHeight(worldCenter);
-
-        const distance_sacle = length(mod_rel_pos).sub(0).div(zone_size * 0.5).oneMinus().clamp(0, 1).pow(1)
-        //const scaled_localPos = positionLocal.mul(vec3(1, distance_sacle, 1))
-        // Scale to root 
-        const scaled_localPos = mix(positionLocal, vec3(0.0), distance_sacle.oneMinus());
-        const final_local_pos = positionLocal;
-
-        const instancePos = instanceMatrix.mul(vec4(final_local_pos, 1))
-        const final_pos = instancePos.add(snap_offset.setY(heightSample));
-
-        // Final Position
-        mat.positionNode = modelWorldMatrixInverse.mul(final_pos).xyz;
-
-        // Normal
-        const normalWorld = instanceMatrix.mul(vec4(normalLocal, 0)).xyz
-        mat.normalNode = transformNormalToView(normalWorld)
-
-        //Dithered Alpha
-        const distanceFactor = length(mod_rel_pos).div(zone_size * 0.5);
-        const distanceFactor_clamped = clamp(distanceFactor.oneMinus(), 0.0, 1.0);
-        //different tresholds
-        const threshold = rand(screenUV.xy);
-        //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
-        const alpha = step(threshold, distanceFactor_clamped.pow(0.5));
-
-        //mat.maskNode = alpha;
-        mat.transparent = true;
-
-        return mat
-    }, [instanceTransforms, hf_size, hf_tex, hf_height, zone_size])
-
-
     // -------------   Compute Position Updates ----------------------------------
 
     const { gl } = useThree();
     //@ts-ignore
     const renderer = gl as THREE.WebGPURenderer
 
-    const uniforms = useMemo(
-        () => ({
-            playerPosition: uniform(new THREE.Vector3(0, 0, 0)),
-        }),
-        []
-    );
 
     const transformsBuffer = useMemo(() => {
         return storage(new StorageInstancedBufferAttribute(instanceTransforms, 16))
@@ -213,6 +155,8 @@ export function TerrainScatter(_props: TerrainScatterProps) {
         return transformsBuffer.element(instanceIndex)
     }, [transformsBuffer])
 
+    const { tsl_PlayerWorldPosition } = usePlayer();
+
     // update Fn
     const computeUpdate = useMemo(() => {
         return Fn(() => {
@@ -220,23 +164,19 @@ export function TerrainScatter(_props: TerrainScatterProps) {
             const offset = instanceMatrix.element(int(3));
 
             // Snap Around Player
-            const player_relative_pos = SnappedRelativePosition(worldPos, uniforms.playerPosition, zone_size);
-            const wrapped_world = player_relative_pos.add(uniforms.playerPosition);
+            const player_relative_pos = SnappedRelativePosition(worldPos, tsl_PlayerWorldPosition, zone_size);
+            const wrapped_world = player_relative_pos.add(tsl_PlayerWorldPosition);
             //Get Height
             const heightSample = tsl_sampleHeight(wrapped_world);
             offset.assign(offset.setX(wrapped_world.x).setZ(wrapped_world.z).setY(heightSample));
 
             //instanceMatrix.assign();
         })().compute(count);
-    }, [instanceMatrix, count, tsl_sampleHeight, uniforms]);
+    }, [instanceMatrix, count, tsl_sampleHeight, tsl_PlayerWorldPosition]);
 
-    const { player } = usePlayer();
 
     useFrame(() => {
         if (!props.visible) return;
-        const world_pos = new THREE.Vector3(0, 0, 0)
-        player?.getWorldPosition(world_pos);
-        uniforms.playerPosition.value = world_pos;
         renderer.compute(computeUpdate)
     })
 
@@ -295,6 +235,8 @@ export const translationMatrix = Fn(([offset]: [any]) => {
 export function TerrainFadeMaterial() {
     const { instanceMatrix, zone_size } = useScatter()
 
+    const { tsl_PlayerWorldPosition } = usePlayer();
+
     const material = useMemo(() => {
         const mat = new MeshStandardNodeMaterial()
         //mat.side = THREE.DoubleSide
@@ -304,7 +246,7 @@ export function TerrainFadeMaterial() {
 
         const start_dist = 0.75;
         const dist_mask_pow = 1;
-        const distance_mask = remapFromMin(length(world_pivot.sub(cameraPosition).xz).div(zone_size * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
+        const distance_mask = remapFromMin(length(world_pivot.sub(tsl_PlayerWorldPosition).xz).div(zone_size * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
         const scale_pos = positionLocal.mul(distance_mask)
 
         // Position
@@ -326,7 +268,7 @@ export function TerrainFadeMaterial() {
 
         return mat
 
-    }, [instanceMatrix, zone_size])
+    }, [instanceMatrix, zone_size,tsl_PlayerWorldPosition])
 
     return <primitive object={material} attach="material" />
 }
@@ -335,6 +277,8 @@ export function TerrainFadeMaterial() {
 export function TerrainPivotMaterial() {
     const { instanceMatrix, zone_size } = useScatter()
     const { tsl_sampleHeight, tsl_sampleN, tsl_sampleColor } = useTerrain()
+
+    const { tsl_PlayerWorldPosition } = usePlayer();
 
     const material = useMemo(() => {
         const mat = new MeshStandardNodeMaterial()
@@ -350,7 +294,7 @@ export function TerrainPivotMaterial() {
         const world_pivot = instanceMatrix.mul(vec4(0, 0, 0, 1));
         const start_dist = 0.1;
         const dist_mask_pow = 1 / 2;
-        const distance_mask = remapFromMin(length(world_pivot.sub(cameraPosition).xz).div(zone_size * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
+        const distance_mask = remapFromMin(length(world_pivot.sub(tsl_PlayerWorldPosition).xz).div(zone_size * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
         //const scale_pos = positionLocal.mul(distance_mask)        
 
         const scale_pos = mix(pivot, positionLocal, distance_mask);
@@ -381,7 +325,7 @@ export function TerrainPivotMaterial() {
 
         return mat
 
-    }, [instanceMatrix, zone_size, tsl_sampleHeight, tsl_sampleN])
+    }, [instanceMatrix, zone_size, tsl_sampleHeight, tsl_sampleN,tsl_PlayerWorldPosition])
 
     return <primitive object={material} attach="material" />
 }
