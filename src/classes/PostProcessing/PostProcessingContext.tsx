@@ -1,8 +1,7 @@
-import { createContext, useContext, useRef, useMemo, type ReactNode, useEffect, useCallback } from "react";
+import { createContext, useContext, useRef, useMemo, type ReactNode, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import { useThree, useFrame } from "@react-three/fiber";
-import { pass, mrt, output,  metalness, emissive, normalView, mix, vec3, uniform } from "three/tsl";
-import { FogNode } from "./FogPass";
+import { pass, mrt, output,  metalness, emissive, normalView } from "three/tsl";
 
 interface WebGPUPostProcessingContextValue {
     postProcessing: THREE.PostProcessing | null;

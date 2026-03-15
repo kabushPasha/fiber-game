@@ -2,7 +2,6 @@ import { useRef, useMemo } from "react"
 import * as THREE from "three"
 import {
     attribute,
-    cameraPosition,
     clamp,
     float,
     instanceIndex,
@@ -10,23 +9,19 @@ import {
     length,
     mix,
     mod,
-    modelWorldMatrixInverse,
     normalLocal,
     positionLocal,
     rand,
     screenUV,
     step,
     storage,
-    time,
     transformNormalToView,
-    uniform,
     uv,
     vec3,
     vec4,
 } from "three/tsl"
 import { MeshStandardNodeMaterial, Node, StorageInstancedBufferAttribute } from "three/webgpu"
 import { useTerrain } from "./TerrainProvider"
-import { folder, useControls } from "leva"
 import { Fn, mat4 } from "three/src/nodes/TSL.js"
 import { useGLTF } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
@@ -247,7 +242,7 @@ export function TerrainFadeMaterial() {
         const start_dist = 0.75;
         const dist_mask_pow = 1;
         const distance_mask = remapFromMin(length(world_pivot.sub(tsl_PlayerWorldPosition).xz).div(zone_size * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
-        const scale_pos = positionLocal.mul(distance_mask)
+        //const scale_pos = positionLocal.mul(distance_mask)
 
         // Position
         const worldPos = instanceMatrix.mul(vec4(positionLocal, 1))
@@ -308,9 +303,9 @@ export function TerrainPivotMaterial() {
         mat.normalNode = transformNormalToView(pivot_N.mul(2.0).sub(1.0).xzy)
 
         //Dithered Alpha - Looks Bad On Grass
-        const threshold = rand(screenUV.xy);
+        //const threshold = rand(screenUV.xy);
         //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
-        const alpha = step(threshold, distance_mask);
+        //const alpha = step(threshold, distance_mask);
         //mat.maskNode = alpha;
         //mat.transparent = true;
 

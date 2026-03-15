@@ -84,8 +84,7 @@ export function Player({ children }: PlayerProps) {
             bottom: 0,             // align to bottom
             left: 0,               // align to left
             padding: "10px",       // optional padding
-            color: "#ffffff66",        // text color
-            backgroundColor: "rgba(0,0,0,0.5)", // optional background for readability
+            color: "#ffffff9a",        // text color
             fontSize: "24px",
             zIndex: 1000           // make sure it's on top
           }}

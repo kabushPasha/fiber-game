@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { Box, KeyboardControls, SoftShadows, Stats, useGLTF } from "@react-three/drei"
+import { KeyboardControls, Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -19,14 +19,14 @@ import { TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 import { Physics } from "@react-three/rapier";
-import { Suspense, useMemo } from "react"
+import { Suspense } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
-import { folder, Leva, useControls } from 'leva';
+import { Leva } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
 import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatter } from "./classes/Terrain/TerrainScatter"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
@@ -70,7 +70,7 @@ const App = () => {
               height: "auto",
               aspectRatio: "235 / 100",
             }}>
-            <Leva collapsed />
+            {0 && <Leva collapsed />}
 
             <Canvas
               camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}

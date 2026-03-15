@@ -6,9 +6,6 @@ export function RaycastOnClick() {
     const { camera, scene, gl } = useThree(); // gl is the canvas
 
     useEffect(() => {
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-
         const handleClick = (event: MouseEvent) => {
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();

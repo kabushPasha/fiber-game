@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 import { useLoader } from "@react-three/fiber";
 import { useMemo } from "react";
-import { floor, Fn, rand, texture, vec2, vec3 } from "three/tsl";
+import { Fn, texture, vec2, vec3 } from "three/tsl";
 import type { Node } from "three/webgpu";
 import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
 
@@ -118,6 +118,7 @@ export function TerrainProvider({
             return hf_N;
         })
 
+        // @ts-ignore
         const tsl_sampleColor = Fn(([worldPos]: [Node]) => {
             //const hf_N = texture(hf_nml, samplePos);
             //return hf_N;

@@ -8,6 +8,7 @@ import { useTerrainScatterControls } from "./Scatter/ScatterUI"
 
 export function TerrainScatterInteractive(_props: TerrainScatterProps) {
     const props = useTerrainScatterControls(_props)
+    //@ts-ignore
     const { geometry: inputGeometry, gridSize, spacing, rotation_random, scale, scale_random, offset_random, children, name, } = props;
 
 

@@ -4,9 +4,6 @@ import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
 import { LateralTilt } from "../Player/LateralTilt";
-import { useMouseLock } from "../Player/MouseLock";
-
-
 
 
 type SmoothChildProps = React.PropsWithChildren<{
