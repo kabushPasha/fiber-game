@@ -20,12 +20,6 @@ export function MoveByVel() {
         obj.position.addScaledVector(vel, delta)
         // Gravity
         vel.addScaledVector(force, delta)
-
-        // Ground clamp
-        if (objectRef.current.position.y <= 0) {
-            objectRef.current.position.y = 0
-            vel.y = 0
-        }
     }, -6)
 
     return null
@@ -65,7 +59,7 @@ export function GroundClamp() {
 
         if (worldPos.y <= groundY) {
             obj.position.y = groundY
-            obj.userData.vel.y = 0
+            obj.userData.vel.y = Math.max( obj.userData.vel.y, 0)
             obj.userData.canJump = true
             obj.userData.grounded = true                        
         }

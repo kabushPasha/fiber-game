@@ -102,6 +102,7 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
   })
 
   return (
+    <>
     <SmoothChild smooth={smooth}>
       <HeadBob>
         <LateralTilt maxTilt={0.15} damping={6}>
@@ -109,6 +110,7 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
         </LateralTilt>
       </HeadBob>
     </SmoothChild>
+    </>
   )
 }
 

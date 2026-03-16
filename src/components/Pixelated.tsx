@@ -19,7 +19,7 @@ export function Pixelated({ resolution = 256,enabled = true }) {
       // reset canvas to default rendering if disabled
       gl.domElement.style.imageRendering = "auto"
       gl.setSize(window.innerWidth, window.innerHeight, false)
-      console.log(window.innerWidth)
+      //console.log(window.innerWidth)
       return
     }
 
