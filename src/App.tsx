@@ -11,7 +11,6 @@ import { AuroraBackground, SimpleBackground } from "./classes/shaders/Aurora"
 import { TestSDF } from "./classes/shaders/Raymarcher"
 
 
-
 import { extend } from "@react-three/fiber"
 import { MeshStandardNodeMaterial, } from "three/webgpu"
 import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
@@ -35,6 +34,9 @@ import { RaycastOnClick } from "./classes/Player/RaycastOnClick"
 import { PP_FogPass } from "./classes/PostProcessing/Effects/PP_FogPass"
 import { PP_PixelHighlights } from "./classes/PostProcessing/Effects/PP_PixelatedPass"
 import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsContext"
+import { ECS_Test } from "./classes/Terrain/ECS_Test"
+import { ECS_VertexPulling } from "./classes/Terrain/ECS_VertexPulling"
+import { ECS_NBRGrid } from "./classes/Terrain/ECS/ECS_NBRGrid"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -125,7 +127,7 @@ const App = () => {
                         <TerrainProvider textureUrl="textures/HFs/height.png">
                           <Player >
                             <WorldPositionConstraint>
-                              {1 && <TerrainPlane />}
+                              {0 && <TerrainPlane />}
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
@@ -155,7 +157,7 @@ const App = () => {
                           </TerrainScatter>
                           }
 
-                          {1 && <TerrainScatter
+                          {0 && <TerrainScatter
                             name="Grass"
                             gridSize={30}
                             scale={4}
@@ -169,6 +171,10 @@ const App = () => {
                             <LoadGltfGeo url="models/Grass.glb" />
                           </TerrainScatter>
                           }
+
+                          {0 && <ECS_Test name="ECS_Test"
+                          spacing={2}/>}
+                          <ECS_NBRGrid name = "Veretex Pulling" spacing={2}                     />
 
 
                         </TerrainProvider>
