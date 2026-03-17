@@ -91,21 +91,19 @@ const App = () => {
             >
               <Stats />
 
-
               <Suspense>
                 <PlayerProvider>
 
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
                       {0 && <PP_PixelHighlights />}
-                      <PP_FogPass density={0.25 * 0.01} heightFalloff={0.01}/>
-                      
+                      <PP_FogPass density={0.25 * 0.01} heightFalloff={0.01} />
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
 
                   <Physics>
 
-                    <Pixelated resolution={128} enabled={false}/>
+                    <Pixelated resolution={128} enabled={false} />
 
                     <group name="Lights">
                       <ambientLight intensity={0.2} />
@@ -150,7 +148,7 @@ const App = () => {
                             spacing={10}
                             rotation_random={1}
                             offset_random={1}
-                            visible = {false}
+                            visible={false}
                           >
                             <TerrainFadeMaterial />
                             <LoadGltfGeo url="models/Tree.glb" />
@@ -173,8 +171,9 @@ const App = () => {
                           }
 
                           {0 && <ECS_Test name="ECS_Test"
-                          spacing={2}/>}
-                          <ECS_NBRGrid name = "Veretex Pulling" spacing={2}                     />
+                            spacing={2} />}
+                          {1 && <ECS_NBRGrid name="Veretex Pulling" spacing={0.5} gridSize={25}/>}
+                          {0 && <ECS_VertexPulling name="Veretex Pulling" spacing={2} />}
 
 
                         </TerrainProvider>
@@ -192,7 +191,7 @@ const App = () => {
 
                     {false && <TestTslShader />}
 
-                    <RaycastOnClick />
+                    {0 && <RaycastOnClick />}
 
                     {/**
                   <RigidBody type="fixed">

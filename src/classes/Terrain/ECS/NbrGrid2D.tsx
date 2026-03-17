@@ -1,4 +1,4 @@
-import { storage, Fn, instanceIndex, int, normalLocal, vec4, positionLocal, transformNormalToView, vec3, atomicAdd, atomicStore, float, atomicLoad } from "three/tsl"
+import { storage, Fn, instanceIndex, int, normalLocal, vec4, positionLocal, transformNormalToView, vec3, atomicAdd, atomicStore, float, atomicLoad, vec2, If, Return } from "three/tsl"
 import { MeshStandardNodeMaterial, Node, StorageBufferAttribute, StorageInstancedBufferAttribute } from "three/webgpu"
 import * as THREE from "three"
 
@@ -56,8 +56,19 @@ export class NeighbourGrid2D {
         return g
     })()
 
+    inGridTSL(pos: Node) {
+        const half = float(this.size * 0.5)
+        const p = pos.xz
+
+        return p.x.greaterThanEqual(half.negate())
+            .and(p.x.lessThan(half))
+            .and(p.y.greaterThanEqual(half.negate()))
+            .and(p.y.lessThan(half))
+    }
+
     posToIndex2TSL(pos: Node) {
-        return pos.xz.div(this.cellSize).floor()
+        const half = float(this.size * 0.5)
+        return pos.xz.add(vec2(half)).div(this.cellSize).floor()
     }
     index2ToLinearTSL(i: Node) {
         return i.x.add(i.y.mul(this.numCells))
@@ -70,29 +81,18 @@ export class NeighbourGrid2D {
         })().compute(this.totalCells)
     }
 
-    /*
     insertParticle(posNode: Node, particleIndexNode: Node) {
-        return Fn(([posNode,particleIndexNode] : [Node,Node]) => {
-            
-            this.gridCounts.element(5).addAssign(1)
-            //const cell = this.posToIndex2TSL(posNode)
-            //const linear = this.index2ToLinearTSL(cell)
-            //const offset = this.gridCounts.element(linear).addAssign(1)
-            //const writeIndex = linear.mul(this.maxPerCell).add(offset)
-            //this.gridParticles.element(writeIndex).assign(particleIndexNode)
-        })(posNode,particleIndexNode)
-    }*/
+        const inGrid = this.inGridTSL(posNode)
+        If(inGrid, () => {
+            const cell = this.posToIndex2TSL(posNode)
+            const linear = this.index2ToLinearTSL(cell)
 
-    insertParticle(posNode: Node, particleIndexNode: Node) {
-        //atomicAdd(this.gridCounts.element(5), int(1));
-        const cell = this.posToIndex2TSL(posNode)
-        const linear = this.index2ToLinearTSL(cell)        
-        atomicAdd( this.gridCounts.element(linear) , 1 )
-        const offset = atomicLoad(this.gridCounts.element(linear))
-        const writeIndex = linear.mul(this.maxPerCell).add(offset)
-        this.gridParticles.element(writeIndex).assign(particleIndexNode)
+            const offset = atomicAdd(this.gridCounts.element(linear), 1)
+            const writeIndex = linear.mul(this.maxPerCell).add(offset)
+
+            this.gridParticles.element(writeIndex).assign(particleIndexNode)
+        })
     }
-
 
     createCellTransforms() {
         const transforms = new Float32Array(this.totalCells * 16)
@@ -130,18 +130,19 @@ export class NeighbourGrid2D {
             this.cellTransformsBuffer
                 .element(instanceIndex)
                 .mul(positionLocal.mul(0.9).mul(vec3(1, scale, 1)))
-
         return mat
     }
 
     createDebugMesh() {
-
-        return new THREE.InstancedMesh(
+        const mesh = new THREE.InstancedMesh(
             NeighbourGrid2D.cellGeometry,
             this.debugMaterial,
             this.totalCells
         )
 
+        // Make it ignore raycasts
+        mesh.raycast = () => { }
+        return mesh
     }
 
     computeMirror() {
@@ -149,5 +150,18 @@ export class NeighbourGrid2D {
             const count = float(atomicLoad(this.gridCounts.element(instanceIndex)))
             this.gridCountsMirror.element(instanceIndex).assign(count)
         })().compute(this.totalCells)
+    }
+
+    fillGridCompute(instanceMatrix: Node, count: number) {
+        return Fn(() => {
+            If(instanceIndex.lessThan(count), () => {
+                const offset = instanceMatrix.element(int(3))
+                this.insertParticle(offset, instanceIndex)
+            })
+        })().compute(count)
+    }
+
+    getCellBaseIndex(linear: Node) {
+        return linear.mul(this.maxPerCell)
     }
 }
