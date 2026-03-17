@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three"
 
-import { deltaTime, Fn, If, instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec3, vec4, greaterThanEqual, Return, vec2, float, sin, time, atomicLoad, uniform, greaterThan } from "three/tsl";
+import { deltaTime, Fn, If, instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec3, vec4, greaterThanEqual, Return, vec2, float, sin, time, atomicLoad, uniform, greaterThan, lessThan, cos, Loop, Break, ivec2 } from "three/tsl";
 import { MeshStandardNodeMaterial, StorageArrayElementNode, StorageBufferAttribute, StorageBufferNode, StorageInstancedBufferAttribute, UniformNode } from "three/webgpu";
 import { useFrame, useThree } from "@react-three/fiber";
 import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
@@ -32,7 +32,6 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random])
 
 
-
     const transformsAtt = useMemo(() => {
         console.log("Create transformsAtt")
         return new StorageInstancedBufferAttribute(instanceTransforms, 16)
@@ -43,6 +42,10 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
         console.log("Create transformsBuffer")
         return storage(transformsAtt)
     }, [transformsAtt])
+
+    const prevTransformsBuffer = useMemo(()=>{
+        return storage( new StorageInstancedBufferAttribute(count, 16))
+    },[count])
 
     useEffect(() => {
         console.log("Update transformsAtt")
@@ -58,7 +61,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
 
     // update Fn
-    const computeUpdate = useMemo(() => {        
+    const computeUpdate = useMemo(() => {
         return Fn(() => {
             const offset = instanceMatrix.element(int(3));
             offset.assign(offset.addAssign(vec3(deltaTime.mul(1), 0, 0)));
@@ -98,7 +101,8 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     // Simple Box For Debug
     const geometry = useMemo(() => {
         console.log("Create geometry")
-        const g = new THREE.BoxGeometry(1, 1, 1)
+        return new THREE.SphereGeometry(1);
+        const g = new THREE.BoxGeometry(1, 1, 1)        
         g.translate(0, 0.5, 0)
         return g
     }, [])
@@ -107,7 +111,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     // NBR GRID --------------------------------------
     const grid = useMemo(() => {
         console.log("CREATE NBR_Grid")
-        return new NeighbourGrid2D(50, 15, 16)
+        return new NeighbourGrid2D(50, 10, 16)
     }, [])
 
     const uniforms = useMemo(
@@ -118,7 +122,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     );
 
     const fillGridCompute = useMemo(() => {
-        /*return grid.fillGridCompute(instanceMatrix, count)*/
+        //return grid.fillGridCompute(instanceMatrix, count)        
         console.log("Create fillGridCompute")
         return Fn(() => {
             If(instanceIndex.lessThan(uniforms.active_count), () => {
@@ -129,11 +133,16 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
     }, [grid, instanceMatrix, count, uniforms])
 
+    const storePrevTransforms = useMemo(() => {
+        return Fn(() => {
+            prevTransformsBuffer.element(instanceIndex).assign(instanceMatrix)
+        })().compute(count)
+    }, [prevTransformsBuffer, instanceMatrix,count])
 
 
     const pbdComputeFn = useMemo(() => {
-        console.log("Create pbdComputeFn")
-        return pbdRepelCompute(transformsBuffer, 2.0, 0.2, grid, uniforms.active_count)
+        console.log("Create pbdComputeFn")        
+        return pbdRepelCompute(transformsBuffer, 2, 0.2, grid, uniforms.active_count)
     }, [grid, transformsBuffer, uniforms])
 
     const pbdCompute = useMemo(() => {
@@ -143,30 +152,21 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
     useFrame(async () => {
         if (clicked) {
-            meshRef.current.count += 2;
+            meshRef.current.count += 1;
             uniforms.active_count.value = meshRef.current.count;
-
-            //transformsAtt.needsUpdate = true;
-
-            //uniforms.active_count.needsUpdate = true;
-            //transformsAtt.clearUpdateRanges()
-            //transformsAtt.addUpdateRange(meshRef.current.count - 2, 2)
-            //transformsAtt.needsUpdate = true;           
-            //transformsAtt
-            //transformsAtt.needsUpdate = true;           
-
-
             setClicked(false);
         }
 
         await renderer.computeAsync(grid.clearCompute())
         await renderer.computeAsync(fillGridCompute)
+        //await renderer.computeAsync(storePrevTransforms)
+
 
         await renderer.computeAsync(grid.computeMirror())
         await renderer.computeAsync(pbdCompute)
 
 
-
+        // Read Buffer For Test
         //const buffer = await renderer.getArrayBufferAsync(grid.gridCounts.value)
         //const readStorageBackToCPU = new Uint32Array(buffer)
         //console.log(readStorageBackToCPU);
@@ -179,16 +179,11 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     useEffect(() => {
         console.log("CREATE handleClick")
         const handleClick = (event: MouseEvent) => {
-            setClicked(true);
-            //meshRef.current.count += 2;
-            //uniforms.active_count.value = meshRef.current.count;
+            if (!clicked) setClicked(true);
         };
-
         gl.domElement.addEventListener("click", handleClick);
         return () => gl.domElement.removeEventListener("click", handleClick);
     }, [gl]);
-
-
 
     return (
         <>
@@ -200,32 +195,23 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
 
 
-
-
-
-
 const pbdRepelCompute = (transformsBuffer: StorageBufferNode, radius = 1.0, strength = 0.5, grid: NeighbourGrid2D, active_count: UniformNode<number>) => {
     return Fn(() => {
         If(instanceIndex.lessThan(active_count), () => {
-
             const self = transformsBuffer.element(instanceIndex)
             const pos = self.element(int(3))
 
             const cell2 = grid.posToIndex2TSL(pos)
             const correction = vec3(0).toVar("OffsetCorrection")
-            const test = float(0).toVar("test")
 
-            correction.assign(vec3(0, sin(time.mul(5)).mul(0.01), 0))
+            const size = 2;
 
-            // loop over 3x3 neighbor cells
+            for (let oy = -size; oy <= size; oy++) {
+                for (let ox = -size; ox <= size; ox++) {
 
-            for (let oy = -1; oy <= 1; oy++) {
-                for (let ox = -1; ox <= 1; ox++) {
-
-                    const neighborCell2 = cell2.add(vec2(ox, oy))
+                    const neighborCell2 = cell2.add(ivec2(ox, oy));
                     const linear = grid.index2ToLinearTSL(neighborCell2)
                     const base = grid.getCellBaseIndex(linear)
-
 
                     // iterate fixed max per cell
                     const countInCell = atomicLoad(grid.gridCounts.element(linear))
@@ -235,13 +221,10 @@ const pbdRepelCompute = (transformsBuffer: StorageBufferNode, radius = 1.0, stre
                             const otherMatrix = transformsBuffer.element(otherIndex)
                             const otherPos = otherMatrix.element(int(3))
 
-                            const dir = pos.sub(otherPos).mul(vec3(1,0,1))
+                            const dir = pos.xyz.sub(otherPos.xyz).mul(vec3(1, 0, 1))
                             const dist = dir.length()
 
-
                             If(otherIndex.notEqual(instanceIndex), () => {
-                                //correction.addAssign(vec3(0, sin(time.mul(5)).mul(0.01), 0))
-
 
                                 If(dist.lessThan(float(radius)), () => {
                                     const push = dir.normalize()
@@ -257,13 +240,8 @@ const pbdRepelCompute = (transformsBuffer: StorageBufferNode, radius = 1.0, stre
 
             // apply correction
             const offset = self.element(int(3))
-            offset.addAssign(correction)
-            
-            //offset.addAssign(vec3(0,test,0))
-            //offset.addAssign(vec3(sin(time.mul(1)).mul(0.1),0,0))
-            //offset.mulAssign(vec3(1, 0, 1))
-            //offset.addAssign(vec3(0, float(instanceIndex).mul(0.1), 0))
-            //offset.addAssign(vec3(0, active_count, 0))
+            offset.addAssign(vec4(correction, 0.0))
         })
     })()
 }
+
