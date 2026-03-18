@@ -44,7 +44,7 @@ export function useMeshRandomizer(mesh_id: number = 0): MeshDataEntry {
 
 // --- Provider Component ---
 export const MeshRandomizerProvider: React.FC<PropsWithChildren> = ({ children }) => {
-    const { count, transformsBuffer, transformsAtt } = useTransforms();
+    const { count, transformsBuffer } = useTransforms();
 
     // --- Generate IDs ---
     const ids = useMemo(() => {

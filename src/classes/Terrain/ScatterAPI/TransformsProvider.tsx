@@ -24,9 +24,9 @@ export const useTransforms = () => {
     return context;
 };
 
-// --- Provider Component ---
-type TransformsProviderProps = PropsWithChildren<TerrainScatterProps>;
 
+
+// --- Provider Component ---
 export function TransformsProvider({ children }: PropsWithChildren) {
     const [instanceTransforms, setInstanceTransforms] = useState<Float32Array>(new Float32Array());
 
@@ -117,7 +117,6 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
     const { addTransforms, transformsBuffer, transformsAtt, instanceTransforms, offsetTable } = useTransforms();
 
     const count = useMemo(() => gridSize * gridSize, [gridSize])
-
     const id = useRef<number | null>(null)
 
     const localTransforms = useMemo(() => {
@@ -135,11 +134,7 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
 
     useEffect(() => {
         id.current = addTransforms(localTransforms, id.current);
-        console.log("ADD TR", id.current)
-        return () => {
-            console.log("REMOVE TR", id.current)
-            addTransforms(null, id.current);
-        };
+        return () => { addTransforms(null, id.current); };
     }, [addTransforms, localTransforms]);
 
     const instanceMatrix = useMemo(() => {
@@ -154,5 +149,11 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
         {children}
     </TransformsContext.Provider>;
 }
+
+
+
+
+
+
 
 
