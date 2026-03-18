@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type PropsWithChildren, useMemo, useRef } from "react";
-import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
+import { createInstanceTransforms, LoadGltfGeo, type TerrainScatterProps } from "../TerrainScatter";
 import { useTerrainScatterControls } from "../Scatter/ScatterUI";
 import { Node, StorageInstancedBufferAttribute } from "three/webgpu";
 import { instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec4 } from "three/tsl";
 import * as THREE from "three/webgpu";
+import { MeshRandomizerContext, type MeshDataEntry } from "./MeshRandomizerProvider";
+import { InstanceMultiMesh } from "./InstanceMultiMesh";
 
 // ---- CONTEXT ---------------------------------
 
@@ -33,6 +35,7 @@ export function DynamicProvider<T>({ children }: DynamicProviderProps<T>) {
     const [values, setValues] = useState<ValuesMap<T>>({});
 
     const register = useCallback((value: T) => {
+        console.log("Register New Values")
         const id = crypto.randomUUID(); // automatically generate unique ID
         setValues((prev) => ({ ...prev, [id]: value }));
         return id;
@@ -93,41 +96,43 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
 
     const [id, setId] = useState<string | null>(null);
 
-    useEffect(() => {
+    useEffect(() => {        
         const newId = register(localTransforms);
         setId(newId);
         return () => { unregister(newId); };
     }, [localTransforms, register, unregister]);
 
-    if (id == null) return;
     return <SliceFromId id={id}>{children}</SliceFromId>;
 }
 
 interface SliceFromIdProps {
-    id: string;
+    id: string | null;
 }
 
 export function SliceFromId({ id, children }: PropsWithChildren<SliceFromIdProps>) {
     const offsetTable = useOffsetTable();
-    const instancedMeshSlice = useInstancedMeshSlice();
+    const { transformsBuffer } = useInstancedMeshSlice();
+
+    const fallback = { offset: 0, count: 0 };
+
     const slice = offsetTable[id];
 
-    if (!slice) {
-        console.warn(`SliceFromId: offset for id ${id} not found yet`);
-        return null; 
-    }
+    const { offset, count } = slice ?? fallback;
 
-    const { offset, count } = slice;
 
-    
-    const { transformsBuffer } = instancedMeshSlice;
+    const sliceValue = useMemo(() => ({
+        transformsBuffer,
+        count,
+        offset
+    }), [transformsBuffer, count, offset]);
 
     return (
-        <InstancedMeshSliceContext.Provider value={{ transformsBuffer, count, offset }}>
+        <InstancedMeshSliceContext.Provider value={sliceValue}>
             {children}
         </InstancedMeshSliceContext.Provider>
     );
 }
+
 
 // Instance Slice Context -----------------------------------------------------
 interface InstancedMeshSlice {
@@ -163,8 +168,17 @@ export function InstanceTransformsBufferGather({ children }: PropsWithChildren) 
     const [instanceTransforms, setInstanceTransforms] = useState<Float32Array>(new Float32Array());
     const [offsetTable, setOffsetTable] = useState<OffsetTable>({});
 
+    const countsSignature = useMemo(() => {
+        return Object.entries(values)
+            .map(([id, arr]) => `${id}:${arr.length}`)
+            .sort() // ensure stable order
+            .join("|");
+    }, [values]);
+
+
     // Update instance Transforms, and offsets with Counts
     useEffect(() => {
+        console.log("Update Instance Transforms")
         const entries = Object.entries(values)
             .sort(([a], [b]) => Number(a) - Number(b)); // sort by numeric ID
 
@@ -182,7 +196,25 @@ export function InstanceTransformsBufferGather({ children }: PropsWithChildren) 
         }
 
         setInstanceTransforms(combined);
-        setOffsetTable(newOffsets);
+        //setOffsetTable(newOffsets);
+        // --- simple shallow compare before setting ---
+        setOffsetTable(prev => {
+            const prevKeys = Object.keys(prev);
+            const newKeys = Object.keys(newOffsets);
+            console.log(prev,newOffsets)
+
+            if (prevKeys.length !== newKeys.length) return newOffsets;
+
+            for (const key of newKeys) {
+                const p = prev[key];
+                const n = newOffsets[key];
+                if (!p || p.count !== n.count || p.offset !== n.offset) {
+                    return newOffsets; // changed → update
+                }
+            }
+            console.log("same offsets")
+            return prev; // no change → skip update
+        });
 
         console.log("Updated instance transforms and offsets", newOffsets);
     }, [values]);
@@ -198,9 +230,32 @@ export function InstanceTransformsBufferGather({ children }: PropsWithChildren) 
     }, [instanceTransforms]);
 
 
+    useEffect(() => {
+        console.log("provider transformsBuffer")
+    }, [transformsBuffer]);
+
+    useEffect(() => {
+        console.log("provider count")
+    }, [count]);
+
+    const sliceValue = useMemo(() => ({
+        transformsBuffer,
+        count,
+        offset: 0
+    }), [transformsBuffer, count]);
+
+
+    useEffect(() => {
+        console.log("provider offsetsTable", offsetTable)
+    }, [offsetTable]);
+
+    useEffect(() => {
+        console.log("provider SliceValue")
+    }, [sliceValue]);
+
     return (
         <OffsetTableContext.Provider value={offsetTable}>
-            <InstancedMeshSliceContext.Provider value={{ transformsBuffer, count, offset: 0 }}>
+            <InstancedMeshSliceContext.Provider value={sliceValue}>
                 {children}
             </InstancedMeshSliceContext.Provider>
         </OffsetTableContext.Provider>
@@ -209,6 +264,12 @@ export function InstanceTransformsBufferGather({ children }: PropsWithChildren) 
 
 // --- InstanceMesh using Context ---
 export function InstancedSliceMesh({ children }: PropsWithChildren) {
+    useEffect(() => {
+        console.log("InstancedSliceMesh Mount")
+        return () => { console.log("InstancedSliceMesh Unmount") }
+    }, [])
+
+
     const meshRef = useRef<THREE.InstancedMesh>(null!);
     const { count, transformsBuffer, offset } = useInstancedMeshSlice();
 
@@ -239,24 +300,139 @@ export function InstancedSliceMesh({ children }: PropsWithChildren) {
 }
 
 
+export function MeshRandomizer({ children }: PropsWithChildren) {
+
+    const { transformsBuffer, count, offset } = useInstancedMeshSlice();
+
+    useEffect(() => {
+        console.log("Randomizer Mount")
+        return () => { console.log("Randomizer Unmount") }
+    }, [])
+
+    useEffect(() => {
+        console.log("COUNT CHANGED", count)
+    }, [count])
+
+    console.log("Randomizer", count, offset)
+    // --- Generate IDs ---
+    const ids = useMemo(() => {
+        console.log("Randommizer Ids", count)
+        const array = new Int16Array(count);
+        for (let i = 0; i < count; i++) array[i] = i % 2;
+        return array;
+    }, [count]);
+
+    // --- Compute Mesh Offsets ---
+    const MeshIdCountsOffset = useMemo(() => {
+        console.log("Randommizer MeshIdCountsOffset")
+        const counts: Record<number, number> = {};
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            counts[id] = (counts[id] || 0) + 1;
+        }
+
+        const meta: Record<number, { offset: number; count: number }> = {};
+        let offset = 0;
+        for (const key of Object.keys(counts)) {
+            const meshId = Number(key);
+            const count = counts[meshId];
+            meta[meshId] = { offset, count };
+            offset += count;
+        }
+        return meta;
+    }, [ids]);
+
+    // --- Pack Indices ---
+    const packedIndices = useMemo(() => {
+        console.log("Randommizer packedIndices")
+        const array = new Int32Array(ids.length);
+        const writeOffsets: Record<number, number> = {};
+        for (const key in MeshIdCountsOffset) writeOffsets[key] = MeshIdCountsOffset[key].offset;
+
+        for (let i = 0; i < ids.length; i++) {
+            const meshId = ids[i];
+            array[writeOffsets[meshId]++] = i;
+        }
+
+        return array;
+    }, [ids, MeshIdCountsOffset]);
+
+    const indexAttribute = useMemo(() => new StorageInstancedBufferAttribute(packedIndices, 1), [packedIndices]);
+    const indexBuffer = useMemo(() => storage(indexAttribute, "uint").setPBO(true), [indexAttribute]);
+
+
+    // --- Build Mesh Data ---
+    const meshData = useMemo(() => {
+        console.log("update Mesh Data")
+        const result: Record<number, MeshDataEntry> = {};
+
+        for (const key in MeshIdCountsOffset) {
+            const meshId = Number(key);
+            const { offset: mesh_offset, count } = MeshIdCountsOffset[meshId];
+            const index = int(indexBuffer.element(instanceIndex.add(int(mesh_offset))));
+
+            result[meshId] = {
+                offset,
+                count,
+                instanceMatrix: transformsBuffer.element(index.add(offset))
+            };
+        }
+
+        return result;
+    }, [MeshIdCountsOffset, indexBuffer, transformsBuffer, offset]);
+
+    return (
+        <InstancedMeshSliceContext.Provider value={{ transformsBuffer, count, offset }}>
+            <MeshRandomizerContext.Provider value={{ meshData }}>
+                {children}
+            </MeshRandomizerContext.Provider>
+        </InstancedMeshSliceContext.Provider>
+    );
+}
+
+
+
+
 export function TestNewGridScatter() {
 
     return (
         <InstanceTransformsProvider>
             <InstanceTransformsBufferGather>
                 <GridScatter name="New Test" >
-                    <InstancedSliceMesh >
-                        <boxGeometry />
-                    </InstancedSliceMesh>
+                    {1 &&
+                        <InstancedSliceMesh >
+                            <boxGeometry />
+                        </InstancedSliceMesh>
+                    }
                 </GridScatter>
 
-                <GridScatter name="New Test 2" >
-                    <InstancedSliceMesh >
-                        <sphereGeometry />
-                    </InstancedSliceMesh>
+                <GridScatter name="New Test 2" spacing={3}>
+                    <MeshRandomizer>
+                        {1 &&
+                            <InstancedSliceMesh >
+                                <sphereGeometry />
+                            </InstancedSliceMesh>
+                        }
+
+                        {1 &&
+                            <InstanceMultiMesh mesh_id={0}>
+                                <sphereGeometry />
+                            </InstanceMultiMesh>
+                        }
+
+                        {1 &&
+                            <InstanceMultiMesh mesh_id={1}>
+                                <boxGeometry />
+                            </InstanceMultiMesh>
+                        }
+
+
+                    </MeshRandomizer>
                 </GridScatter>
 
                 {0 && <InstancedSliceMesh />}
+
+
 
             </InstanceTransformsBufferGather>
         </InstanceTransformsProvider>

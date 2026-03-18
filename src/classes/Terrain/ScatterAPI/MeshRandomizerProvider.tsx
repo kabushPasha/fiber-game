@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useMemo, useEffect, type PropsWithChildren } from "react";
-import { int, instanceIndex, storage } from "three/tsl";
+import { int, instanceIndex, storage, mat4 } from "three/tsl";
 import { StorageInstancedBufferAttribute } from "three/webgpu";
 import { useTransforms } from "./TransformsProvider"; // assume same folder
 import * as THREE from "three/webgpu";
 
 // --- MeshRandomizer Context ---
-interface MeshDataEntry {
+export interface MeshDataEntry {
     offset: number;
     count: number;
     instanceMatrix: THREE.Node;
@@ -15,7 +15,7 @@ interface MeshRandomizerContextType {
     meshData: Record<number, MeshDataEntry>;
 }
 
-const MeshRandomizerContext = createContext<MeshRandomizerContextType | undefined>(undefined);
+export const MeshRandomizerContext = createContext<MeshRandomizerContextType | undefined>(undefined);
 
 
 export function useMeshRandomizer(mesh_id: number = 0): MeshDataEntry {
@@ -23,7 +23,13 @@ export function useMeshRandomizer(mesh_id: number = 0): MeshDataEntry {
     if (randomizerContext) {
         const data = randomizerContext.meshData[mesh_id];
         if (!data) {
-            throw new Error(`MeshRandomizer: mesh_id ${mesh_id} not found in meshData`);
+            console.log(`MeshRandomizer: mesh_id ${mesh_id} not found in meshData`);
+            return {
+                count: 0,
+                instanceMatrix: mat4(),
+                offset: 0
+            }
+
         }
         return {
             count: data.count,
