@@ -4,6 +4,7 @@ import { useTerrainScatterControls } from "../Scatter/ScatterUI";
 import { Node, StorageInstancedBufferAttribute } from "three/webgpu";
 import { instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec4 } from "three/tsl";
 import * as THREE from "three/webgpu";
+
 import { MeshRandomizerContext, type MeshDataEntry } from "./MeshRandomizerProvider";
 import { InstanceMultiMesh } from "./InstanceMultiMesh";
 
@@ -13,7 +14,7 @@ type ValuesMap<T> = Record<string, T>;
 
 interface DynamicContextType<T> {
     values: ValuesMap<T>;
-    register: (value: T) => string; // returns generated ID
+    register: (value: T , id:string) => void; // returns generated ID
     unregister: (id: string) => void;
 }
 
@@ -34,11 +35,10 @@ interface DynamicProviderProps<T> {
 export function DynamicProvider<T>({ children }: DynamicProviderProps<T>) {
     const [values, setValues] = useState<ValuesMap<T>>({});
 
-    const register = useCallback((value: T) => {
+    const register = useCallback((value: T, id:string) => {
         console.log("Register New Values")
-        const id = crypto.randomUUID(); // automatically generate unique ID
         setValues((prev) => ({ ...prev, [id]: value }));
-        return id;
+        return;
     }, []);
 
     const unregister = useCallback((id: string) => {
@@ -58,19 +58,9 @@ export function DynamicProvider<T>({ children }: DynamicProviderProps<T>) {
 
 
 
-// ------ Child Componenet ------------------------------
-export function ChildComponent({ value }: { value: string }) {
-    const { register, unregister } = useDynamicContext<string>();
-    const [id] = useState(() => register(value));
 
-    useEffect(() => {
-        return () => {
-            unregister(id);
-        };
-    }, [id, unregister]);
 
-    return <div>Registered ID: {id}</div>;
-}
+
 
 
 
@@ -94,12 +84,11 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
         return createInstanceTransforms({ gridSize, spacing, scale, scale_random, rotation_random, offset_random });
     }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random]);
 
-    const [id, setId] = useState<string | null>(null);
+    const id = useMemo(()=> {return props.name || "empty"},[props.name])
 
     useEffect(() => {        
-        const newId = register(localTransforms);
-        setId(newId);
-        return () => { unregister(newId); };
+        register(localTransforms, id);
+        return () => { unregister(id); };
     }, [localTransforms, register, unregister]);
 
     return <SliceFromId id={id}>{children}</SliceFromId>;
@@ -408,7 +397,7 @@ export function TestNewGridScatter() {
 
                 <GridScatter name="New Test 2" spacing={3}>
                     <MeshRandomizer>
-                        {1 &&
+                        {0 &&
                             <InstancedSliceMesh >
                                 <sphereGeometry />
                             </InstancedSliceMesh>
