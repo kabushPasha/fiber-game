@@ -1,25 +1,19 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect, type PropsWithChildren, useLayoutEffect, useState } from "react";
-
-import { instanceIndex, int, normalLocal, positionLocal, rand, storage, transformNormalToView, vec4 } from "three/tsl";
-import { MeshStandardNodeMaterial, StorageInstancedBufferAttribute } from "three/webgpu";
+import React, { createContext, useContext, useMemo, useEffect, type PropsWithChildren, useState, useCallback, useRef } from "react";
+import { StorageInstancedBufferAttribute } from "three/webgpu";
+import { storage, instanceIndex, int } from "three/tsl";
 import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
 import { useTerrainScatterControls } from "../Scatter/ScatterUI";
-import { useThree } from "@react-three/fiber";
+import * as THREE from "three/webgpu";
 
-
-interface MeshDataEntry {
-    offset: number; // start index in the packed array
-    count: number;  // number of instances for this mesh
-    instanceMatrix: any; // TSL node for transforms
-}
-
-// --- Context ---
+// --- Transforms Context ---
 interface TransformsContextType {
     count: number;
     instanceTransforms: Float32Array;
     transformsBuffer: ReturnType<typeof storage>;
     transformsAtt: StorageInstancedBufferAttribute;
-    meshData: Record<number, MeshDataEntry>;
+    instanceMatrix: THREE.Node;
+    addTransforms: (newTransforms: Float32Array | null, id: number | null) => number;
+    offsetTable: Record<number, number>;
 }
 
 const TransformsContext = createContext<TransformsContextType | undefined>(undefined);
@@ -31,116 +25,134 @@ export const useTransforms = () => {
 };
 
 // --- Provider Component ---
-type TransformsProviderProps = React.PropsWithChildren<TerrainScatterProps>;
+type TransformsProviderProps = PropsWithChildren<TerrainScatterProps>;
 
-export function TransformsProvider({ children, ...props }: TransformsProviderProps) {
-    const { gridSize, spacing, rotation_random, scale, scale_random, offset_random } = useTerrainScatterControls(props);
-    const count = useMemo(() => gridSize * gridSize, [gridSize]);
+export function TransformsProvider({ children }: PropsWithChildren) {
+    const [instanceTransforms, setInstanceTransforms] = useState<Float32Array>(new Float32Array());
 
-    const instanceTransforms = useMemo(() =>
-        createInstanceTransforms({ gridSize, spacing, scale, scale_random, rotation_random, offset_random })
-        , [gridSize, spacing, scale, scale_random, rotation_random, offset_random]);
+    const count = useMemo(() => { return instanceTransforms.length / 16 }, [instanceTransforms])
 
+    // --- Buffer & Attribute ---
     const transformsAtt = useMemo(() => new StorageInstancedBufferAttribute(instanceTransforms, 16), [count]);
     const transformsBuffer = useMemo(() => storage(transformsAtt).setPBO(true), [transformsAtt]);
+    const instanceMatrix = useMemo(() => transformsBuffer.element(instanceIndex), [transformsBuffer]);
 
-    //    Create Mesh Ids
-    const ids = useMemo(() => {
-        console.log("Update IDS")
-        const ids = new Int16Array(count)
-        for (let x = 0; x < count; x++) {
-            ids[x] = x % 2;
-        }
-        console.log(ids);
-        return ids;
-    }, [count])
+    const [idTable, setIdTable] = useState<Record<number, Float32Array>>({})
+    const [offsetTable, setOffsetTable] = useState<Record<number, number>>({});
+    // --- Sync updates ---
 
-    // Calculate Mesh ID OFfsets
-    const MeshIdCountsOffset = useMemo(() => {
-        const counts: Record<number, number> = {};
-        // Count occurrences
-        for (let i = 0; i < ids.length; i++) {
-            const id = ids[i];
-            counts[id] = (counts[id] || 0) + 1;
-        }
-        // Convert to offsets
-        const meta: Record<number, { offset: number; count: number }> = {};
-        let offset = 0;
-
-        for (const key of Object.keys(counts)) {
-            const meshId = Number(key);
-            const count = counts[meshId];
-            meta[meshId] = { offset, count };
-            offset += count;
-        }
-        return meta;
-    }, [ids]);
-
-    const packedIndices = useMemo(() => {
-        const array = new Int32Array(ids.length);
-        // copy offsets so we can increment while filling
-        const writeOffsets: Record<number, number> = {};
-        for (const key in MeshIdCountsOffset) {
-            writeOffsets[key] = MeshIdCountsOffset[key].offset;
-        }
-        // Fill
-        for (let i = 0; i < ids.length; i++) {
-            const meshId = ids[i];
-            const writeIndex = writeOffsets[meshId]++;
-            array[writeIndex] = i;
-        }
-        return array;
-    }, [ids, MeshIdCountsOffset]);
-
-    const indexAttribute = useMemo(() => {
-        return new StorageInstancedBufferAttribute(packedIndices, 1);
-    }, [packedIndices]);
-
-    const indexBuffer = useMemo(() => {
-        return storage(indexAttribute, 'uint').setPBO(true);
-    }, [indexAttribute]);
-
-    const meshData = useMemo(() => {
-        const result: Record<number, {
-            offset: number;
-            count: number;
-            instanceMatrix: any;
-        }> = {};
-
-        for (const key in MeshIdCountsOffset) {
-            const meshId = Number(key);
-            const { offset, count } = MeshIdCountsOffset[meshId];
-
-            const index = int(
-                indexBuffer.element(instanceIndex.add(int(offset)))
-            );
-
-            result[meshId] = {
-                offset,
-                count,
-                instanceMatrix: transformsBuffer.element(index)
-            };
-        }
-
-        console.log(result);
-        return result;
-    }, [MeshIdCountsOffset, indexBuffer, transformsBuffer]);
-
-
-    // Sync updates if instanceTransforms changes
     useEffect(() => {
         transformsAtt.array.set(instanceTransforms);
         transformsAtt.needsUpdate = true;
-    }, [instanceTransforms, transformsAtt]);
+    }, [instanceTransforms]);
 
+    useEffect(() => {
+        console.log("Table Changed", idTable);
+        const entries = Object.entries(idTable).sort(([a], [b]) => Number(a) - Number(b));
+        const totalLength = entries.reduce((sum, [, arr]) => sum + arr.length, 0);
+        const combined = new Float32Array(totalLength);
+        const newOffsets: Record<number, number> = {};
+        let floatOffset = 0;
+        for (const [idStr, arr] of entries) {
+            const id = Number(idStr);
+            newOffsets[id] = floatOffset / 16;
+            combined.set(arr, floatOffset);
+            floatOffset += arr.length;
+        }
+
+        setOffsetTable(newOffsets);
+        setInstanceTransforms(combined);
+
+    }, [idTable]);
+
+    const nextIdRef = useRef(0);
+
+    // --- Add new transforms dynamically ---
+    const addTransforms = useCallback(
+        (newTransforms: Float32Array | null, id: number | null) => {
+            let assignedId = id;
+
+            // REMOVE
+            if (newTransforms === null) {
+                if (assignedId == null) return assignedId;
+
+                setIdTable(prev => {
+                    if (prev[assignedId!] === undefined) return prev;
+                    const copy = { ...prev };
+                    delete copy[assignedId!];
+                    return copy;
+                });
+
+                return assignedId;
+            }
+
+            // ASSIGN ID (sync + safe)
+            if (assignedId == null) {
+                assignedId = nextIdRef.current++;
+            }
+
+            // ADD / UPDATE
+            setIdTable(prev => ({
+                ...prev,
+                [assignedId!]: newTransforms
+            }));
+
+            return assignedId;
+        },
+        []
+    );
     return (
-        <TransformsContext.Provider value={{ count, instanceTransforms, transformsBuffer, transformsAtt, meshData }}>
+        <TransformsContext.Provider
+            value={{ count, instanceTransforms, transformsBuffer, transformsAtt, instanceMatrix, addTransforms, offsetTable }}
+        >
             {children}
         </TransformsContext.Provider>
     );
 }
 
 
+export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
+    const { children, ...props } = _props;
+    const { gridSize, spacing, scale, scale_random, rotation_random, offset_random } = useTerrainScatterControls(props);
+    const { addTransforms, transformsBuffer, transformsAtt, instanceTransforms, offsetTable } = useTransforms();
 
+    const count = useMemo(() => gridSize * gridSize, [gridSize])
+
+    const id = useRef<number | null>(null)
+
+    const localTransforms = useMemo(() => {
+        console.log("GRID_SCATTER:Construct Transfroms")
+        return createInstanceTransforms({
+            gridSize,
+            spacing,
+            scale,
+            scale_random,
+            rotation_random,
+            offset_random,
+        });
+    }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random])
+
+
+    useEffect(() => {
+        id.current = addTransforms(localTransforms, id.current);
+        console.log("ADD TR", id.current)
+        return () => {
+            console.log("REMOVE TR", id.current)
+            addTransforms(null, id.current);
+        };
+    }, [addTransforms, localTransforms]);
+
+    const instanceMatrix = useMemo(() => {
+        if (!id.current) return transformsBuffer.element(instanceIndex)
+        const offset = offsetTable[id.current]
+        return transformsBuffer.element(instanceIndex.add(int(offset)))
+    }, [transformsBuffer, offsetTable])
+
+    return <TransformsContext.Provider
+        value={{ count, instanceTransforms, transformsBuffer, transformsAtt, instanceMatrix, addTransforms, offsetTable }}
+    >
+        {children}
+    </TransformsContext.Provider>;
+}
 
 

@@ -37,8 +37,9 @@ import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsC
 import { ECS_Test } from "./classes/Terrain/ECS_Test"
 import { ECS_VertexPulling } from "./classes/Terrain/ECS_VertexPulling"
 import { ECS_NBRGrid } from "./classes/Terrain/ECS/ECS_NBRGrid"
-import { TransformsProvider } from "./classes/Terrain/ScatterAPI/TransformsProvider"
+import { GridScatter, TransformsProvider } from "./classes/Terrain/ScatterAPI/TransformsProvider"
 import { InstanceMultiMesh } from "./classes/Terrain/ScatterAPI/InstanceMultiMesh"
+import { MeshRandomizerProvider } from "./classes/Terrain/ScatterAPI/MeshRandomizerProvider"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -179,16 +180,37 @@ const App = () => {
                           {0 && <ECS_VertexPulling name="Veretex Pulling" spacing={2} />}
 
 
-                            <TransformsProvider name="Provider Transforms" spacing={2}>
-                              <InstanceMultiMesh  mesh_id={0}>                         
-                                <LoadGltfGeo url="models/Grass.glb" />
-                                <boxGeometry />
+                          <TransformsProvider >
+                            <GridScatter name="test">
+
+                              {0 &&
+                                <MeshRandomizerProvider>
+                                  <InstanceMultiMesh mesh_id={0}>
+                                    <LoadGltfGeo url="models/Grass.glb" />
+                                    <boxGeometry />
+                                  </InstanceMultiMesh>
+                                  <InstanceMultiMesh mesh_id={1}>
+                                    <LoadGltfGeo url="models/Grass.glb" />
+                                    <sphereGeometry />
+                                  </InstanceMultiMesh>
+                                </MeshRandomizerProvider>
+                              }
+
+                              <InstanceMultiMesh mesh_id={0}>
+                                <sphereGeometry />
                               </InstanceMultiMesh>
-                              <InstanceMultiMesh  mesh_id={1}>                         
-                                <LoadGltfGeo url="models/Grass.glb" />  
-                                <sphereGeometry />                              
-                              </InstanceMultiMesh>
-                            </TransformsProvider >
+
+                            </GridScatter>
+
+                            {1 &&
+                              <GridScatter name="test2" scale={2}>
+                                <InstanceMultiMesh mesh_id={0}>
+                                  <boxGeometry />
+                                </InstanceMultiMesh>
+                              </GridScatter>
+                            }
+
+                          </TransformsProvider >
 
 
                         </TerrainProvider>
