@@ -37,7 +37,8 @@ import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsC
 import { ECS_Test } from "./classes/Terrain/ECS_Test"
 import { ECS_VertexPulling } from "./classes/Terrain/ECS_VertexPulling"
 import { ECS_NBRGrid } from "./classes/Terrain/ECS/ECS_NBRGrid"
-import { InstanceMultiMesh, TransformsProvider } from "./classes/Terrain/ECS/TransformsProvider"
+import { TransformsProvider } from "./classes/Terrain/ScatterAPI/TransformsProvider"
+import { InstanceMultiMesh } from "./classes/Terrain/ScatterAPI/InstanceMultiMesh"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -184,7 +185,8 @@ const App = () => {
                                 <boxGeometry />
                               </InstanceMultiMesh>
                               <InstanceMultiMesh  mesh_id={1}>                         
-                                <LoadGltfGeo url="models/Grass.glb" />                                
+                                <LoadGltfGeo url="models/Grass.glb" />  
+                                <sphereGeometry />                              
                               </InstanceMultiMesh>
                             </TransformsProvider >
 
