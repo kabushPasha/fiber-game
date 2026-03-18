@@ -37,6 +37,8 @@ import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsC
 import { ECS_Test } from "./classes/Terrain/ECS_Test"
 import { ECS_VertexPulling } from "./classes/Terrain/ECS_VertexPulling"
 import { ECS_NBRGrid } from "./classes/Terrain/ECS/ECS_NBRGrid"
+import { InstanceMultiMesh, TransformsProvider } from "./classes/Terrain/ECS/TransformsProvider"
+
 
 extend({ MeshStandardNodeMaterial })
 
@@ -172,8 +174,19 @@ const App = () => {
 
                           {0 && <ECS_Test name="ECS_Test"
                             spacing={2} />}
-                          {1 && <ECS_NBRGrid name="Veretex Pulling" spacing={0.5} gridSize={25}/>}
+                          {0 && <ECS_NBRGrid name="Veretex Pulling" spacing={0.5} gridSize={25} />}
                           {0 && <ECS_VertexPulling name="Veretex Pulling" spacing={2} />}
+
+
+                            <TransformsProvider name="Provider Transforms" spacing={2}>
+                              <InstanceMultiMesh  mesh_id={0}>                         
+                                <LoadGltfGeo url="models/Grass.glb" />
+                                <boxGeometry />
+                              </InstanceMultiMesh>
+                              <InstanceMultiMesh  mesh_id={1}>                         
+                                <LoadGltfGeo url="models/Grass.glb" />                                
+                              </InstanceMultiMesh>
+                            </TransformsProvider >
 
 
                         </TerrainProvider>

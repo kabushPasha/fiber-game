@@ -3,7 +3,6 @@ import { MeshStandardNodeMaterial, Node, StorageBufferAttribute, StorageInstance
 import * as THREE from "three"
 
 export class NeighbourGrid2D {
-
     size: number
     numCells: number
     cellSize: number

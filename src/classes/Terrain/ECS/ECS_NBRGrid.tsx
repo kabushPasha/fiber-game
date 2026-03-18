@@ -111,7 +111,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     // NBR GRID --------------------------------------
     const grid = useMemo(() => {
         console.log("CREATE NBR_Grid")
-        return new NeighbourGrid2D(200, 20, 16)
+        return new NeighbourGrid2D(200, 20, 16*2)
     }, [])
 
     const uniforms = useMemo(
@@ -142,7 +142,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
     const pbdComputeFn = useMemo(() => {
         console.log("Create pbdComputeFn")
-        return pbdRepelCompute(transformsBuffer, grid, uniforms.active_count,2,0.2 )
+        return pbdRepelCompute(transformsBuffer, grid, uniforms.active_count, 2, 0.2)
     }, [grid, transformsBuffer, uniforms])
 
     const pbdCompute = useMemo(() => {
@@ -152,20 +152,17 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
     useFrame(async () => {
         if (clicked) {
-            meshRef.current.count += 1000;
+            meshRef.current.count += 10;
             uniforms.active_count.value = meshRef.current.count;
             setClicked(false);
         }
 
-        renderer.computeAsync(grid.clearCompute())
-        renderer.computeAsync(fillGridCompute)
+        await renderer.computeAsync(grid.clearCompute())
+        await renderer.computeAsync(fillGridCompute)
         //await renderer.computeAsync(storePrevTransforms)
 
-        renderer.computeAsync(grid.computeMirror())
-        renderer.computeAsync(pbdCompute)
-        renderer.computeAsync(pbdCompute)
-        renderer.computeAsync(pbdCompute)
-        renderer.computeAsync(pbdCompute)
+        await renderer.computeAsync(grid.computeMirror())
+        await renderer.computeAsync(pbdCompute)
 
 
         // Read Buffer For Test
