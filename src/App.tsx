@@ -41,6 +41,7 @@ import { GridScatter, TransformsProvider } from "./classes/Terrain/ScatterAPI/Tr
 import { InstanceMultiMesh } from "./classes/Terrain/ScatterAPI/InstanceMultiMesh"
 import { MeshRandomizerProvider } from "./classes/Terrain/ScatterAPI/MeshRandomizerProvider"
 import { TestNewGridScatter } from "./classes/Terrain/ScatterAPI/Scatter_v2"
+import { TansformsProviderDebug } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -217,9 +218,9 @@ const App = () => {
                             </TransformsProvider >
                           }
 
-                          <TestNewGridScatter/>
+                          { 0 && <TestNewGridScatter/> }
 
-
+                          <TansformsProviderDebug />
 
 
 
