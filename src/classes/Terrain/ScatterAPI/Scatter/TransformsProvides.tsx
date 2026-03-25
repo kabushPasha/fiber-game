@@ -1,11 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useRef, type PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { type TerrainScatterProps } from "../../TerrainScatter";
 import { useTerrainScatterControls } from "../../Scatter/ScatterUI";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { instanceIndex, normalLocal, positionLocal, storage, transformNormalToView, vec4 } from "three/tsl";
 import { StorageBufferNode, StorageInstancedBufferAttribute } from "three/webgpu";
 import * as THREE from "three/webgpu";
 import { useGLTF } from "@react-three/drei";
+import { useTerrain } from "../../TerrainProvider";
+import { usePlayer } from "../../../Player/PlayerContext";
 
 // ULTIMATE CLASS TO SCATTER STUFFS
 // - inherit transforms
@@ -172,14 +174,13 @@ export function InstancedMeshCPU({ children }: PropsWithChildren) {
     const count = useMemo(() => { return transforms.length; }, [transforms])
 
     useEffect(() => {
-        transforms.map((value,index) => {
-            meshRef.current.setMatrixAt(index,value);
-        })       
+        transforms.map((value, index) => {
+            meshRef.current.setMatrixAt(index, value);
+        })
 
         meshRef.current.instanceMatrix.needsUpdate = true;
         meshRef.current.computeBoundingSphere();
         meshRef.current.computeBoundingBox();
-
     }, [transforms])
 
 
@@ -191,8 +192,6 @@ export function InstancedMeshCPU({ children }: PropsWithChildren) {
         {children}
     </instancedMesh>;
 }
-
-
 
 export function InstancedTransformMaterial() {
     const { transformsBufferNode } = useTransformsBuffer();
@@ -229,27 +228,138 @@ export function GLTFGeometry({ url }: { url: string }) {
     return <primitive object={geometry} attach="geometry" />
 }
 
+export function SnapToTerrainHeightCPU({ children }: PropsWithChildren) {
+    const terrain = useTerrain();
+    const { transforms } = useTransforms();
 
+    const snappedTransforms = useMemo(() => {
+        return transforms.map((_transform) => {
+            return snapToHeightfield(_transform, terrain);
+        })
+    }, [transforms])
 
+    const context = useMemo(() => ({
+        transforms: snappedTransforms
+    }), [snappedTransforms])
 
+    return <useTransformsContext.Provider value={context}    >
+        {children}
+    </useTransformsContext.Provider>;
+}
+
+export function WrapAroundPlayer({ children }: PropsWithChildren) {
+    const { transforms } = useTransforms();
+    const player = usePlayer()
+    const [wrappedTransfroms, setWrappedTransforms] = useState<THREE.Matrix4[] | null>(null);
+
+    /*
+    const wrapped = useMemo(() => {
+        return transforms.map((t) => {
+            return wrapAroundPlayer(t,player.playerWorldPosition, 5,1);
+        });
+    }, [transforms]);*/
+
+    useFrame(() => {
+        setWrappedTransforms(
+            transforms.map((t) => {
+                return wrapAroundPlayer(t, player.playerWorldPosition, 5, 1);
+            })
+        )
+    })
+
+    useEffect(() => {
+        setWrappedTransforms(
+            transforms.map((t) => {
+                return wrapAroundPlayer(t, player.playerWorldPosition, 5, 1);
+            })
+        )
+    }, [transforms])
+
+    const context = useMemo(() => ({
+        transforms: wrappedTransfroms ?? []
+    }), [wrappedTransfroms])
+
+    return (
+        <useTransformsContext.Provider value={context}>
+            {children}
+        </useTransformsContext.Provider>
+    );
+}
+
+export function snapToHeightfield(
+    transform: THREE.Matrix4,
+    terrain: { getHeightAtPos: (pos: THREE.Vector3) => number }
+): THREE.Matrix4 {
+    const m = transform.clone();
+
+    const pos = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+
+    m.decompose(pos, quat, scale);
+    pos.y = terrain.getHeightAtPos(pos);
+    m.compose(pos, quat, scale);
+    return m;
+}
+
+export function wrapAroundPlayer(
+    transform: THREE.Matrix4,
+    playerPos: THREE.Vector3,
+    gridSize: number,
+    spacing: number
+): THREE.Matrix4 {
+
+    function euclideanModulo(n: number, m: number) {
+        return ((n % m) + m) % m;
+    }
+
+    const m = transform.clone();
+
+    const pos = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+
+    m.decompose(pos, quat, scale);
+
+    const zoneSize = gridSize * spacing;
+
+    // Proper wrap using modulo (works for any distance)
+    pos.x = playerPos.x + euclideanModulo(pos.x - playerPos.x + zoneSize / 2, zoneSize) - zoneSize / 2;
+    pos.z = playerPos.z + euclideanModulo(pos.z - playerPos.z + zoneSize / 2, zoneSize) - zoneSize / 2;
+
+    m.compose(pos, quat, scale);
+
+    return m;
+}
 
 export function TansformsProviderDebug() {
     return (
         <>
             <GridScatter name={"New Scatter Test"}>
-                <TransformsBufferProvider>
-                    <InstancedMeshSimple>
-                        <boxGeometry />
-                        <GLTFGeometry url="models/Tree.glb" />
-                        <InstancedTransformMaterial />
-                    </InstancedMeshSimple>
-                </TransformsBufferProvider>
+                <SnapToTerrainHeightCPU>
+                    <TransformsBufferProvider>
+                        <InstancedMeshSimple>
+                            <boxGeometry />
+                            <GLTFGeometry url="models/Tree.glb" />
+                            <InstancedTransformMaterial />
+                        </InstancedMeshSimple>
+                    </TransformsBufferProvider>
+                </SnapToTerrainHeightCPU>
 
 
-                <InstancedMeshCPU>
-                    <boxGeometry />
-                </InstancedMeshCPU>
-            </GridScatter>
+
+                <WrapAroundPlayer>
+                    <SnapToTerrainHeightCPU>
+                        <InstancedMeshCPU>
+
+                            <boxGeometry />
+                            <meshStandardMaterial />
+
+                        </InstancedMeshCPU>
+                    </SnapToTerrainHeightCPU>
+                </WrapAroundPlayer>
+
+            </GridScatter >
         </>
     );
 }

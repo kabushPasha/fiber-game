@@ -131,7 +131,7 @@ const App = () => {
                         <TerrainProvider textureUrl="textures/HFs/height.png">
                           <Player >
                             <WorldPositionConstraint>
-                              {0 && <TerrainPlane />}
+                              {1 && <TerrainPlane />}
                             </WorldPositionConstraint>
 
                             {1 && <MoveByVel />}
