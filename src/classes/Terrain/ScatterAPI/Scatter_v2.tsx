@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type PropsWithChildren, useMemo, useRef } from "react";
-import { createInstanceTransforms, LoadGltfGeo, type TerrainScatterProps } from "../TerrainScatter";
+import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
 import { useTerrainScatterControls } from "../Scatter/ScatterUI";
-import { Node, StorageInstancedBufferAttribute } from "three/webgpu";
+import { StorageInstancedBufferAttribute } from "three/webgpu";
 import { instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec4 } from "three/tsl";
 import * as THREE from "three/webgpu";
 
@@ -28,6 +28,7 @@ export function useDynamicContext<T>() {
 
 // ---- Provider -----------------------------------
 
+// @ts-ignore
 interface DynamicProviderProps<T> {
     children: React.ReactNode;
 }
@@ -104,7 +105,7 @@ export function SliceFromId({ id, children }: PropsWithChildren<SliceFromIdProps
 
     const fallback = { offset: 0, count: 0 };
 
-    const slice = offsetTable[id];
+    const slice = offsetTable[id ?? 0];
 
     const { offset, count } = slice ?? fallback;
 
@@ -157,13 +158,14 @@ export function InstanceTransformsBufferGather({ children }: PropsWithChildren) 
     const [instanceTransforms, setInstanceTransforms] = useState<Float32Array>(new Float32Array());
     const [offsetTable, setOffsetTable] = useState<OffsetTable>({});
 
+    /*
     const countsSignature = useMemo(() => {
         return Object.entries(values)
             .map(([id, arr]) => `${id}:${arr.length}`)
             .sort() // ensure stable order
             .join("|");
     }, [values]);
-
+    */
 
     // Update instance Transforms, and offsets with Counts
     useEffect(() => {
