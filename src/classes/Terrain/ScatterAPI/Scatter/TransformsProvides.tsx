@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { float, instanceIndex, mod, normalLocal, positionLocal, storage, transformNormalToView, vec4, sub, div, int } from "three/tsl";
+import { float, instanceIndex, mod, normalLocal, positionLocal, storage, clamp, transformNormalToView, vec4, sub, div, int, mix, attribute, vec3, length, uv } from "three/tsl";
 import { StorageBufferNode, StorageInstancedBufferAttribute } from "three/webgpu";
 import * as THREE from "three/webgpu";
 import { useGLTF } from "@react-three/drei";
@@ -10,12 +10,11 @@ import { folder, useControls } from "leva";
 import { Fn } from "three/src/nodes/TSL.js";
 
 // ULTIMATE CLASS TO SCATTER STUFFS
-// - inherit transforms
 // - split into indexes for different meshes
 // - cast shadows
-// - adapt Grass
-// - update snapping compute only when 
+// - update snapping compute only when distance travalled ??
 // - deterministic random offsets
+// - terrain controls expose
 
 
 // Transforms Context ----------------------------------------------------------------------------
@@ -135,7 +134,6 @@ export function GridScatterLayer(_props: PropsWithChildren<GridScatterProps>) {
     const gridScatterProps = useGridScatterControlsUI(props);
     const parent_transforms = useTransforms();
 
-
     const transforms = useMemo(() => {
         console.log("GRID_SCATTER:Construct Transfroms")
         const inst_transform = createGridTransforms(gridScatterProps);
@@ -147,16 +145,13 @@ export function GridScatterLayer(_props: PropsWithChildren<GridScatterProps>) {
                 return m;
             })
         );
-
     }, [gridScatterProps])
-
 
     return <useTransformsContext.Provider value={{ transforms }}    >
         {children}
     </useTransformsContext.Provider>;
 
 }
-
 
 export function createGridTransforms(props: GridScatterProps) {
     const {
@@ -318,6 +313,7 @@ export function InstancedTransformMaterial() {
 
 export function GLTFGeometry({ url }: { url: string }) {
     const { nodes } = useGLTF(url) as any
+    console.log("GLTF", url, nodes);
     // Memoize geometry extraction
     const geometry = useMemo(() => {
         const firstMesh = Object.values(nodes).find(
@@ -475,12 +471,62 @@ export function wrapAroundPlayer(
 }
 
 
+export function GrassPivotMaterial() {
+    const { transformsBufferNode } = useTransformsBuffer();
+    const terrain = useTerrain();
+    const player = usePlayer();
+    const grid = useGrid();
+
+    const instanceMatrix = useMemo(() => {
+        return transformsBufferNode.element(instanceIndex)
+    }, [transformsBufferNode])
+
+    const material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial();
+        mat.side = THREE.DoubleSide
+        // Pivot
+        const pivot = attribute("_pivot", "vec3");
+        const pivot_ws = instanceMatrix.mul(vec4(pivot, 1))
+        // Calc Distance Mask
+        const world_pivot = instanceMatrix.mul(vec4(0, 0, 0, 1));
+        const start_dist = 0.1;
+        const dist_mask_pow = 1 / 2;
+        const distance_mask = remapFromMin(length(world_pivot.sub(player.tsl_PlayerWorldPosition).xz).div(grid.gridSize * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
+
+        // Calculate Position
+        const pivot_height = terrain.tsl_sampleHeight(pivot_ws);
+        const pos_ws = instanceMatrix.mul(mix(pivot, positionLocal, distance_mask)).add(vec3(0, pivot_height.y.sub(pivot_ws.y), 0));
+        mat.positionNode = pos_ws;
+
+        // Calculate Normal
+        //const normalWorld = instanceMatrix.mul(vec4(normalLocal, 0)).xyz;
+        //mat.normalNode = transformNormalToView(normalWorld);
+        const pivot_N = terrain.tsl_sampleN(pivot_ws);
+        mat.normalNode = transformNormalToView(pivot_N.mul(2.0).sub(1.0).xzy)
+
+        // Color
+        const base_color = terrain.tsl_sampleColor(world_pivot)
+        const bright_color = vec3(0.9, 2, 0.9)
+        const uv_mix = uv().y.pow(0.2).oneMinus();
+        const dist_mix = distance_mask.pow(1)
+        mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
+
+        return mat;
+    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition,terrain.tsl_sampleColor, grid.gridSize]);
+
+    return <primitive object={material} attach="material" />
+}
+
+export const remapFromMin = (value: any, min: any) => {
+    return clamp(value.sub(min).div(float(1.0).sub(min)), 0.0, 1.0)
+}
+
 
 export function TansformsProviderDebug() {
     return (
         <>
             <GridScatter name={"New Scatter Test"} spacing={3}>
-                {true &&
+                {false &&
                     <SnapToTerrainHeightCPU>
                         <TransformsBufferProvider>
                             <WrapAroundPlayerGPU />
@@ -503,20 +549,31 @@ export function TansformsProviderDebug() {
                         </InstancedMeshCPU>
                     </WrapAroundPlayer>}
 
+                {false &&
+                    <GridScatterLayer name={"Sub_Scatter"}>
+                        <TransformsBufferProvider>
+                            <WrapAroundPlayerGPU />
+                            <InstancedMeshSimple>
+                                <boxGeometry />
+                                <InstancedTransformMaterial />
+                            </InstancedMeshSimple>
+                        </TransformsBufferProvider>
+                    </GridScatterLayer>}
+            </GridScatter >
 
-                <GridScatterLayer name={"Sub_Scatter"}>
-                    <TransformsBufferProvider>
-                        <WrapAroundPlayerGPU/>
-                        <InstancedMeshSimple>
-                            <boxGeometry />
-                            <InstancedTransformMaterial />
-                        </InstancedMeshSimple>
-                    </TransformsBufferProvider>
 
-
-                </GridScatterLayer>
-
-
+            <GridScatter name={"RockTiles"} spacing={1} cellCount={10}>
+                {true &&
+                    <SnapToTerrainHeightCPU>
+                        <TransformsBufferProvider>
+                            <WrapAroundPlayerGPU />
+                            <InstancedMeshSimple>
+                                <boxGeometry />
+                                {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
+                                <GrassPivotMaterial />
+                            </InstancedMeshSimple>
+                        </TransformsBufferProvider>
+                    </SnapToTerrainHeightCPU>}
             </GridScatter >
         </>
     );
