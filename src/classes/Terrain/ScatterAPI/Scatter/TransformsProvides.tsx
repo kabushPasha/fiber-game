@@ -1,21 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
-import { type TerrainScatterProps } from "../../TerrainScatter";
-import { useTerrainScatterControls } from "../../Scatter/ScatterUI";
 import { useFrame, useThree } from "@react-three/fiber";
-import { instanceIndex, normalLocal, positionLocal, storage, transformNormalToView, vec4 } from "three/tsl";
+import { float, instanceIndex, mod, normalLocal, positionLocal, storage, transformNormalToView, vec4, sub, div, int } from "three/tsl";
 import { StorageBufferNode, StorageInstancedBufferAttribute } from "three/webgpu";
 import * as THREE from "three/webgpu";
 import { useGLTF } from "@react-three/drei";
 import { useTerrain } from "../../TerrainProvider";
 import { usePlayer } from "../../../Player/PlayerContext";
+import { folder, useControls } from "leva";
+import { Fn } from "three/src/nodes/TSL.js";
 
 // ULTIMATE CLASS TO SCATTER STUFFS
 // - inherit transforms
 // - split into indexes for different meshes
 // - cast shadows
 // - adapt Grass
-// - add simple Instance Option
-// - snap to height, tile around player
+// - update snapping compute only when 
+// - deterministic random offsets
 
 
 // Transforms Context ----------------------------------------------------------------------------
@@ -31,33 +31,136 @@ export function useTransforms(): TransformsContextType {
     return ctx;
 }
 
-
 // Provider Grid Scatter ---------------------------------------------------------------------------
-export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
+
+export type GridScatterProps = {
+    visible?: boolean
+    geometry?: THREE.BufferGeometry | null
+    cellCount?: number
+    spacing?: number
+    rotation_random?: number
+    scale?: number
+    scale_random?: number
+    offset_random?: number
+    children?: React.ReactNode
+    name?: string
+    showUI?: boolean
+}
+
+type GridScatterPropsResolved =
+    GridScatterProps &
+    Required<Pick<
+        GridScatterProps,
+        "cellCount" |
+        "spacing" |
+        "rotation_random" |
+        "scale" |
+        "scale_random" |
+        "offset_random"
+    >>
+
+const GridScatterProps_defaults: GridScatterProps = {
+    visible: true,
+    geometry: null,
+    cellCount: 5,
+    spacing: 1,
+    rotation_random: 0,
+    scale: 1,
+    scale_random: 0,
+    offset_random: 0,
+    children: null,
+    name: "Scattered",
+    showUI: true
+};
+
+export function useGridScatterControlsUI(_props: GridScatterProps): GridScatterPropsResolved {
+    const props = { ...GridScatterProps_defaults, ..._props };
+    if (!props.showUI) return props as GridScatterPropsResolved;
+
+    const controlled_props = useControls("Terrain", {
+        [props.name as string]: folder({
+            visible: { value: props.visible as boolean },
+            cellCount: { value: props.cellCount as number, min: 1, max: 1000, step: 1 },
+            spacing: { value: props.spacing as number, min: 0.1, max: 100, step: 0.1 },
+            rotation_random: { value: props.rotation_random as number, min: 0, max: 1, step: 0.01 },
+            scale: { value: props.scale as number, min: 0.01, max: 10, step: 0.01 },
+            scale_random: { value: props.scale_random as number, min: 0, max: 1, step: 0.01 },
+            offset_random: { value: props.offset_random as number, min: 0, max: 3, step: 0.01 }
+        }, { collapsed: true })
+    })
+
+    return { ...props, ...controlled_props }
+}
+
+interface GridContextType {
+    gridSize: number;
+    spacing: number;
+    cellCount: number;
+}
+
+const GridContext = createContext<GridContextType | undefined>(undefined);
+
+export function useGrid() {
+    const ctx = useContext(GridContext);
+    if (!ctx) throw new Error("useGrid must be used within GridProvider");
+    return ctx;
+}
+
+export function GridScatter(_props: PropsWithChildren<GridScatterProps>) {
     const { children, ...props } = _props;
-    const { gridSize, spacing, scale, scale_random, rotation_random, offset_random } = useTerrainScatterControls(props);
+    const gridScatterProps = useGridScatterControlsUI(props);
 
     const transforms = useMemo(() => {
         console.log("GRID_SCATTER:Construct Transfroms")
-        return createGridTransforms({
-            gridSize,
-            spacing,
-            scale,
-            scale_random,
-            rotation_random,
-            offset_random,
-        });
-    }, [gridSize, spacing, scale, scale_random, rotation_random, offset_random])
+        return createGridTransforms(gridScatterProps);
+    }, [gridScatterProps])
+
+    const gridContextValues = useMemo(() => {
+        return {
+            gridSize: gridScatterProps.cellCount * gridScatterProps.spacing,
+            spacing: gridScatterProps.spacing,
+            cellCount: gridScatterProps.cellCount,
+        };
+    }, [gridScatterProps.spacing, gridScatterProps.cellCount]);
+
+    return <GridContext.Provider value={gridContextValues}>
+        <useTransformsContext.Provider value={{ transforms }}    >
+            {children}
+        </useTransformsContext.Provider>
+    </GridContext.Provider>;
+}
+
+export function GridScatterLayer(_props: PropsWithChildren<GridScatterProps>) {
+    const { children, ...props } = _props;
+    const gridScatterProps = useGridScatterControlsUI(props);
+    const parent_transforms = useTransforms();
+
+
+    const transforms = useMemo(() => {
+        console.log("GRID_SCATTER:Construct Transfroms")
+        const inst_transform = createGridTransforms(gridScatterProps);
+
+        return parent_transforms.transforms.flatMap(parent =>
+            inst_transform.map(inst => {
+                const m = new THREE.Matrix4();
+                m.multiplyMatrices(parent, inst);
+                return m;
+            })
+        );
+
+    }, [gridScatterProps])
 
 
     return <useTransformsContext.Provider value={{ transforms }}    >
         {children}
     </useTransformsContext.Provider>;
+
 }
 
-export function createGridTransforms(props: TerrainScatterProps) {
+
+export function createGridTransforms(props: GridScatterProps) {
     const {
-        gridSize = 10,
+        cellCount = 10,
         spacing = 1,
         scale = 1,
         scale_random = 0,
@@ -67,18 +170,20 @@ export function createGridTransforms(props: TerrainScatterProps) {
 
     const transforms: THREE.Matrix4[] = []
 
-    for (let x = 0; x < gridSize; x++) {
-        for (let z = 0; z < gridSize; z++) {
+    for (let x = 0; x < cellCount; x++) {
+        for (let z = 0; z < cellCount; z++) {
 
-            const position = new THREE.Vector3((x - gridSize / 2) * spacing, 0, (z - gridSize / 2) * spacing)
+            const position = new THREE.Vector3((x - (cellCount - 1) / 2) * spacing, 0, (z - (cellCount - 1) / 2) * spacing)
 
             const randOffset = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5)
             position.addScaledVector(randOffset, spacing * offset_random)
-
+            1
             const rotation = new THREE.Euler(0, Math.random() * Math.PI * 2 * rotation_random, 0)
             const rotQuat = new THREE.Quaternion().setFromEuler(rotation)
 
             const s = scale * (1 - Math.random() * scale_random)
+
+
 
             transforms.push(
                 new THREE.Matrix4().compose(
@@ -233,8 +338,8 @@ export function SnapToTerrainHeightCPU({ children }: PropsWithChildren) {
     const { transforms } = useTransforms();
 
     const snappedTransforms = useMemo(() => {
-        return transforms.map((_transform) => {
-            return snapToHeightfield(_transform, terrain);
+        return transforms.map((transform) => {
+            return snapToHeightfield(transform.clone(), terrain);
         })
     }, [transforms])
 
@@ -251,18 +356,14 @@ export function WrapAroundPlayer({ children }: PropsWithChildren) {
     const { transforms } = useTransforms();
     const player = usePlayer()
     const [wrappedTransfroms, setWrappedTransforms] = useState<THREE.Matrix4[] | null>(null);
-
-    /*
-    const wrapped = useMemo(() => {
-        return transforms.map((t) => {
-            return wrapAroundPlayer(t,player.playerWorldPosition, 5,1);
-        });
-    }, [transforms]);*/
+    const grid = useGrid()
+    const terrain = useTerrain()
 
     useFrame(() => {
+        if (!wrappedTransfroms) return;
         setWrappedTransforms(
-            transforms.map((t) => {
-                return wrapAroundPlayer(t, player.playerWorldPosition, 5, 1);
+            wrappedTransfroms.map((t) => {
+                return wrapAroundPlayer(t.clone(), player.playerWorldPosition, grid, terrain);
             })
         )
     })
@@ -270,7 +371,8 @@ export function WrapAroundPlayer({ children }: PropsWithChildren) {
     useEffect(() => {
         setWrappedTransforms(
             transforms.map((t) => {
-                return wrapAroundPlayer(t, player.playerWorldPosition, 5, 1);
+                const wrapped_pos = wrapAroundPlayer(t.clone(), player.playerWorldPosition, grid);
+                return snapToHeightfield(wrapped_pos, terrain);
             })
         )
     }, [transforms])
@@ -286,78 +388,134 @@ export function WrapAroundPlayer({ children }: PropsWithChildren) {
     );
 }
 
+
+export function WrapAroundPlayerGPU() {
+    const { gl } = useThree();
+    //@ts-ignore
+    const renderer = gl as THREE.WebGPURenderer
+    const { transformsBufferNode, count } = useTransformsBuffer();
+    const terrain = useTerrain()
+    const player = usePlayer()
+    const grid = useGrid()
+
+
+    const instanceMatrix = useMemo(() => {
+        return transformsBufferNode.element(instanceIndex)
+    }, [transformsBufferNode])
+
+    // update Fn
+    const computeUpdate = useMemo(() => {
+        return Fn(() => {
+            const worldPos = instanceMatrix.mul(vec4(0, 0, 0, 1));
+            const offset = instanceMatrix.element(int(3));
+
+            // Snap Around Player
+            const player_relative_pos = SnappedRelativePosition(worldPos, player.tsl_PlayerWorldPosition, grid.gridSize);
+            const wrapped_world = player_relative_pos.add(player.tsl_PlayerWorldPosition);
+            //Get Height
+            const heightSample = terrain.tsl_sampleHeight(wrapped_world);
+            offset.assign(offset.setX(wrapped_world.x).setZ(wrapped_world.z).setY(heightSample));
+
+        })().compute(count);
+    }, [instanceMatrix, count, terrain.tsl_sampleHeight, player.tsl_PlayerWorldPosition, grid.gridSize]);
+
+
+    useFrame(() => { renderer.compute(computeUpdate) })
+
+    return null;
+}
+
+export const SnappedRelativePosition = Fn(
+    ([instanceCenter, objCenter, zone_size]: [THREE.Node, THREE.Node, THREE.Node]) => {
+        // relative position to the object center, ignoring Y
+        const rel_pos = instanceCenter.sub(objCenter).setY(float(0));
+        // modulo for snapping within zone size
+        return mod(rel_pos.add(zone_size.div(2.0)), zone_size).sub(zone_size.div(2.0));
+    }
+);
+
 export function snapToHeightfield(
     transform: THREE.Matrix4,
     terrain: { getHeightAtPos: (pos: THREE.Vector3) => number }
 ): THREE.Matrix4 {
-    const m = transform.clone();
-
-    const pos = new THREE.Vector3();
-    const quat = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-
-    m.decompose(pos, quat, scale);
+    const pos = getPositionFromMatrix(transform);
     pos.y = terrain.getHeightAtPos(pos);
-    m.compose(pos, quat, scale);
-    return m;
+
+    return transform.setPosition(pos);
+}
+
+function euclideanModulo(n: number, m: number) {
+    return ((n % m) + m) % m;
+}
+
+export function getPositionFromMatrix(matrix: THREE.Matrix4): THREE.Vector3 {
+    const position = new THREE.Vector3();
+    matrix.decompose(position, new THREE.Quaternion(), new THREE.Vector3());
+    return position;
 }
 
 export function wrapAroundPlayer(
     transform: THREE.Matrix4,
     playerPos: THREE.Vector3,
-    gridSize: number,
-    spacing: number
+    grid: GridContextType,
+    terrain?: { getHeightAtPos: (pos: THREE.Vector3) => number }
 ): THREE.Matrix4 {
+    const pos = getPositionFromMatrix(transform);
+    const zoneSize = grid.gridSize;
+    const moded = Math.abs(playerPos.x - pos.x) > zoneSize * 0.5 || Math.abs(playerPos.z - pos.z) > zoneSize * 0.5;
 
-    function euclideanModulo(n: number, m: number) {
-        return ((n % m) + m) % m;
-    }
-
-    const m = transform.clone();
-
-    const pos = new THREE.Vector3();
-    const quat = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-
-    m.decompose(pos, quat, scale);
-
-    const zoneSize = gridSize * spacing;
-
-    // Proper wrap using modulo (works for any distance)
+    // Wrap X and Z around player
     pos.x = playerPos.x + euclideanModulo(pos.x - playerPos.x + zoneSize / 2, zoneSize) - zoneSize / 2;
     pos.z = playerPos.z + euclideanModulo(pos.z - playerPos.z + zoneSize / 2, zoneSize) - zoneSize / 2;
+    // Snap to terrain if offseted
+    if (terrain && moded) { pos.y = terrain.getHeightAtPos(pos); }
 
-    m.compose(pos, quat, scale);
-
-    return m;
+    transform.setPosition(pos);
+    return transform;
 }
+
+
 
 export function TansformsProviderDebug() {
     return (
         <>
-            <GridScatter name={"New Scatter Test"}>
-                <SnapToTerrainHeightCPU>
-                    <TransformsBufferProvider>
-                        <InstancedMeshSimple>
-                            <boxGeometry />
-                            <GLTFGeometry url="models/Tree.glb" />
-                            <InstancedTransformMaterial />
-                        </InstancedMeshSimple>
-                    </TransformsBufferProvider>
-                </SnapToTerrainHeightCPU>
-
-
-
-                <WrapAroundPlayer>
+            <GridScatter name={"New Scatter Test"} spacing={3}>
+                {true &&
                     <SnapToTerrainHeightCPU>
+                        <TransformsBufferProvider>
+                            <WrapAroundPlayerGPU />
+                            <InstancedMeshSimple>
+                                <boxGeometry />
+                                {1 && <GLTFGeometry url="models/Tree.glb" />}
+                                <InstancedTransformMaterial />
+                            </InstancedMeshSimple>
+                        </TransformsBufferProvider>
+                    </SnapToTerrainHeightCPU>}
+
+
+                {false &&
+                    <WrapAroundPlayer>
                         <InstancedMeshCPU>
 
                             <boxGeometry />
                             <meshStandardMaterial />
 
                         </InstancedMeshCPU>
-                    </SnapToTerrainHeightCPU>
-                </WrapAroundPlayer>
+                    </WrapAroundPlayer>}
+
+
+                <GridScatterLayer name={"Sub_Scatter"}>
+                    <TransformsBufferProvider>
+                        <WrapAroundPlayerGPU/>
+                        <InstancedMeshSimple>
+                            <boxGeometry />
+                            <InstancedTransformMaterial />
+                        </InstancedMeshSimple>
+                    </TransformsBufferProvider>
+
+
+                </GridScatterLayer>
+
 
             </GridScatter >
         </>
