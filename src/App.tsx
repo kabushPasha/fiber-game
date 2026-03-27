@@ -27,21 +27,13 @@ import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProce
 
 import { Leva } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
-import { LoadGltfGeo, TerrainFadeMaterial, TerrainPivotMaterial, TerrainScatter } from "./classes/Terrain/TerrainScatter"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
-import { TerrainScatterInteractive } from "./classes/Terrain/TerrainScatterInteractive"
 import { RaycastOnClick } from "./classes/Player/RaycastOnClick"
 import { PP_FogPass } from "./classes/PostProcessing/Effects/PP_FogPass"
 import { PP_PixelHighlights } from "./classes/PostProcessing/Effects/PP_PixelatedPass"
 import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsContext"
-import { ECS_Test } from "./classes/Terrain/ECS_Test"
-import { ECS_VertexPulling } from "./classes/Terrain/ECS_VertexPulling"
-import { ECS_NBRGrid } from "./classes/Terrain/ECS/ECS_NBRGrid"
-import { GridScatter, TransformsProvider } from "./classes/Terrain/ScatterAPI/TransformsProvider"
-import { InstanceMultiMesh } from "./classes/Terrain/ScatterAPI/InstanceMultiMesh"
-import { MeshRandomizerProvider } from "./classes/Terrain/ScatterAPI/MeshRandomizerProvider"
-import { TestNewGridScatter } from "./classes/Terrain/ScatterAPI/Scatter_v2"
-import { TansformsProviderDebug } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
+
+import { GrassScatter, InteractiveBoxesScatter, TreesScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -140,89 +132,11 @@ const App = () => {
 
                           </Player>
 
-                          {1 && <TerrainScatterInteractive
-                            name="Boxes"
-                            gridSize={30}
-                            spacing={1.1}
-                            visible={false}
-                          />}
-
-                          {1 && <TerrainScatter
-                            name="Trees"
-                            gridSize={10}
-                            scale={5}
-                            spacing={10}
-                            rotation_random={1}
-                            offset_random={1}
-                            visible={false}
-                          >
-                            <TerrainFadeMaterial />
-                            <LoadGltfGeo url="models/Tree.glb" />
-                          </TerrainScatter>
-                          }
-
-                          {0 && <TerrainScatter
-                            name="Grass"
-                            gridSize={30}
-                            scale={4}
-                            spacing={2}
-                            rotation_random={1}
-                            offset_random={0}
-                            scale_random={0.5}
-                          >
-                            {0 && <TerrainFadeMaterial />}
-                            <TerrainPivotMaterial />
-                            <LoadGltfGeo url="models/Grass.glb" />
-                          </TerrainScatter>
-                          }
-
-                          {0 && <ECS_Test name="ECS_Test"
-                            spacing={2} />}
-                          {0 && <ECS_NBRGrid name="Veretex Pulling" spacing={0.5} gridSize={25} />}
-                          {0 && <ECS_VertexPulling name="Veretex Pulling" spacing={2} />}
 
 
-                          {0 &&
-                            <TransformsProvider >
-                              {1 &&
-                                <GridScatter name="test2" scale={2} spacing={2}>
-                                  <InstanceMultiMesh mesh_id={0}>
-                                    <boxGeometry />
-                                  </InstanceMultiMesh>
-                                </GridScatter>
-                              }
-
-
-                              <GridScatter name="test">
-
-                                {1 &&
-                                  <MeshRandomizerProvider>
-                                    <InstanceMultiMesh mesh_id={0}>
-                                      <LoadGltfGeo url="models/Grass.glb" />
-                                      <boxGeometry />
-                                    </InstanceMultiMesh>
-                                    <InstanceMultiMesh mesh_id={1}>
-                                      <LoadGltfGeo url="models/Grass.glb" />
-                                      <sphereGeometry />
-                                    </InstanceMultiMesh>
-                                  </MeshRandomizerProvider>
-                                }
-
-                                {0 &&
-                                  <InstanceMultiMesh mesh_id={0}>
-                                    <sphereGeometry />
-                                  </InstanceMultiMesh>
-                                }
-
-                              </GridScatter>
-                            </TransformsProvider >
-                          }
-
-                          { 0 && <TestNewGridScatter/> }
-
-                          <TansformsProviderDebug />
-
-
+                          {true && <GrassScatter />}
+                          <TreesScatter />
+                          {true && <InteractiveBoxesScatter />}
 
                         </TerrainProvider>
 
@@ -231,7 +145,7 @@ const App = () => {
 
                     {0 && <TaskSelectorPawn />}
                     {0 && <AuroraBackground />}
-                    {false && <TestSDF />}
+                    {0 && <TestSDF />}
                     {1 && <SimpleBackground />}
 
 

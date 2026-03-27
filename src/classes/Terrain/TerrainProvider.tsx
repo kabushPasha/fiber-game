@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { Fn, texture, vec2, vec3 } from "three/tsl";
 import type { Node } from "three/webgpu";
 import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
+import { useTerrainControlsUI } from "./TerrainControlsLeva";
 
 /** CONTEXT */
 export type TerrainData = {
@@ -30,20 +31,20 @@ export function useTerrain() {
     return ctx;
 }
 
+
+
 /** PROVIDER */
-type Props = {
+export type TerrainProps = {
     textureUrl: string;
     hf_size?: number;
     hf_height?: number;
-    children: React.ReactNode;
+    children?: React.ReactNode;
+    showUI?: boolean;    
 };
 
-export function TerrainProvider({
-    textureUrl,
-    hf_size = 512,
-    hf_height = 25,
-    children,
-}: Props) {
+export function TerrainProvider(_props: TerrainProps) {
+
+    const {textureUrl,hf_size,hf_height,children} = useTerrainControlsUI(_props);
 
     const hf_tex = useLoader(TextureLoader, textureUrl);
     hf_tex.wrapS = THREE.RepeatWrapping;

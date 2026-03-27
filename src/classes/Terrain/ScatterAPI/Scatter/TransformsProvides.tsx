@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { createContext,  useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { float, instanceIndex, mod, normalLocal, positionLocal, storage, clamp, transformNormalToView, vec4, sub, div, int, mix, attribute, vec3, length, uv } from "three/tsl";
+import { float, instanceIndex, mod, normalLocal, positionLocal, storage, clamp, transformNormalToView, vec4,  int, mix, attribute, vec3, length, uv, screenUV, rand, step } from "three/tsl";
 import { StorageBufferNode, StorageInstancedBufferAttribute } from "three/webgpu";
 import * as THREE from "three/webgpu";
 import { useGLTF } from "@react-three/drei";
@@ -121,6 +121,8 @@ export function GridScatter(_props: PropsWithChildren<GridScatterProps>) {
             cellCount: gridScatterProps.cellCount,
         };
     }, [gridScatterProps.spacing, gridScatterProps.cellCount]);
+
+    if (!gridScatterProps.visible) return null;
 
     return <GridContext.Provider value={gridContextValues}>
         <useTransformsContext.Provider value={{ transforms }}    >
@@ -292,6 +294,63 @@ export function InstancedMeshCPU({ children }: PropsWithChildren) {
         {children}
     </instancedMesh>;
 }
+
+export function HoverInstancedMeshCPU({ children }: PropsWithChildren) {
+    console.log("HOVER CHILD: ", "RENDER")
+    const { transforms } = useTransforms();
+    const meshRef = useRef<THREE.InstancedMesh>(null!)
+
+    const count = useMemo(() => { return transforms.length; }, [transforms])
+
+    const yellow = new THREE.Color("yellow")
+    const green = new THREE.Color("green")
+
+    useLayoutEffect(() => {
+        const colors = new Float32Array(count * 3).map((_, i) => yellow.toArray()[i % 3]);
+        meshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colors, 3)
+    }, [count]);
+
+    useLayoutEffect(() => {
+        transforms.map((value, index) => { meshRef.current.setMatrixAt(index, value); })
+        meshRef.current.instanceMatrix.needsUpdate = true;
+        meshRef.current.computeBoundingSphere();
+        meshRef.current.computeBoundingBox();
+    }, [transforms])
+
+    const handleOver = (e: any) => {
+        e.stopPropagation()
+        const id = e.instanceId
+        const mesh = meshRef.current
+        mesh.instanceColor!.setXYZ(id, green.r, green.g, green.b)
+        mesh.instanceColor!.needsUpdate = true
+    }
+
+    const handleOut = (e: any) => {
+        const id = e.instanceId
+        const mesh = meshRef.current
+        mesh.instanceColor!.setXYZ(id, yellow.r, yellow.g, yellow.b)
+        mesh.instanceColor!.needsUpdate = true
+    }
+
+    return <instancedMesh
+        key={count}
+        frustumCulled={false}
+        ref={meshRef}
+        args={[undefined, undefined, count]}
+        onPointerOver={handleOver}
+        onPointerOut={handleOut}
+    >
+        <boxGeometry />
+        <meshStandardMaterial vertexColors />
+        {children}
+    </instancedMesh>;
+}
+
+
+
+
+
+
 
 export function InstancedTransformMaterial() {
     const { transformsBufferNode } = useTransformsBuffer();
@@ -470,6 +529,51 @@ export function wrapAroundPlayer(
     return transform;
 }
 
+export function DistanceFadeMaterialGPU() {
+    const { transformsBufferNode } = useTransformsBuffer();
+    const terrain = useTerrain();
+    const player = usePlayer();
+    const grid = useGrid();
+
+    const instanceMatrix = useMemo(() => {
+        return transformsBufferNode.element(instanceIndex)
+    }, [transformsBufferNode])
+
+    const material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial();
+        //mat.side = THREE.DoubleSide
+
+        // Calc Distance Mask
+        const world_pivot = instanceMatrix.mul(vec4(0, 0, 0, 1));
+        const start_dist = 0.75;
+        const dist_mask_pow = 1;
+        const distance_mask = remapFromMin(length(world_pivot.sub(player.tsl_PlayerWorldPosition).xz).div(grid.gridSize * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
+
+        // Calculate Position
+        const pos_ws = instanceMatrix.mul(vec4(positionLocal, 1));
+        mat.positionNode = pos_ws;
+
+        // Calculate Normal
+        const normalWorld = instanceMatrix.mul(vec4(normalLocal, 0)).xyz;
+        mat.normalNode = transformNormalToView(normalWorld);
+
+        //Dithered Alpha
+        const threshold = rand(screenUV.xy);
+        //const threshold = rand(positionLocal);
+        //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
+        const alpha = step(threshold, distance_mask);
+        mat.maskNode = alpha;
+        //mat.transparent = true;
+        mat.alphaTest = 0.5;
+
+
+        return mat;
+    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize]);
+
+    return <primitive object={material} attach="material" />
+}
+
+
 
 export function GrassPivotMaterial() {
     const { transformsBufferNode } = useTransformsBuffer();
@@ -512,7 +616,7 @@ export function GrassPivotMaterial() {
         mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
 
         return mat;
-    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition,terrain.tsl_sampleColor, grid.gridSize]);
+    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize]);
 
     return <primitive object={material} attach="material" />
 }
@@ -520,6 +624,69 @@ export function GrassPivotMaterial() {
 export const remapFromMin = (value: any, min: any) => {
     return clamp(value.sub(min).div(float(1.0).sub(min)), 0.0, 1.0)
 }
+
+
+export function GrassScatter() {
+    return <GridScatter
+        name={"Grass"}
+        spacing={2}
+        cellCount={30}
+        scale={4}
+        rotation_random={1}
+        offset_random={0}
+        scale_random={0.3}
+    >
+        <SnapToTerrainHeightCPU>
+            <TransformsBufferProvider>
+                <WrapAroundPlayerGPU />
+                <InstancedMeshSimple>
+                    {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
+                    <GrassPivotMaterial />
+                </InstancedMeshSimple>
+            </TransformsBufferProvider>
+        </SnapToTerrainHeightCPU>
+    </GridScatter >
+}
+
+
+export function TreesScatter() {
+    return <GridScatter
+        name={"Trees New"}
+        cellCount={10}
+        scale={5}
+        spacing={10}
+        rotation_random={1}
+        offset_random={1}
+        visible={false}
+    >
+        <SnapToTerrainHeightCPU>
+            <TransformsBufferProvider>
+                <WrapAroundPlayerGPU />
+                <InstancedMeshSimple>
+                    {1 && <GLTFGeometry url="models/Tree.glb" />}
+                    <DistanceFadeMaterialGPU />
+                </InstancedMeshSimple>
+            </TransformsBufferProvider>
+        </SnapToTerrainHeightCPU>
+    </GridScatter >
+}
+
+
+
+
+export function InteractiveBoxesScatter() {
+    return <GridScatter name={"Interactive Boxes"} spacing={1.5} cellCount={15} visible={false}>
+        <WrapAroundPlayer>
+            <HoverInstancedMeshCPU>
+                <boxGeometry />
+                <meshStandardMaterial vertexColors />
+            </HoverInstancedMeshCPU>
+        </WrapAroundPlayer>
+    </GridScatter>
+}
+
+
+
 
 
 export function TansformsProviderDebug() {
@@ -562,19 +729,7 @@ export function TansformsProviderDebug() {
             </GridScatter >
 
 
-            <GridScatter name={"RockTiles"} spacing={1} cellCount={10}>
-                {true &&
-                    <SnapToTerrainHeightCPU>
-                        <TransformsBufferProvider>
-                            <WrapAroundPlayerGPU />
-                            <InstancedMeshSimple>
-                                <boxGeometry />
-                                {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
-                                <GrassPivotMaterial />
-                            </InstancedMeshSimple>
-                        </TransformsBufferProvider>
-                    </SnapToTerrainHeightCPU>}
-            </GridScatter >
+
         </>
     );
 }

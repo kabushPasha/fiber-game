@@ -93,7 +93,7 @@ export function TerrainPlane() {
         //mat.colorNode = vec3(1,0.1,0.1);
 
         return mat;
-    }, []);
+    }, [hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor]);
 
 
     return (
