@@ -57,7 +57,6 @@ export function ECS_Test(_props: TerrainScatterProps) {
 
     // Update Matricies for Instanced Mesh
     useFrame((_, delta) => {
-        return;
         const start = performance.now();
 
         const mesh = meshRef.current!;
@@ -78,7 +77,7 @@ export function ECS_Test(_props: TerrainScatterProps) {
         mesh.instanceMatrix.needsUpdate = true;
 
         const end = performance.now();
-        //console.log("Instnce Tranform time:", (end - start).toFixed(3), "ms");
+        console.log("Instnce Tranform time:", (end - start).toFixed(3), "ms");
     })
 
     useFrame(async () => {

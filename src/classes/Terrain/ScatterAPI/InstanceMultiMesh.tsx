@@ -1,6 +1,5 @@
 import * as THREE from "three/webgpu";
 import { useMemo, useRef } from "react";
-import { useTransforms } from "./TransformsProvider";
 import { MeshStandardNodeMaterial } from "three/webgpu";
 import { normalLocal, positionLocal, transformNormalToView, vec4 } from "three/tsl";
 import { useMeshRandomizer } from "./MeshRandomizerProvider";

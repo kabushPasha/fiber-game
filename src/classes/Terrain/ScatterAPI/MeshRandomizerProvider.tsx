@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useEffect, type PropsWithChildren } from "react";
+import React, { createContext, useContext, useMemo,  type PropsWithChildren } from "react";
 import { int, instanceIndex, storage, mat4 } from "three/tsl";
 import { StorageInstancedBufferAttribute } from "three/webgpu";
 import { useTransforms } from "./TransformsProvider"; // assume same folder

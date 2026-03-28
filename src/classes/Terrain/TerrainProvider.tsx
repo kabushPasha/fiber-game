@@ -1,9 +1,9 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
 import { useLoader } from "@react-three/fiber";
 import { useMemo } from "react";
-import { Fn, texture, vec2, vec3 } from "three/tsl";
+import { Fn, texture, uniform, vec2, vec3 } from "three/tsl";
 import type { Node } from "three/webgpu";
 import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
 import { useTerrainControlsUI } from "./TerrainControlsLeva";
@@ -17,10 +17,10 @@ export type TerrainData = {
     hf_size: number;
     hf_tex: THREE.Texture;
     hf_nml: THREE.Texture;
-    getHeightAtPos: (worldPos: THREE.Vector3) => number;    
-    tsl_sampleHeight : ShaderNodeFn<[Node]>
-    tsl_sampleN : ShaderNodeFn<[Node]>
-    tsl_sampleColor : ShaderNodeFn<[Node]>
+    getHeightAtPos: (worldPos: THREE.Vector3) => number;
+    tsl_sampleHeight: ShaderNodeFn<[Node]>
+    tsl_sampleN: ShaderNodeFn<[Node]>
+    tsl_sampleColor: ShaderNodeFn<[Node]>
 };
 
 export const TerrainContext = createContext<TerrainData | null>(null);
@@ -39,12 +39,27 @@ export type TerrainProps = {
     hf_size?: number;
     hf_height?: number;
     children?: React.ReactNode;
-    showUI?: boolean;    
+    showUI?: boolean;
+    color?: string;
 };
 
 export function TerrainProvider(_props: TerrainProps) {
 
-    const {textureUrl,hf_size,hf_height,children} = useTerrainControlsUI(_props);
+    const { textureUrl, hf_size, hf_height, children,color } = useTerrainControlsUI(_props);
+
+    const uniforms = useMemo(
+        () => ({
+            color: uniform(vec3(0.3, 0.9, 0.6)),
+        }),
+        []
+    );
+
+    // Update Uniforms
+    useEffect(() => {
+        const c = new THREE.Color(color);
+        uniforms.color.value.set(c.r, c.g, c.b);
+    }, [ color])
+
 
     const hf_tex = useLoader(TextureLoader, textureUrl);
     hf_tex.wrapS = THREE.RepeatWrapping;
@@ -104,7 +119,7 @@ export function TerrainProvider(_props: TerrainProps) {
         }
 
         const tsl_ws2sample = Fn(([worldPos]: [Node]) => {
-            return worldPos.zx.div(hf_size).add(-0.5).mul(vec2(1, -1));             
+            return worldPos.zx.div(hf_size).add(-0.5).mul(vec2(1, -1));
         })
 
         const tsl_sampleHeight = Fn(([worldPos]: [Node]) => {
@@ -123,7 +138,7 @@ export function TerrainProvider(_props: TerrainProps) {
         const tsl_sampleColor = Fn(([worldPos]: [Node]) => {
             //const hf_N = texture(hf_nml, samplePos);
             //return hf_N;
-            return vec3(0.3,0.9,0.6);
+            return uniforms.color;
         })
 
 

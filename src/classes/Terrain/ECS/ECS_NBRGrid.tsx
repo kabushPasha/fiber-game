@@ -1,9 +1,9 @@
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three"
 
-import { deltaTime, Fn, If, instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec3, vec4, greaterThanEqual, Return, vec2, float, sin, time, atomicLoad, uniform, greaterThan, lessThan, cos, Loop, Break, ivec2 } from "three/tsl";
-import { MeshStandardNodeMaterial, StorageArrayElementNode, StorageBufferAttribute, StorageBufferNode, StorageInstancedBufferAttribute, UniformNode } from "three/webgpu";
+import { deltaTime, Fn, If, instanceIndex, int, normalLocal, positionLocal, storage, transformNormalToView, vec3, vec4, float, atomicLoad, uniform, ivec2 } from "three/tsl";
+import { MeshStandardNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute, UniformNode } from "three/webgpu";
 import { useFrame, useThree } from "@react-three/fiber";
 import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
 import { useTerrainScatterControls } from "../Scatter/ScatterUI";
@@ -43,9 +43,11 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
         return storage(transformsAtt)
     }, [transformsAtt])
 
+    /*
     const prevTransformsBuffer = useMemo(() => {
         return storage(new StorageInstancedBufferAttribute(count, 16))
     }, [count])
+    */
 
     useEffect(() => {
         console.log("Update transformsAtt")
@@ -77,7 +79,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
         //const start = performance.now();
 
         if (!props.visible) return;
-        //renderer.compute(computeUpdate)
+        renderer.compute(computeUpdate)
 
         //setCount(count+1);
 
@@ -111,7 +113,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     // NBR GRID --------------------------------------
     const grid = useMemo(() => {
         console.log("CREATE NBR_Grid")
-        return new NeighbourGrid2D(200, 20, 16*2)
+        return new NeighbourGrid2D(200, 20, 16 * 2)
     }, [])
 
     const uniforms = useMemo(
@@ -133,12 +135,13 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
 
     }, [grid, instanceMatrix, count, uniforms])
 
+    /*
     const storePrevTransforms = useMemo(() => {
         return Fn(() => {
             prevTransformsBuffer.element(instanceIndex).assign(instanceMatrix)
         })().compute(count)
     }, [prevTransformsBuffer, instanceMatrix, count])
-
+*/
 
     const pbdComputeFn = useMemo(() => {
         console.log("Create pbdComputeFn")
@@ -177,7 +180,7 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
     // Spawn On Click
     useEffect(() => {
         console.log("CREATE handleClick")
-        const handleClick = (event: MouseEvent) => {
+        const handleClick = (_: MouseEvent) => {
             if (!clicked) setClicked(true);
         };
         gl.domElement.addEventListener("click", handleClick);

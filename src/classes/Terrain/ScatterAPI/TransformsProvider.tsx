@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useEffect, type PropsWithChildren, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useMemo, useEffect, type PropsWithChildren, useState, useCallback, useRef } from "react";
 import { StorageInstancedBufferAttribute } from "three/webgpu";
 import { storage, instanceIndex, int } from "three/tsl";
 import { createInstanceTransforms, type TerrainScatterProps } from "../TerrainScatter";
@@ -103,6 +103,8 @@ export function TransformsProvider({ children }: PropsWithChildren) {
     );
     return (
         <TransformsContext.Provider
+            // THIS IS AN OLD CLASS I MIGHT DELETE IT - im using Newer TransformsProviderFrom ScatterApi/Scatter
+            //@ts-ignore
             value={{ count, instanceTransforms, transformsBuffer, transformsAtt, instanceMatrix, addTransforms, offsetTable }}
         >
             {children}

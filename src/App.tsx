@@ -25,7 +25,7 @@ import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositi
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
-import { Leva } from 'leva';
+import { Leva, useControls } from 'leva';
 import { SnowSpritesUI } from "./classes/Terrain/SnowSprites"
 import { PlayerProvider } from "./classes/Player/PlayerContext"
 import { RaycastOnClick } from "./classes/Player/RaycastOnClick"
@@ -33,14 +33,23 @@ import { PP_FogPass } from "./classes/PostProcessing/Effects/PP_FogPass"
 import { PP_PixelHighlights } from "./classes/PostProcessing/Effects/PP_PixelatedPass"
 import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsContext"
 
-import { GrassScatter, InteractiveBoxesScatter, TreesScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
+import { GrassScatter, InteractiveBoxesScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
+import { PinesScatter } from "./classes/Terrain/ScatterAPI/Scatter/Presets"
 
 
 extend({ MeshStandardNodeMaterial })
 
 
-
 const App = () => {
+
+  const controlls = useControls("Lights", {
+    ambient_intensity: { value: 0.5, min: 0, max: 5 },
+    directional_intensity: { value: 0.6, min: 0, max: 3 },
+    directional_angle: {value: { x: 0, y: 0, z: 0 }},
+  },{collapsed:true});
+
+
+
   return (
     <UIScreenProvider>
       <div
@@ -95,18 +104,17 @@ const App = () => {
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
                       {0 && <PP_PixelHighlights />}
-                      <PP_FogPass density={0.25 * 0.01} heightFalloff={0.01} />
+                      <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
 
                   <Physics>
 
-                    <Pixelated resolution={128} enabled={false} />
+                    <Pixelated resolution={256} enabled={true} />
 
                     <group name="Lights">
-                      <ambientLight intensity={0.2} />
-                      <pointLight intensity={0.00} position={[100, 100, 100]} />
-                      <directionalLight position={[10, 5, 0]} intensity={0.6} castShadow />
+                      <ambientLight intensity={controlls.ambient_intensity} />
+                      <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
                     </group>
 
                     <MouseLockProvider>
@@ -125,18 +133,17 @@ const App = () => {
                             <WorldPositionConstraint>
                               {1 && <TerrainPlane />}
                             </WorldPositionConstraint>
-
                             {1 && <MoveByVel />}
                             <Jump />
                             <GroundClamp />
-
                           </Player>
 
 
-
                           {true && <GrassScatter />}
-                          <TreesScatter />
                           {true && <InteractiveBoxesScatter />}
+
+                          <PinesScatter />
+
 
                         </TerrainProvider>
 
@@ -152,16 +159,8 @@ const App = () => {
                     <SnowSpritesUI active={true} showControls={true} />
 
                     {false && <TestTslShader />}
-
                     {0 && <RaycastOnClick />}
 
-                    {/**
-                  <RigidBody type="fixed">
-                    <Box position={[0,0,0]} args = {[10,1,10]}>
-                      <meshStandardMaterial color = "springgreen" />
-                    </Box>
-                  </RigidBody>
-                  */}
 
 
                   </Physics>

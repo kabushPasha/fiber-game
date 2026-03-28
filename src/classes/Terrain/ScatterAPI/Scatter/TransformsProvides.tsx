@@ -1,6 +1,6 @@
-import { createContext,  useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { float, instanceIndex, mod, normalLocal, positionLocal, storage, clamp, transformNormalToView, vec4,  int, mix, attribute, vec3, length, uv, screenUV, rand, step } from "three/tsl";
+import { float, instanceIndex, mod, normalLocal, positionLocal, storage, clamp, transformNormalToView, vec4, int, mix, attribute, vec3, length, uv, screenUV, rand, step, uniform,  min, abs, fract } from "three/tsl";
 import { StorageBufferNode, StorageInstancedBufferAttribute } from "three/webgpu";
 import * as THREE from "three/webgpu";
 import { useGLTF } from "@react-three/drei";
@@ -348,10 +348,6 @@ export function HoverInstancedMeshCPU({ children }: PropsWithChildren) {
 
 
 
-
-
-
-
 export function InstancedTransformMaterial() {
     const { transformsBufferNode } = useTransformsBuffer();
 
@@ -581,6 +577,31 @@ export function GrassPivotMaterial() {
     const player = usePlayer();
     const grid = useGrid();
 
+    const controlled = useControls("Terrain", {
+        "Heightfield": folder({
+            tip_bright: { value: 4.0 ,min:0, max:5},
+            tip_sat: { value: 1.0,min:0,max:3 },
+            tip_hue: { value: 0.0,min:-1,max:1 },
+        }, { collapsed: true })
+    });
+
+    const uniforms = useMemo(
+        () => ({
+            tip_bright:uniform(float(1.5)),
+            tip_sat:uniform(float(1.0)),
+            tip_hue:uniform(float(1.0)),
+        }),
+        []
+    );
+
+    // Update Uniforms
+    useEffect(() => {
+        uniforms.tip_bright.value = controlled.tip_bright;
+        uniforms.tip_sat.value = controlled.tip_sat;
+        uniforms.tip_hue.value = controlled.tip_hue;
+    }, [controlled])
+
+
     const instanceMatrix = useMemo(() => {
         return transformsBufferNode.element(instanceIndex)
     }, [transformsBufferNode])
@@ -610,7 +631,7 @@ export function GrassPivotMaterial() {
 
         // Color
         const base_color = terrain.tsl_sampleColor(world_pivot)
-        const bright_color = vec3(0.9, 2, 0.9)
+        const bright_color = ToRgb(toHsv(base_color).mul(vec3(1,uniforms.tip_sat, uniforms.tip_bright)).add(vec3(uniforms.tip_hue,0,0))  );
         const uv_mix = uv().y.pow(0.2).oneMinus();
         const dist_mix = distance_mask.pow(1)
         mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
@@ -624,6 +645,41 @@ export function GrassPivotMaterial() {
 export const remapFromMin = (value: any, min: any) => {
     return clamp(value.sub(min).div(float(1.0).sub(min)), 0.0, 1.0)
 }
+
+function toHsv(c:THREE.Node) {
+    const K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+
+    const p = mix(
+        vec4(c.b, c.g, K.w, K.z),
+        vec4(c.g, c.b, K.x, K.y),
+        step(c.b, c.g)
+    );
+
+    const q = mix(
+        vec4(p.x, p.y, p.w, c.r),
+        vec4(c.r, p.y, p.z, p.x),
+        step(p.x, c.r)
+    );
+
+    const d = q.x.sub(min(q.w, q.y));
+    const e = float(1e-10);
+
+    return vec3(
+        abs(q.z.add(q.w.sub(q.y).div(d.mul(6.0).add(e)))),
+        d.div(q.x.add(e)),
+        q.x
+    );
+}
+
+function ToRgb(c:THREE.Node) {
+    const K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    const p = abs(fract(c.xxx.add(K.xyz)).mul(6.0).sub(K.www));
+    return c.z.mul(
+        mix(K.xxx, clamp(p.sub(K.xxx), 0.0, 1.0), c.y)
+    );
+}
+
+
 
 
 export function GrassScatter() {
@@ -670,6 +726,7 @@ export function TreesScatter() {
         </SnapToTerrainHeightCPU>
     </GridScatter >
 }
+
 
 
 

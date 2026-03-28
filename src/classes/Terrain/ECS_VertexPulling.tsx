@@ -1,5 +1,5 @@
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import {  useMemo, useRef } from "react";
 import * as THREE from "three"
 import { createInstanceTransforms, type TerrainScatterProps } from "./TerrainScatter";
 import { useTerrainScatterControls } from "./Scatter/ScatterUI";

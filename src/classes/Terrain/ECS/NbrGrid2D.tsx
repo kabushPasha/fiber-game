@@ -1,4 +1,4 @@
-import { storage, Fn, instanceIndex, int, normalLocal, vec4, positionLocal, transformNormalToView, vec3, atomicAdd, atomicStore, float, atomicLoad, vec2, If, Return } from "three/tsl"
+import { storage, Fn, instanceIndex, int,  positionLocal,  vec3, atomicAdd, atomicStore, float, atomicLoad, vec2, If } from "three/tsl"
 import { MeshStandardNodeMaterial, Node, StorageBufferAttribute, StorageInstancedBufferAttribute } from "three/webgpu"
 import * as THREE from "three"
 
