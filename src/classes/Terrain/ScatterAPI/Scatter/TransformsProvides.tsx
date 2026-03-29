@@ -646,7 +646,7 @@ export const remapFromMin = (value: any, min: any) => {
     return clamp(value.sub(min).div(float(1.0).sub(min)), 0.0, 1.0)
 }
 
-function toHsv(c:THREE.Node) {
+export function toHsv(c:THREE.Node) {
     const K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
 
     const p = mix(
@@ -671,7 +671,7 @@ function toHsv(c:THREE.Node) {
     );
 }
 
-function ToRgb(c:THREE.Node) {
+export function ToRgb(c:THREE.Node) {
     const K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
     const p = abs(fract(c.xxx.add(K.xyz)).mul(6.0).sub(K.www));
     return c.z.mul(

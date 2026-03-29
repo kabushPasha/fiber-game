@@ -35,6 +35,10 @@ import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsC
 
 import { GrassScatter, InteractiveBoxesScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
 import { PinesScatter } from "./classes/Terrain/ScatterAPI/Scatter/Presets"
+import { PP_LUT } from "./classes/PostProcessing/Effects/PP_3DLUTPass"
+import { PP_ColorGrading } from "./classes/PostProcessing/Effects/PP_ColorGrading"
+import { PP_Sharpen } from "./classes/PostProcessing/Effects/PP_Sharpen"
+import { PP_DoF } from "./classes/PostProcessing/Effects/PP_Dof"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -45,8 +49,8 @@ const App = () => {
   const controlls = useControls("Lights", {
     ambient_intensity: { value: 0.5, min: 0, max: 5 },
     directional_intensity: { value: 0.6, min: 0, max: 3 },
-    directional_angle: {value: { x: 0, y: 0, z: 0 }},
-  },{collapsed:true});
+    directional_angle: { value: { x: 0, y: 0, z: 0 } },
+  }, { collapsed: true });
 
 
 
@@ -103,8 +107,13 @@ const App = () => {
 
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
-                      {0 && <PP_PixelHighlights />}
+                      {1 && <PP_PixelHighlights />}
                       <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
+                      <PP_Sharpen />
+                      <PP_DoF />
+
+                      <PP_ColorGrading />
+                      <PP_LUT />
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
 
