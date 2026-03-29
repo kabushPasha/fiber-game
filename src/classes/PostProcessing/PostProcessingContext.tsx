@@ -86,7 +86,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     useFrame(({ gl }) => {
         if (postProcessingRef.current) {
             gl.clear();
-            postProcessingRef.current.render();
+            postProcessingRef.current.render();            
         }
     }, 1);
 
@@ -112,7 +112,7 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
     const id = useRef<number | null>(null);
 
     useEffect(() => {
-        if (!id.current) {
+        if (id.current  === null) {
             id.current = effectsRef.length;
             effectsRef.push( () => {});
         } 
@@ -124,7 +124,7 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
  
 
     useEffect(() => {
-        if (!id.current) {
+        if (id.current  === null) {
             id.current = effectsRef.length;
             effectsRef.push(effectFn);
         }

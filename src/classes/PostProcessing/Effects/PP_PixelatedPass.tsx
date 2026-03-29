@@ -7,7 +7,6 @@ import { Fn } from "three/src/nodes/TSL.js";
 import { folder, useControls } from "leva";
 
 
-
 export function PP_PixelHighlights() {
     const { scenePass } = useWebGPUPostProcessing();
 
@@ -65,11 +64,12 @@ export function PP_PixelHighlights() {
             kernelSize * 2 + 1
         ).step(uniforms.threshold).length().abs();
 
+
         if(debug) return lap;
         return mix(
             inputNode,
             vec3(0, 0, 0),
-            lap.mul(uniforms.strength)
+            lap.abs().mul(uniforms.strength)
         );
     }, [scenePass, enabled, kernelSize,debug]);
 
