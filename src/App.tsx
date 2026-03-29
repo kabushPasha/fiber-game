@@ -107,16 +107,19 @@ const App = () => {
 
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
-                      {1 && <PP_PixelHighlights />}
+
+                      <PP_PixelHighlights />
                       <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
+ 
                       <PP_Sharpen />
                       <PP_DoF />
 
                       <PP_ColorGrading />
                       <PP_LUT />
+
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
-
+ 
                   <Physics>
 
                     <Pixelated resolution={256} enabled={true} />

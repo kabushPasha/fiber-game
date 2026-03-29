@@ -54,8 +54,9 @@ export function PP_FogPass(props: PP_FogPassProps) {
         const c = new THREE.Color(color);
         uniforms.color.value.set(c.r, c.g, c.b);
     }, [density, heightFalloff, color])
-
+    
     PostProcessingEffect(effect);
+
 
     return null;
 }

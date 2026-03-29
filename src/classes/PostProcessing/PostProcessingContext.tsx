@@ -1,12 +1,13 @@
 import { createContext, useContext, useRef, useMemo, type ReactNode, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import { useThree, useFrame } from "@react-three/fiber";
-import { pass, mrt, output,  metalness, emissive, normalView } from "three/tsl";
+import { pass, mrt, output, metalness, emissive, normalView } from "three/tsl";
 
 interface WebGPUPostProcessingContextValue {
     postProcessing: THREE.PostProcessing | null;
-    scenePass: THREE.PassNode | null;
-    registerEffect: (effect: (currentNode: any) => any) => () => void; // returns unregister function
+    scenePass: THREE.PassNode | null; 
+    effectsRef: ((currentNode: any) => any)[]
+    runEffects: () => void;
 }
 
 const WebGPUPostProcessingContext = createContext<WebGPUPostProcessingContextValue | null>(null);
@@ -26,25 +27,13 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     const postProcessingRef = useRef<THREE.PostProcessing | null>(null);
     const scenePassRef = useRef<THREE.PassNode | null>(null);
 
-
     // Registry of mounted effects
     const effectsRef = useRef<((currentNode: any) => any)[]>([]);
 
-    // Register/unregister effect
-    const registerEffect = (effect: (currentNode: any) => any) => {
-        effectsRef.current.push(effect);
-        //console.log("REGISTER EFFECT", effectsRef.current);
-        runEffects();
-
-        return () => {
-            //console.log("UNREGISTER EFFECT")
-            effectsRef.current = effectsRef.current.filter(e => e !== effect);
-            runEffects(); // rerun remaining effects
-        };
-    };
 
     // Rebuild the chain by running all mounted effects in order
     const runEffects = () => {
+        console.log(effectsRef.current);
         if (!scenePassRef.current) return;
 
         if (postProcessingRef.current) { postProcessingRef.current.dispose(); }
@@ -104,7 +93,8 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     const value = useMemo(() => ({
         postProcessing: postProcessingRef.current,
         scenePass: scenePassRef.current,
-        registerEffect
+        effectsRef: effectsRef.current,
+        runEffects
     }), [postProcessingRef.current, scenePassRef.current]);
 
     return (
@@ -117,10 +107,33 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
 // Generic Effect ----------------------------------------------------
 // Generic effect that uses the current outputNode
 export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
-    const { registerEffect } = useWebGPUPostProcessing();
+    const { effectsRef, runEffects } = useWebGPUPostProcessing();
+
+    const id = useRef<number | null>(null);
 
     useEffect(() => {
-        return registerEffect(effectFn);        
+        if (!id.current) {
+            id.current = effectsRef.length;
+            effectsRef.push( () => {});
+        } 
+
+        return () => {
+            if(id.current) effectsRef[id.current] = () => {};
+        } 
+    }, [])
+ 
+
+    useEffect(() => {
+        if (!id.current) {
+            id.current = effectsRef.length;
+            effectsRef.push(effectFn);
+        }
+        else {
+            effectsRef[id.current] = effectFn;
+        }
+        runEffects();
+
+        //return registerEffect(effectFn);
     }, [effectFn]);
 }
 
