@@ -10,7 +10,7 @@ export function PP_Sharpen() {
     const { enabled, strength, kernelSize, debug } = useControls("Render", {
         PostProcess: folder({
             Sharpen: folder({
-                enabled: false,
+                enabled: true,
                 debug: false,
                 kernelSize: { value: 2, min: 1, max: 3, step: 1 },
                 strength: { value: 0.02, min: 0, max: 0.5, step: 0.01 }

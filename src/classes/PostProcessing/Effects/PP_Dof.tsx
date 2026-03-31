@@ -12,10 +12,10 @@ export function PP_DoF() {
     const { enabled, focusDistance, focusRange, blurStrength } = useControls("Render", {
         PostProcess: folder({
             DoF: folder({
-                enabled: false,
+                enabled: true,
                 debug: false,
-                focusDistance: { value: 10.0, min: 0, max: 200, step: 0.1 },
-                focusRange: { value: 20.0, min: 0.1, max: 100, step: 0.1 },
+                focusDistance: { value: 20.0, min: 0, max: 200, step: 0.1 },
+                focusRange: { value: 40.0, min: 0.1, max: 100, step: 0.1 },
                 blurStrength: { value: 1.0, min: 0.0, max: 10, step: 0.01 }
             })
         })
@@ -41,7 +41,7 @@ export function PP_DoF() {
         const dofPass = dof( inputNode, depth, uniforms.focusDistance, uniforms.focusRange,uniforms.blurStrength );
         return dofPass;
 
-    }, [enabled]);
+    }, [enabled,scenePass]);
 
     const {camera} = useThree( );    
 

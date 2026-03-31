@@ -13,7 +13,7 @@ export function PP_PixelHighlights() {
     const { enabled, kernelSize, threshold, strength,debug } = useControls("Render", {
         PostProcess: folder({
             PixelEdges: folder({
-                enabled: false,
+                enabled: true,
                 debug: false,
                 kernelSize: {
                     value: 2,

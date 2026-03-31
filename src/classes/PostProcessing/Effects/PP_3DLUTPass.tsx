@@ -12,7 +12,7 @@ export function PP_LUT() {
     const { enabled, intensity, lut } = useControls("Render", {
         PostProcess: folder({
             LUT: folder({
-                enabled: false,
+                enabled: true,
                 lut: {        
                     value: "Kodak 5218 Kodak 2383 (by Adobe).cube",            
                     options: {
