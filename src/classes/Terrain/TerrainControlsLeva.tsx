@@ -12,7 +12,7 @@ const TerrainControlsDefaults: TerrainProps = {
     hf_size: 512,
     hf_height: 25,
     showUI: true,
-    color:"#668c81",
+    color:"#627d6b",
 };
 
 export function useTerrainControlsUI(

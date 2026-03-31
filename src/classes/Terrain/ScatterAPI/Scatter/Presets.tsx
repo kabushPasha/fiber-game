@@ -1,44 +1,96 @@
 import { useEffect, useMemo } from "react";
 import { usePlayer } from "../../../Player/PlayerContext";
 import { useTerrain } from "../../TerrainProvider";
-import { GLTFGeometry, GridScatter, InstancedMeshSimple, remapFromMin, SnapToTerrainHeightCPU, TransformsBufferProvider, useGrid, useTransformsBuffer, WrapAroundPlayerGPU } from "./TransformsProvides";
+import { GLTFGeometry, GridScatter, GridScatterLayer, InstancedMeshSimple, remapFromMin, SnapToTerrainHeightCPU, TransformsBufferProvider, useGrid, useName, useTransformsBuffer, WrapAroundPlayerGPU } from "./TransformsProvides";
 import { instanceIndex, normalLocal, positionLocal, transformNormalToView, vec4, length, screenUV, rand, step, texture, uv, vertexColor, uniform, vec3 } from "three/tsl";
 import * as THREE from "three/webgpu";
 import { useLoader } from "@react-three/fiber";
 import { folder, useControls } from "leva";
 
 export function PinesScatter() {
-    return <GridScatter
-        name={"Pines"}
-        cellCount={30}
-        scale={2}
-        spacing={8}
-        rotation_random={1}
-        offset_random={1}
-        visible={true}
-    >
-        <SnapToTerrainHeightCPU>
-            <TransformsBufferProvider>
-                <WrapAroundPlayerGPU />
-                <InstancedMeshSimple>
-                    {1 && <GLTFGeometry url="models/PineTree.glb" />}
-                    <PinesMaterial />
-                </InstancedMeshSimple>
-            </TransformsBufferProvider>
-        </SnapToTerrainHeightCPU>
-    </GridScatter >
+    return <>
+        {true &&
+            <GridScatter
+                name={"Pines"}
+                cellCount={30}
+                scale={2}
+                spacing={8}
+                rotation_random={1}
+                offset_random={1}
+                visible={true}
+            >
+                <SnapToTerrainHeightCPU>
+                    <TransformsBufferProvider>
+                        <WrapAroundPlayerGPU />
+                        <InstancedMeshSimple>
+                            {1 && <GLTFGeometry url="models/PineTree.glb" />}
+                            <PinesMaterial />
+                        </InstancedMeshSimple>
+                    </TransformsBufferProvider>
+                </SnapToTerrainHeightCPU>
+
+                <GridScatterLayer
+                    name={"Ferns"}
+                    cellCount={2}
+                    spacing={1.5}
+                    scale={2}
+                    rotation_random={1}
+                    offset_random={1}
+                    scale_random={0.5}
+                    visible={true}
+                >
+                    <SnapToTerrainHeightCPU>
+                        <TransformsBufferProvider>
+                            <WrapAroundPlayerGPU />
+                            <InstancedMeshSimple>
+                                {1 && <GLTFGeometry url="models/Fern2.glb" />}
+                                <PinesMaterial texture_url="models/Fern.png" color="#52665c" />
+                            </InstancedMeshSimple>
+                        </TransformsBufferProvider>
+                    </SnapToTerrainHeightCPU>
+                </GridScatterLayer >
+
+            </GridScatter>}
+
+
+        <GridScatter
+            name={"Stumps"}
+            cellCount={5}
+            spacing={15}
+            scale={1.5}            
+            rotation_random={1}            
+            scale_random={0.3}
+            offset_random={1}
+            visible={true}
+        >
+            <SnapToTerrainHeightCPU>
+                <TransformsBufferProvider>
+                    <WrapAroundPlayerGPU />
+                    <InstancedMeshSimple>
+                        {1 && <GLTFGeometry url="models/Stump.glb" />}
+                        <PinesMaterial texture_url="models/Stump.png" color="#818181" />
+                    </InstancedMeshSimple>
+                </TransformsBufferProvider>
+            </SnapToTerrainHeightCPU>
+        </GridScatter>
+
+
+    </>
 }
 
 
-export function PinesMaterial( { color = "#738b8b" } ) {
+
+export function PinesMaterial({ color = "#738b8b", texture_url = "models/PineTree.png" }) {
     const { transformsBufferNode } = useTransformsBuffer();
     const terrain = useTerrain();
     const player = usePlayer();
     const grid = useGrid();
+    const { name } = useName();
+
 
     const defaultColor = new THREE.Color(color);
     const controlled = useControls("Terrain", {
-        "Pines": folder({
+        [name]: folder({
             "Material": folder({
                 color: { value: color }
             })
@@ -60,7 +112,7 @@ export function PinesMaterial( { color = "#738b8b" } ) {
 
 
 
-    const texture_map = useLoader(THREE.TextureLoader, "models/PineTree.png");
+    const texture_map = useLoader(THREE.TextureLoader, texture_url);
     texture_map.wrapS = THREE.RepeatWrapping;
     texture_map.wrapT = THREE.RepeatWrapping;
     texture_map.colorSpace = THREE.NoColorSpace;
@@ -78,7 +130,7 @@ export function PinesMaterial( { color = "#738b8b" } ) {
         mat.side = THREE.DoubleSide
 
         // Texture 
-        const tex = texture(texture_map, uv().oneMinus());
+        const tex = texture(texture_map, uv().setY(uv().y.oneMinus()));
 
         // Calc Distance Mask
         const world_pivot = instanceMatrix.mul(vec4(0, 0, 0, 1));
@@ -99,13 +151,13 @@ export function PinesMaterial( { color = "#738b8b" } ) {
         //const threshold = rand(positionLocal);
         //const circle_tres = screenUV.mul(50).mul(vec2(screenSize.x.div(screenSize.y),1.0)).fract().sub(0.5).length();        
         const alpha = step(threshold, distance_mask);
-        mat.maskNode = alpha.mul(tex.r);
+        mat.maskNode = alpha.mul(tex.a);
         //mat.transparent = true;
         mat.alphaTest = 0.5;
 
         mat.colorNode = vec3(0);
         //mat.colorNode = tex.gggr.mul(vertexColor()).mul(1.0).mul(uniforms.color);
-        mat.emissiveNode = tex.gggr.mul(vertexColor()).mul(1.0).mul(uniforms.color).mul(1.00);
+        mat.emissiveNode = tex.mul(vertexColor()).mul(1.0).mul(uniforms.color).mul(1.00);
 
         return mat;
     }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize]);
