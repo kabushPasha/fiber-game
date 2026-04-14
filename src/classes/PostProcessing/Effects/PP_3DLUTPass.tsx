@@ -69,7 +69,7 @@ export function PP_LUT() {
                 result = await new LUTImageLoader().loadAsync(`luts/${lut}`);
             }
 
-            console.log(result);
+            //console.log(result);
             if (!active) return;
 
             // Normalize result

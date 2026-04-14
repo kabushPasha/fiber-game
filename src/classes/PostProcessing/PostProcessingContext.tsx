@@ -3,6 +3,8 @@ import * as THREE from "three/webgpu";
 import { useThree, useFrame } from "@react-three/fiber";
 import { pass, mrt, output, metalness, emissive, normalView } from "three/tsl";
 
+
+
 interface WebGPUPostProcessingContextValue {
     postProcessing: THREE.PostProcessing | null;
     scenePass: THREE.PassNode | null; 
@@ -33,7 +35,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
 
     // Rebuild the chain by running all mounted effects in order
     const runEffects = () => {
-        console.log(effectsRef.current);
+        //console.log(effectsRef.current);
         if (!scenePassRef.current) return;
 
         if (postProcessingRef.current) { postProcessingRef.current.dispose(); }
@@ -57,6 +59,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
         });
+
 
         scenePass.setMRT(
             mrt({

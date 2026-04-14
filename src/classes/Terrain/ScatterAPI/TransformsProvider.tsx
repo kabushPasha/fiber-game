@@ -47,7 +47,7 @@ export function TransformsProvider({ children }: PropsWithChildren) {
     }, [instanceTransforms]);
 
     useEffect(() => {
-        console.log("Table Changed", idTable);
+        //console.log("Table Changed", idTable);
         const entries = Object.entries(idTable).sort(([a], [b]) => Number(a) - Number(b));
         const totalLength = entries.reduce((sum, [, arr]) => sum + arr.length, 0);
         const combined = new Float32Array(totalLength);
@@ -122,7 +122,7 @@ export function GridScatter(_props: PropsWithChildren<TerrainScatterProps>) {
     const id = useRef<number | null>(null)
 
     const localTransforms = useMemo(() => {
-        console.log("GRID_SCATTER:Construct Transfroms")
+        //console.log("GRID_SCATTER:Construct Transfroms")
         return createInstanceTransforms({
             gridSize,
             spacing,

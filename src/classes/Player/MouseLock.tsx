@@ -6,6 +6,8 @@ type MouseDelta = { x: number; y: number }
 type MouseLockContextType = {
   consumeDelta: () => MouseDelta
   isLocked: boolean
+  unlock: () => void
+  lock: () => void
 }
 
 const MouseLockContext = createContext<MouseLockContextType>(null!)
@@ -23,7 +25,7 @@ export function MouseLockProvider({ children }: { children: React.ReactNode }) {
     oldCompute.current = get().events.compute
 
     const onClick = () => {
-      canvas.requestPointerLock()
+      lock();
     }
 
     const onPointerLockChange = () => {
@@ -75,9 +77,25 @@ export function MouseLockProvider({ children }: { children: React.ReactNode }) {
     movement.current.y = 0
     return delta
   }
+  // unlock function
+  const unlock = () => {
+    if (document.pointerLockElement === canvas) {
+      document.exitPointerLock()
+    }
+  }
+
+  const lock = () => {
+    if (document.pointerLockElement !== canvas) {
+      canvas.requestPointerLock().catch(err => {
+        console.warn("Lock failed:", err);
+        // Retry after some time ??
+        //window.setTimeout(() => { lock(); }, 100)
+      });
+    }
+  }
 
   return (
-    <MouseLockContext.Provider value={{ consumeDelta, isLocked }}>
+    <MouseLockContext.Provider value={{ consumeDelta, isLocked, unlock, lock }}>
       {children}
     </MouseLockContext.Provider>
   )

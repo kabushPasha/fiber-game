@@ -14,11 +14,11 @@ import { TestSDF } from "./classes/shaders/Raymarcher"
 import { extend } from "@react-three/fiber"
 import { MeshStandardNodeMaterial, } from "three/webgpu"
 import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
-import { TerrainPlane } from "./classes/Terrain/Terrain"
+import { TerrainMoss, TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 
 
-import { Physics } from "@react-three/rapier";
-import { Suspense } from "react"
+//import { Physics } from "@react-three/rapier";
+import { Suspense, useEffect, useState } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
@@ -38,13 +38,26 @@ import { PinesScatter } from "./classes/Terrain/ScatterAPI/Scatter/Presets"
 import { PP_LUT } from "./classes/PostProcessing/Effects/PP_3DLUTPass"
 import { PP_ColorGrading } from "./classes/PostProcessing/Effects/PP_ColorGrading"
 import { PP_Sharpen } from "./classes/PostProcessing/Effects/PP_Sharpen"
-import { PP_DoF } from "./classes/PostProcessing/Effects/PP_Dof"
-
+import { PP_DoF, PP_Scanline, PP_Vignette } from "./classes/PostProcessing/Effects/PP_Dof"
+import AspectRatioCanvas from "./components/AspectRationCanvas"
+import { LoadingScreen } from "./components/LoadingScreen"
+import { Pause } from "./classes/Player/Pause"
 
 extend({ MeshStandardNodeMaterial })
 
+const inputMap = [
+  { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
+  { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
+  { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
+  { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
+  { name: "jump", keys: ["Space"] },
+  { name: "shift", keys: ["Shift"] },
+  { name: "pause", keys: ["Backspace"] },
+]
+
 
 const App = () => {
+  const [loading, setLoading] = useState(true);
 
   const controlls = useControls("Lights", {
     ambient_intensity: { value: 0.5, min: 0, max: 5 },
@@ -55,138 +68,113 @@ const App = () => {
 
 
   return (
-    <UIScreenProvider>
-      <div
-        style={{
-          overflow: "hidden",
-          position: "relative",
-          background: "black",
-        }}
-      >
+    <>
 
-        <div id="CanvasParent"
-          style={{
-            position: "fixed",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            width: "100vw",
-            height: "100vh",
-            background: "black",
-            overflow: "hidden",
-            inset: 0
-          }}>
+      <UIScreenProvider>
+        <AspectRatioCanvas aspectRatio="235/100">
 
-          <div id="Canvas3D"
-            style={{
-              width: "100%",
-              height: "auto",
-              aspectRatio: "235 / 100",
-            }}>
-            {0 && <Leva collapsed />}
+          {false && <Leva collapsed />}
+          <Canvas
+            camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
 
-            <Canvas
-              camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
-              //gl={{ antialias: false }}
+            gl={async (props) => {
+              const renderer = new THREE.WebGPURenderer({
+                ...props,
+                antialias: false,
+              } as any)
 
-              gl={async (props) => {
-                const renderer = new THREE.WebGPURenderer({
-                  ...props,
-                  antialias: false,
-                } as any)
+              await renderer.init()
+              return renderer
+            }}
+            style={{ background: "black" }}
+          >
+            <Stats />
 
-                await renderer.init()
-                return renderer
-              }}
-              style={{ background: "black" }}
-            >
-              <Stats />
+            <Suspense fallback={null}>
+              <PlayerProvider>
 
-              <Suspense>
-                <PlayerProvider>
-
+                {1 &&
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
-
                       <PP_PixelHighlights />
                       <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
- 
                       <PP_Sharpen />
                       <PP_DoF />
-
                       <PP_ColorGrading />
                       <PP_LUT />
-
+                      <PP_Vignette />
+                      <PP_Scanline />
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
- 
-                  <Physics>
-
-                    <Pixelated resolution={256} enabled={true} />
-
-                    <group name="Lights">
-                      <ambientLight intensity={controlls.ambient_intensity} />
-                      <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
-                    </group>
-
-                    <MouseLockProvider>
-                      <KeyboardControls
-                        map={[
-                          { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
-                          { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
-                          { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
-                          { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
-                          { name: "jump", keys: ["Space"] },
-                          { name: "shift", keys: ["Shift"] },
-                        ]}
-                      >
-                        <TerrainProvider textureUrl="textures/HFs/height.png">
-                          <Player >
-                            <WorldPositionConstraint>
-                              {1 && <TerrainPlane />}
-                            </WorldPositionConstraint>
-                            {1 && <MoveByVel />}
-                            <Jump />
-                            <GroundClamp />
-                          </Player>
+                }
 
 
-                          {true && <GrassScatter />}
-                          {true && <InteractiveBoxesScatter />}
+                <Pixelated resolution={256} enabled={true} />
 
-                          <PinesScatter />
+                <group name="Lights">
+                  <ambientLight intensity={controlls.ambient_intensity} />
+                  <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
+                </group>
+
+                <MouseLockProvider>
+                  <KeyboardControls map={inputMap} >
+                    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+                      <Player >
+                        <WorldPositionConstraint>
+                          {1 && <TerrainPlane />}
+                          {0 && <TerrainMoss />}
+                        </WorldPositionConstraint>
+                        {1 && <MoveByVel />}
+                        <Jump />
+                        <GroundClamp />
+                      </Player>
+
+                      {/** Geometry */}
+                      {1 && <GrassScatter />}
+                      {1 && <InteractiveBoxesScatter />}
+                      {1 && <PinesScatter />}
+
+                      { 1 && <TerrainMossUI />}
+
+                    </TerrainProvider>
+
+                    {false && <Pause />}
+                  </KeyboardControls>
+                </MouseLockProvider>
 
 
-                        </TerrainProvider>
+                
 
-                      </KeyboardControls>
-                    </MouseLockProvider>
+                {0 && <TaskSelectorPawn />}
+                {0 && <AuroraBackground />}
+                {0 && <TestSDF />}
+                {1 && <SimpleBackground />}
 
-                    {0 && <TaskSelectorPawn />}
-                    {0 && <AuroraBackground />}
-                    {0 && <TestSDF />}
-                    {1 && <SimpleBackground />}
+                {1 && <SnowSpritesUI active={true} showControls={true} />}
 
-
-                    <SnowSpritesUI active={true} showControls={true} />
-
-                    {false && <TestTslShader />}
-                    {0 && <RaycastOnClick />}
+                {false && <TestTslShader />}
+                {0 && <RaycastOnClick />}
 
 
+              </PlayerProvider>
+              <EverythingIsLoaded onLoaded={() => { setLoading(false) }} />
 
-                  </Physics>
-                </PlayerProvider>
-              </Suspense>
-            </Canvas>
-          </div>
-        </div>
+            </Suspense>
+          </Canvas>
+        </AspectRatioCanvas>
+      </UIScreenProvider>
 
-
-      </div >
-    </UIScreenProvider>
+      <LoadingScreen loading={loading} />
+    </>
   )
 }
+
+export function EverythingIsLoaded({ onLoaded }: { onLoaded: () => void }) {
+  useEffect(() => { onLoaded(); }, [onLoaded]);
+  return null;
+}
+
 
 
 export default App
