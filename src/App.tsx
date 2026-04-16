@@ -14,7 +14,7 @@ import { TestSDF } from "./classes/shaders/Raymarcher"
 import { extend } from "@react-three/fiber"
 import { MeshStandardNodeMaterial, } from "three/webgpu"
 import { TestTslShader } from "./classes/shaders/SimpleTslGrid"
-import { TerrainMoss, TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
+import { TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 //import { Physics } from "@react-three/rapier";
@@ -42,6 +42,7 @@ import { PP_DoF, PP_Scanline, PP_Vignette } from "./classes/PostProcessing/Effec
 import AspectRatioCanvas from "./components/AspectRationCanvas"
 import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
+import { PlayerDrawCompute, PlayerDrawTexture, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -93,7 +94,7 @@ const App = () => {
             <Suspense fallback={null}>
               <PlayerProvider>
 
-                {1 &&
+                {0 &&
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
                       <PP_PixelHighlights />
@@ -123,19 +124,24 @@ const App = () => {
                       <Player >
                         <WorldPositionConstraint>
                           {1 && <TerrainPlane />}
-                          {0 && <TerrainMoss />}
                         </WorldPositionConstraint>
                         {1 && <MoveByVel />}
                         <Jump />
                         <GroundClamp />
+
                       </Player>
 
-                      {/** Geometry */}
-                      {1 && <GrassScatter />}
-                      {1 && <InteractiveBoxesScatter />}
-                      {1 && <PinesScatter />}
+                      <PlayerDrawCompute />
 
-                      { 1 && <TerrainMossUI />}
+                      {false && <>
+                        <Water />
+                        {/** Geometry */}
+                        {1 && <GrassScatter />}
+                        {1 && <InteractiveBoxesScatter />}
+                        {1 && <PinesScatter />}
+                        {1 && <TerrainMossUI />}
+                      </>}
+
 
                     </TerrainProvider>
 
@@ -144,7 +150,7 @@ const App = () => {
                 </MouseLockProvider>
 
 
-                
+
 
                 {0 && <TaskSelectorPawn />}
                 {0 && <AuroraBackground />}
