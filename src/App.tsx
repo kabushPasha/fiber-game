@@ -20,7 +20,7 @@ import { TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 //import { Physics } from "@react-three/rapier";
 import { Suspense, useEffect, useState } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
-import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
+import { GroundClamp, GroundClampSimple, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
@@ -42,7 +42,8 @@ import { PP_DoF, PP_Scanline, PP_Vignette } from "./classes/PostProcessing/Effec
 import AspectRatioCanvas from "./components/AspectRationCanvas"
 import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
-import { DynamicWaterSystemToggle,  Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
+import { DynamicWaterSystemToggle, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
+import { SatinFlow } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -92,7 +93,9 @@ const App = () => {
             <Stats />
 
             <Suspense fallback={null}>
-              <PlayerProvider>
+
+
+              {0 && <PlayerProvider>
 
                 {1 &&
                   <CameraUniformsProvider>
@@ -108,7 +111,6 @@ const App = () => {
                     </WebGPUPostProcessingProvider>
                   </CameraUniformsProvider>
                 }
-
 
                 <Pixelated resolution={256} enabled={true} />
 
@@ -128,10 +130,7 @@ const App = () => {
                         {1 && <MoveByVel />}
                         <Jump />
                         <GroundClamp />
-
                       </Player>
-
-                      
 
                       {1 && <>
                         {0 && <Water />}
@@ -140,9 +139,10 @@ const App = () => {
                         {1 && <InteractiveBoxesScatter />}
                         {1 && <PinesScatter />}
                         {1 && <TerrainMossUI />}
-                      </>}
+                        {1 && <DynamicWaterSystemToggle />}
 
-                      {1 && <DynamicWaterSystemToggle />}
+                        {1 && <SnowSpritesUI active={true} showControls={true} />}
+                      </>}
 
                     </TerrainProvider>
 
@@ -150,21 +150,46 @@ const App = () => {
                   </KeyboardControls>
                 </MouseLockProvider>
 
-
-
+                {1 && <SimpleBackground />}
 
                 {0 && <TaskSelectorPawn />}
                 {0 && <AuroraBackground />}
                 {0 && <TestSDF />}
-                {1 && <SimpleBackground />}
-
-                {1 && <SnowSpritesUI active={true} showControls={true} />}
-
                 {false && <TestTslShader />}
                 {0 && <RaycastOnClick />}
 
+              </PlayerProvider>}
 
-              </PlayerProvider>
+              {1 && <PlayerProvider>
+                <MouseLockProvider>
+                  <KeyboardControls map={inputMap} >
+
+                    <group name="Lights">
+                      <ambientLight intensity={controlls.ambient_intensity} />
+                      <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
+                    </group>
+
+
+                    {1 && <SimpleBackground />}
+
+
+
+                    <Player >
+                      <MoveByVel />
+                      <Jump />
+                      <GroundClampSimple />
+                    </Player>
+
+                    <SatinFlow />
+
+
+                  </KeyboardControls>
+                </MouseLockProvider>
+              </PlayerProvider>}
+
+
+
+
               <EverythingIsLoaded onLoaded={() => { setLoading(false) }} />
 
             </Suspense>

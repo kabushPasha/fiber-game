@@ -72,3 +72,35 @@ export function GroundClamp() {
 
     return null
 }
+
+
+// No terrain Variant
+export function GroundClampSimple() {
+    const { objectRef } = useGameObject3D()
+    const worldPos = new THREE.Vector3()
+
+    useFrame(() => {
+        const obj = objectRef.current
+        if (!obj || !obj.userData.vel) return
+
+        // Get world position
+        obj.getWorldPosition(worldPos)
+
+        // Determine ground height
+        const groundY = 0
+
+        if (worldPos.y <= groundY) {
+            obj.position.y = groundY
+            obj.userData.vel.y = Math.max( obj.userData.vel.y, 0)
+            obj.userData.canJump = true
+            obj.userData.grounded = true                        
+        }
+        else {
+            obj.userData.grounded = false            
+        }
+
+        obj.userData.ground_distance = obj.position.y - groundY;
+    })
+
+    return null
+}
