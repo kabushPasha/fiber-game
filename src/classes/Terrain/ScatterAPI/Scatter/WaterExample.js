@@ -275,21 +275,6 @@ async function init() {
 
     scene.add(waterMesh);
 
-    // Pool border
-    const borderGeom = new THREE.TorusGeometry(4.2, 0.1, 12, 4);
-    borderGeom.rotateX(Math.PI * 0.5);
-    borderGeom.rotateY(Math.PI * 0.25);
-    poolBorder = new THREE.Mesh(borderGeom, new THREE.MeshStandardMaterial({ color: 0x908877, roughness: 0.2 }));
-    scene.add(poolBorder);
-
-    // THREE.Mesh just for mouse raycasting
-    const geometryRay = new THREE.PlaneGeometry(BOUNDS, BOUNDS, 1, 1);
-    meshRay = new THREE.Mesh(geometryRay, new THREE.MeshBasicMaterial({ color: 0xFFFFFF, visible: false }));
-    meshRay.rotation.x = - Math.PI / 2;
-    meshRay.matrixAutoUpdate = false;
-    meshRay.updateMatrix();
-    scene.add(meshRay);
-
     // Initialize sphere mesh instance position and velocity.
     // position<vec3> + velocity<vec2> + unused<vec3> = 8 floats per sphere.
     // for structs arrays must be enclosed in multiple of 4
@@ -442,8 +427,6 @@ async function init() {
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointerup', onPointerUp);
 
-    window.addEventListener('resize', onWindowResize);
-
     // GUI
 
     const gui = renderer.inspector.createParameters('Settings');
@@ -465,15 +448,6 @@ async function init() {
         poolBorder.material.needsUpdate = true;
 
     });
-
-}
-
-function onWindowResize() {
-
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
 
 }
 

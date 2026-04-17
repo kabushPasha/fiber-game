@@ -42,7 +42,7 @@ import { PP_DoF, PP_Scanline, PP_Vignette } from "./classes/PostProcessing/Effec
 import AspectRatioCanvas from "./components/AspectRationCanvas"
 import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
-import { PlayerDrawCompute, PlayerDrawTexture, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
+import { DynamicWaterSystemToggle,  Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -94,7 +94,7 @@ const App = () => {
             <Suspense fallback={null}>
               <PlayerProvider>
 
-                {0 &&
+                {1 &&
                   <CameraUniformsProvider>
                     <WebGPUPostProcessingProvider >
                       <PP_PixelHighlights />
@@ -131,10 +131,10 @@ const App = () => {
 
                       </Player>
 
-                      <PlayerDrawCompute />
+                      
 
-                      {false && <>
-                        <Water />
+                      {1 && <>
+                        {0 && <Water />}
                         {/** Geometry */}
                         {1 && <GrassScatter />}
                         {1 && <InteractiveBoxesScatter />}
@@ -142,6 +142,7 @@ const App = () => {
                         {1 && <TerrainMossUI />}
                       </>}
 
+                      {1 && <DynamicWaterSystemToggle />}
 
                     </TerrainProvider>
 

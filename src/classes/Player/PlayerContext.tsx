@@ -8,6 +8,7 @@ interface PlayerContextType {
   setPlayer: (player: THREE.Group | null) => void
   playerWorldPosition: THREE.Vector3;
   tsl_PlayerWorldPosition: ReturnType<typeof uniform<THREE.Vector3>>;
+  tsl_PlayerVelocity: ReturnType<typeof uniform<THREE.Vector3>>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined)
@@ -31,16 +32,19 @@ export function PlayerProvider({ children }: PlayerProviderProps) {
 
   // Uniform for shaders
   const tsl_PlayerWorldPosition = useMemo(() => uniform(new THREE.Vector3()), []);
+  const tsl_PlayerVelocity = useMemo(() => uniform(new THREE.Vector3()), []);
+
 
   // Update positions every frame
   useFrame(() => {
     if (!player) return;
     player.getWorldPosition(playerWorldPosition);
     tsl_PlayerWorldPosition.value.copy(playerWorldPosition);
+    tsl_PlayerVelocity.value.copy(player.userData.vel);
   });
 
   return (
-    <PlayerContext.Provider value={{ player, setPlayer, playerWorldPosition, tsl_PlayerWorldPosition }}>
+    <PlayerContext.Provider value={{ player, setPlayer, playerWorldPosition, tsl_PlayerWorldPosition, tsl_PlayerVelocity }}>
       {children}
     </PlayerContext.Provider>
   )
