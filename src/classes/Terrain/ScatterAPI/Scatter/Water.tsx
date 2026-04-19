@@ -454,19 +454,15 @@ export function DynamicWaterSystem() {
 
     const { material, reflectionTarget } = useMemo(() => {
         const mat = new THREE.MeshStandardNodeMaterial()
-        const farMaterial = new THREE.MeshStandardNodeMaterial()
         mat.colorNode = float(0.5);
-        //mat.wireframe = true;
 
         const water_height = getCurrentHeight(vertexIndex);
         mat.positionNode = vec3(positionLocal.x, positionLocal.y, water_height);
         //mat.colorNode = getCurrentHeight(vertexIndex).mul(20);
 
-
         const { normalX, normalY } = getCurrentNormals(vertexIndex);
         const normal = vec3(normalX, normalY.negate(), 1.0).normalize()
         mat.normalNode = transformNormalToView(normal).toVertexStage();
-
 
         // reflection
         const reflection = reflector({ resolutionScale: 1, bounces: false })
@@ -490,11 +486,6 @@ export function DynamicWaterSystem() {
         const vp_tex = viewportSharedTexture(screenUV.add(normalOffset));
         mat.emissiveNode = mix(vp_tex.mul(vec3(0.6, 0.9, 1.2)), vec3(0.0, 0.02, 0.03).add(reflection.mul(0.2)), depth_mix2)
             .add(water_height.abs().mul(0.1));
-
-        // FAR MATERIAL
-        //farMaterial.wireframe = true;
-        farMaterial.colorNode = float(0);
-        farMaterial.emissiveNode = depth_mix2;
 
         //mat.wireframe = true;
 
