@@ -44,10 +44,11 @@ import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
 import { DynamicWaterSystemToggle, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
 import { SatinFlow } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
+import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 
 extend({ MeshStandardNodeMaterial })
 
-const inputMap = [
+export const inputMap = [
   { name: "forward", keys: ["ArrowUp", "w", "W", "Ц", "ц"] },
   { name: "backward", keys: ["ArrowDown", "s", "S", "Ы", "ы"] },
   { name: "left", keys: ["ArrowLeft", "a", "A", "Ф", "ф"] },
@@ -94,7 +95,7 @@ const App = () => {
 
             <Suspense fallback={null}>
 
-
+              {/** Forest Level */}
               {0 && <PlayerProvider>
 
                 {1 &&
@@ -160,7 +161,9 @@ const App = () => {
 
               </PlayerProvider>}
 
-              {1 && <PlayerProvider>
+
+              {/** SATIN LEVEL */}
+              {0 && <PlayerProvider>
                 <MouseLockProvider>
                   <KeyboardControls map={inputMap} >
 
@@ -187,7 +190,7 @@ const App = () => {
                 </MouseLockProvider>
               </PlayerProvider>}
 
-
+              <DryIceLevel />
 
 
               <EverythingIsLoaded onLoaded={() => { setLoading(false) }} />

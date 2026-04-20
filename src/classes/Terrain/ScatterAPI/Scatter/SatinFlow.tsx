@@ -344,11 +344,12 @@ export function SatinFlow() {
             // player effect
             const d = uv.xy.sub(player.tsl_PlayerWorldPosition.xz.div(size).fract())
             const m = exp( d.length().negate().div(50)) 
-            const player_dv = m.mul( normz(vec3(d,0.0))).mul(0.02);
 
             const player_mask = d.length().step(0.02)
 
-            const dv_out = dv.xyz.add( player_mask.oneMinus().mul(normz(d)).mul(50) );
+            const dv_out = dv.xyz
+                .add( player_mask.oneMinus().mul(normz(d)).mul(25).mul(player.tsl_PlayerVelocity.length().min(1.0)) )
+                ;
 
 
             // Output
@@ -360,7 +361,8 @@ export function SatinFlow() {
         size,
         StorageBufferA,
         StorageBufferB,
-        player.tsl_PlayerWorldPosition
+        player.tsl_PlayerWorldPosition,
+        player.tsl_PlayerVelocity
     ]);
 
     const BufferBProgram = useMemo(() => {
@@ -447,8 +449,6 @@ export function SatinFlow() {
     const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
 
 
-
-
     useFrame(() => {
 
         if (frame.current % 2 == 0) {
@@ -456,7 +456,6 @@ export function SatinFlow() {
             const pwp = player.playerWorldPosition;            
             ref.current.position.setX(pwp.x - pwp.x % block_size);
             ref.current.position.setZ(pwp.z - pwp.z % block_size);
-
 
             renderer.compute(BufferAProgram, [dispatch_size, dispatch_size, 1]);
             renderer.compute(StorageBufferA.writebackCompute, [dispatch_size, dispatch_size, 1]);
@@ -512,7 +511,7 @@ export function SatinFlow() {
             material={material}
         //renderOrder={998}
         >
-            <planeGeometry args={[size*4, size*4, 2, 2]} />
+            <planeGeometry args={[size*1, size*1, 2, 2]} />
         </mesh>
 
     </group>
@@ -620,7 +619,7 @@ export class ColorStorage {
     });
     sampleBilinearNbr(
         pos: THREE.Node,
-        dist: THREE.Node,
+        dist = this.texelSize(),
     ) {
         const d = vec2(dist);
 

@@ -1,0 +1,431 @@
+import { KeyboardControls } from "@react-three/drei";
+import { MouseLockProvider } from "../../../Player/MouseLock";
+import { PlayerProvider, usePlayer } from "../../../Player/PlayerContext";
+import { inputMap } from "../../../../App";
+import { SimpleBackground } from "../../../shaders/Aurora";
+import { Player } from "../../../Player/Player";
+import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
+import { folder, useControls } from "leva";
+import { useCallback, useMemo, useRef } from "react";
+import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
+import * as THREE from 'three/webgpu'
+import { useFrame } from "@react-three/fiber";
+import {
+    float,
+    globalId,
+    instanceIndex,
+    ivec2,
+    modelWorldMatrix,
+    positionLocal,
+    uint,
+    vec2,
+    vec3,
+    vec4,
+    vertexIndex
+} from "three/tsl";
+import { Fn } from "three/src/nodes/TSL.js";
+
+export function DryIceLevel() {
+
+    return <PlayerProvider>
+        <MouseLockProvider>
+            <KeyboardControls map={inputMap} >
+
+                <group name="Lights">
+                    <ambientLight intensity={0.5} />
+                    <directionalLight position={[10, 5, 0]} intensity={0.6} />
+                </group>
+
+                <SimpleBackground />
+
+                <Player >
+                    <MoveByVel />
+                    <Jump />
+                    <GroundClampSimple />
+                </Player>
+
+                <DryIce />
+
+
+            </KeyboardControls>
+        </MouseLockProvider>
+    </PlayerProvider>;
+}
+
+
+
+
+export function DryIce() {
+
+    const controls = useControls("Terrain", {
+        DryIce: folder({
+            res: { value: 256, min: 4, max: 1024, step: 1 },
+            size: { value: 64, min: 1, max: 200 },
+            wireframe: { value: false },
+        }, { collapsed: false })
+    });
+
+    const { res, size, wireframe } = controls;
+    const ref = useRef<THREE.Mesh>(null!);
+    const player = usePlayer()
+    const renderer = useWebGPURenderer()
+    const dispatch_size = useMemo(() => res / 16, [res])
+    const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
+
+    // Buffser
+    const StorageBufferA = useMemo(() => (new ColorStorageWriteback(res)), [res]);
+    const StorageBufferB = useMemo(() => (new ColorStorageWriteback(res)), [res]);
+    const StorageBufferC = useMemo(() => (new ColorStorageWriteback(res)), [res]);
+    const StorageBufferD = useMemo(() => (new ColorStorageWriteback(res)), [res]);
+
+    const ComputeA = useMemo(() => {
+        const sampleMinusGradient = (uv: THREE.Node) => {
+            const veld = StorageBufferA.sampleBilinear(uv);
+            // this should be buffer D
+            const nbrs = StorageBufferD.sampleBilinearNbr(uv);
+            const grad = vec2(nbrs.w.x.sub(nbrs.e.x), nbrs.s.x.sub(nbrs.n.x)).mul(0.5);
+            return vec3(veld.xy.sub(grad), veld.z);
+        }
+
+        const programm = Fn(() => {
+            const _index = uint(instanceIndex)
+            const uv = StorageBufferA.uv()
+            const texel = StorageBufferA.texelSize()
+
+            const gridOrigin = vec3(0.0);
+            const worldPos = vec3(uv.x.sub(0.5).mul(size), 0.0, uv.y.sub(0.5).mul(size)).add(gridOrigin);
+
+            //const velocity = StorageBufferA.sampleBilinear(uv).mul(0.9);
+            //const veld = StorageBufferA.sampleBilinear(uv.add(velocity));
+            const dissipation = 1;            
+            const velocity = sampleMinusGradient(uv).mul(dissipation).xy;
+            const veld = sampleMinusGradient(uv.sub(velocity)).xyz;
+
+
+
+            const vel = veld.xy;
+            const d = veld.z;
+
+            const player_mask = worldPos.sub(player.tsl_PlayerWorldPosition).length().step(0.75).oneMinus().mul(player.tsl_PlayerVelocity.length().min(1.0));
+
+            // Add D and Vel
+            const density_dissipation= float(0.999);
+            const out_d = d.add(player_mask).min(1.0).mul(density_dissipation);
+            const out_v = vel.add(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()))
+
+            // Output
+            StorageBufferA.output.element(instanceIndex).assign(vec4(out_v, out_d, 0.0));
+        })().compute(res * res, [16, 16]);
+
+        return programm;
+    }, [
+        res,
+        size,
+        StorageBufferA,
+        StorageBufferD,
+        player.tsl_PlayerWorldPosition,
+        player.tsl_PlayerVelocity,
+        dispatch_size
+    ]);
+
+    const ComputeB = useMemo(() => {
+        const programm = Fn(() => {
+            const _index = uint(instanceIndex)
+            const n = StorageBufferA.nbr_values(_index);
+            const divergence = n.w.x.sub(n.e.x).add(n.s.y).sub(n.n.y).mul(0.5);
+            // Output
+            StorageBufferB.current.element(instanceIndex).assign(divergence);
+        })().compute(res * res, [16, 16]);
+
+        // Compute And Writeback
+        return programm;
+    }, [
+        res,
+        size,
+        StorageBufferA,
+        StorageBufferB,
+        player.tsl_PlayerWorldPosition,
+        player.tsl_PlayerVelocity,
+        renderer,
+        dispatch_size
+    ]);
+
+    const ComputeC = useMemo(() => {
+
+        const div = (x: number, y: number) => {
+            return StorageBufferB.current.element(
+                StorageBufferB.index2linear(StorageBufferB.linear2index(instanceIndex).add(ivec2(x, y)))
+            ).x;
+        };
+
+        const pre = (x: number, y: number) => {
+            return StorageBufferD.current.element(
+                StorageBufferD.index2linear(StorageBufferD.linear2index(instanceIndex).add(ivec2(x, y)))
+            ).x;
+        };
+
+        const kernel = generateDivWeights(10);
+        const kernelPre = generatePreWeights(10);
+
+        const getDiv = Fn(() => {
+            const p = float(0.0).toVar();
+            for (let i = 0; i < kernel.weights.length; i++) {
+                const e = kernel.weights[i];
+                p.addAssign(float(e.w).mul(div(e.x, e.y)));
+            }
+            return p.div(kernel.total);
+        })
+
+        const getPre = Fn(() => {
+            const p = float(0.0).toVar();
+
+            for (let i = 0; i < kernelPre.weights.length; i++) {
+                const e = kernelPre.weights[i];
+
+                p.addAssign(
+                    float(e.w).mul(
+                        pre(e.x, e.y)
+                    )
+                );
+            }
+
+            return p.div(kernelPre.total);
+        });
+
+        return Fn(() => {
+            const _index = uint(instanceIndex)
+
+            const div = getDiv();
+            const p = getPre().sub(div);
+            const out = vec4(p, div, 0.0, 0.0);
+
+            StorageBufferC.current.element(instanceIndex).assign(out);
+        })().compute(res * res, [16, 16]);
+    }, [
+        res,
+        size,
+        StorageBufferB,
+        StorageBufferC,
+        StorageBufferD,
+        player.tsl_PlayerWorldPosition,
+        player.tsl_PlayerVelocity,
+        renderer,
+        dispatch_size
+    ]);
+
+    const ComputeD = useMemo(() => {
+        const div = (x: number, y: number) => {
+            return StorageBufferC.current.element(
+                StorageBufferC.index2linear(StorageBufferC.linear2index(instanceIndex).add(ivec2(x, y)))
+            ).y;
+        };
+        const pre = (x: number, y: number) => {
+            return StorageBufferC.current.element(
+                StorageBufferC.index2linear(StorageBufferC.linear2index(instanceIndex).add(ivec2(x, y)))
+            ).x;
+        };
+
+        const kernelPre = generatePreWeights(10);
+
+        const getPre = Fn(() => {
+            const p = float(0.0).toVar();
+
+            for (let i = 0; i < kernelPre.weights.length; i++) {
+                const e = kernelPre.weights[i];
+
+                p.addAssign(
+                    float(e.w).mul(
+                        pre(e.x, e.y)
+                    )
+                );
+            }
+
+            return p.div(kernelPre.total);
+        });
+
+        return Fn(() => {
+            const _index = uint(instanceIndex)
+
+            const p = getPre().sub( div(0,0));
+            const out = vec4(p, 0.0, 0.0, 0.0);
+
+            StorageBufferD.current.element(instanceIndex).assign(out);
+        })().compute(res * res, [16, 16]);
+    }, [
+        res,
+        size,
+        StorageBufferC,
+        StorageBufferD,
+        player.tsl_PlayerWorldPosition,
+        player.tsl_PlayerVelocity,
+        renderer,
+        dispatch_size
+    ]);
+
+
+
+    const frame = useRef(0)
+    useFrame(() => {
+
+        if (frame.current % 2 == 0) {
+            // Update Position
+            const pwp = player.playerWorldPosition;
+            //ref.current.position.setX(pwp.x - pwp.x % block_size);
+            //ref.current.position.setZ(pwp.z - pwp.z % block_size);
+
+            // Compute And Writeback
+            renderer.compute(ComputeA, [dispatch_size, dispatch_size, 1]);
+            renderer.compute(StorageBufferA.writebackCompute, [dispatch_size, dispatch_size, 1]);
+            renderer.compute(ComputeB, [dispatch_size, dispatch_size, 1]);
+            renderer.compute(ComputeC, [dispatch_size, dispatch_size, 1]);
+            renderer.compute(ComputeD, [dispatch_size, dispatch_size, 1]);
+        }
+        frame.current += 1;
+
+    })
+
+    // Material
+    const material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial()
+        mat.wireframe = wireframe;
+        mat.colorNode = float(0.0);
+
+        //const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
+        //const worldUv = worldPos.xz.div(size);
+
+        mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
+        mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
+        //mat.emissiveNode = StorageBufferB.current.element(vertexIndex).mul(100);
+        //mat.emissiveNode = StorageBufferC.current.element(vertexIndex).mul(100);
+        //mat.emissiveNode = StorageBufferD.current.element(vertexIndex).mul(1000);
+
+
+        return mat;
+    }, [res, size, wireframe])
+
+    // res should be res-1 to match the thing
+    return <group ref={ref} >
+        <mesh
+            rotation={[-Math.PI * 0.5, 0, 0]}
+            position={[0, 0, 0]}
+            material={material}
+        //renderOrder={998}
+        >
+            <planeGeometry args={[size * 1, size * 1, res - 1, res - 1]} />
+        </mesh>
+
+    </group>
+
+
+
+}
+
+
+
+
+
+
+
+
+type WeightEntry = { x: number; y: number; w: number };
+
+export function generateDivWeights(levels = 10): {
+    weights: WeightEntry[];
+    total: number;
+} {
+    const size = levels * 2 + 1;
+    const center = levels;
+
+    // 2D array
+    const divTab: number[][] = Array.from({ length: size }, () =>
+        Array(size).fill(0)
+    );
+
+    function recurse(x: number, y: number, level: number) {
+        level--;
+
+        // equivalent to: 1 << (level * 2)
+        const weight = Math.pow(4, level);
+        divTab[x][y] += weight;
+
+        if (level > 0) {
+            recurse(x - 1, y, level);
+            recurse(x + 1, y, level);
+            recurse(x, y - 1, level);
+            recurse(x, y + 1, level);
+        }
+    }
+
+    recurse(center, center, levels);
+
+    // Convert to sparse list (like your shader)
+    const weights: WeightEntry[] = [];
+    let total = 0;
+
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            const w = divTab[x][y];
+            if (w !== 0) {
+                const dx = x - center;
+                const dy = y - center;
+
+                weights.push({ x: dx, y: dy, w });
+                total += w;
+            }
+        }
+    }
+
+    // match your shader normalization (multiplier = 2)
+    total *= 2;
+
+    return { weights, total };
+}
+
+export function generatePreWeights(levels = 10): {
+    weights: WeightEntry[];
+    total: number;
+} {
+    const size = levels * 2 + 1;
+    const center = levels;
+
+    const preTab: number[][] = Array.from({ length: size }, () =>
+        Array(size).fill(0)
+    );
+
+    function recurse(x: number, y: number, level: number) {
+        level--;
+
+        if (level > 0) {
+            recurse(x - 1, y, level);
+            recurse(x + 1, y, level);
+            recurse(x, y - 1, level);
+            recurse(x, y + 1, level);
+        } else {
+            // IMPORTANT: shifted neighbors like your C++
+            preTab[x - 1][y]++;
+            preTab[x + 1][y]++;
+            preTab[x][y - 1]++;
+            preTab[x][y + 1]++;
+        }
+    }
+
+    recurse(center, center, levels);
+
+    const weights: WeightEntry[] = [];
+    let total = 0;
+
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            const w = preTab[x][y];
+            if (w !== 0) {
+                const dx = x - center;
+                const dy = y - center;
+
+                weights.push({ x: dx, y: dy, w });
+                total += w;
+            }
+        }
+    }
+
+    return { weights, total };
+}
