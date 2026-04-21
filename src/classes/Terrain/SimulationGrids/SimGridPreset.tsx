@@ -3,15 +3,13 @@ import { folder, useControls } from "leva";
 import { useMemo, useRef } from "react";
 import * as THREE from 'three/webgpu'
 import { useFrame } from "@react-three/fiber";
-import { float, modelWorldMatrix, positionLocal, vec4 } from "three/tsl";
-import { PlayerProvider, usePlayer } from "../../Player/PlayerContext";
+import { float } from "three/tsl";
+import { PlayerProvider} from "../../Player/PlayerContext";
 import { MouseLockProvider } from "../../Player/MouseLock";
 import { inputMap } from "../../../App";
 import { SimpleBackground } from "../../shaders/Aurora";
 import { Player } from "../../Player/Player";
 import { GroundClampSimple, Jump, MoveByVel } from "../../Player/PlayerPhysics";
-import { useWebGPURenderer } from "../ScatterAPI/Scatter/SatinFlow";
-
 
 
 export function SimGridPresetLevel() {
@@ -54,10 +52,10 @@ export function SimGridPreset() {
 
     const { res, size, wireframe } = controls;
     const ref = useRef<THREE.Mesh>(null!);
-    const player = usePlayer()
-    const renderer = useWebGPURenderer()
-    const dispatch_size = useMemo(() => res / 16, [res])
-    const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
+    //const player = usePlayer()
+    //const renderer = useWebGPURenderer()
+    //const dispatch_size = useMemo(() => res / 16, [res])
+    //const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
 
     
     const frame = useRef(0)
@@ -65,7 +63,7 @@ export function SimGridPreset() {
 
         if (frame.current % 2 == 0) {
             // Update Position
-            const pwp = player.playerWorldPosition;            
+            //const pwp = player.playerWorldPosition;            
             //ref.current.position.setX(pwp.x - pwp.x % block_size);
             //ref.current.position.setZ(pwp.z - pwp.z % block_size);
 
@@ -84,8 +82,8 @@ export function SimGridPreset() {
         mat.wireframe = wireframe;
         mat.colorNode = float(0.0);
 
-        const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
-        const worldUv = worldPos.xz.div(size);
+        //const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
+        //const worldUv = worldPos.xz.div(size);
 
         return mat;
     }, [res, size, wireframe])

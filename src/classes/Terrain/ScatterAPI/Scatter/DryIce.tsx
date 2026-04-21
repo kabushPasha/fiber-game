@@ -1,23 +1,18 @@
-import { KeyboardControls } from "@react-three/drei";
-import { MouseLockProvider } from "../../../Player/MouseLock";
-import { PlayerProvider, usePlayer } from "../../../Player/PlayerContext";
-import { inputMap } from "../../../../App";
+import {  usePlayer } from "../../../Player/PlayerContext";
 import { SimpleBackground } from "../../../shaders/Aurora";
 import { Player } from "../../../Player/Player";
 import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
 import { folder, useControls } from "leva";
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
 import * as THREE from 'three/webgpu'
 import { useFrame } from "@react-three/fiber";
 import {
     float,
-    globalId,
     instanceIndex,
     ivec2,
-    modelWorldMatrix,
-    positionLocal,
     uint,
+    uv,
     vec2,
     vec3,
     vec4,
@@ -27,29 +22,25 @@ import { Fn } from "three/src/nodes/TSL.js";
 
 export function DryIceLevel() {
 
-    return <PlayerProvider>
-        <MouseLockProvider>
-            <KeyboardControls map={inputMap} >
+    return <>
 
-                <group name="Lights">
-                    <ambientLight intensity={0.5} />
-                    <directionalLight position={[10, 5, 0]} intensity={0.6} />
-                </group>
+        <group name="Lights">
+            <ambientLight intensity={0.5} />
+            <directionalLight position={[10, 5, 0]} intensity={0.6} />
+        </group>
 
-                <SimpleBackground />
+        <SimpleBackground />
 
-                <Player >
-                    <MoveByVel />
-                    <Jump />
-                    <GroundClampSimple />
-                </Player>
+        <Player >
+            <MoveByVel />
+            <Jump />
+            <GroundClampSimple />
+        </Player>
 
-                <DryIce />
+        <DryIce />
 
 
-            </KeyboardControls>
-        </MouseLockProvider>
-    </PlayerProvider>;
+    </>;
 }
 
 
@@ -70,7 +61,7 @@ export function DryIce() {
     const player = usePlayer()
     const renderer = useWebGPURenderer()
     const dispatch_size = useMemo(() => res / 16, [res])
-    const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
+    //const block_size = useMemo(() => { return size / (res - 1) }, [res, size]);
 
     // Buffser
     const StorageBufferA = useMemo(() => (new ColorStorageWriteback(res)), [res]);
@@ -88,20 +79,16 @@ export function DryIce() {
         }
 
         const programm = Fn(() => {
-            const _index = uint(instanceIndex)
             const uv = StorageBufferA.uv()
-            const texel = StorageBufferA.texelSize()
 
             const gridOrigin = vec3(0.0);
             const worldPos = vec3(uv.x.sub(0.5).mul(size), 0.0, uv.y.sub(0.5).mul(size)).add(gridOrigin);
 
             //const velocity = StorageBufferA.sampleBilinear(uv).mul(0.9);
             //const veld = StorageBufferA.sampleBilinear(uv.add(velocity));
-            const dissipation = 1;            
+            const dissipation = 1;
             const velocity = sampleMinusGradient(uv).mul(dissipation).xy;
             const veld = sampleMinusGradient(uv.sub(velocity)).xyz;
-
-
 
             const vel = veld.xy;
             const d = veld.z;
@@ -109,7 +96,7 @@ export function DryIce() {
             const player_mask = worldPos.sub(player.tsl_PlayerWorldPosition).length().step(0.75).oneMinus().mul(player.tsl_PlayerVelocity.length().min(1.0));
 
             // Add D and Vel
-            const density_dissipation= float(0.999);
+            const density_dissipation = float(0.999);
             const out_d = d.add(player_mask).min(1.0).mul(density_dissipation);
             const out_v = vel.add(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()))
 
@@ -193,8 +180,6 @@ export function DryIce() {
         });
 
         return Fn(() => {
-            const _index = uint(instanceIndex)
-
             const div = getDiv();
             const p = getPre().sub(div);
             const out = vec4(p, div, 0.0, 0.0);
@@ -244,9 +229,7 @@ export function DryIce() {
         });
 
         return Fn(() => {
-            const _index = uint(instanceIndex)
-
-            const p = getPre().sub( div(0,0));
+            const p = getPre().sub(div(0, 0));
             const out = vec4(p, 0.0, 0.0, 0.0);
 
             StorageBufferD.current.element(instanceIndex).assign(out);
@@ -269,7 +252,7 @@ export function DryIce() {
 
         if (frame.current % 2 == 0) {
             // Update Position
-            const pwp = player.playerWorldPosition;
+            //const pwp = player.playerWorldPosition;
             //ref.current.position.setX(pwp.x - pwp.x % block_size);
             //ref.current.position.setZ(pwp.z - pwp.z % block_size);
 
@@ -295,6 +278,8 @@ export function DryIce() {
 
         mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
         mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
+        mat.emissiveNode = StorageBufferA.sampleBilinear(uv().setY(uv().y.oneMinus()));
+
         //mat.emissiveNode = StorageBufferB.current.element(vertexIndex).mul(100);
         //mat.emissiveNode = StorageBufferC.current.element(vertexIndex).mul(100);
         //mat.emissiveNode = StorageBufferD.current.element(vertexIndex).mul(1000);

@@ -1,11 +1,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { folder, useControls } from "leva";
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Fn } from "three/src/nodes/TSL.js";
 import {
     acos,
     clamp,
-    distance,
     exp,
     float,
     floor,
@@ -31,7 +30,6 @@ import {
     transformNormalToView,
     TWO_PI,
     uint,
-    uniform,
     uv,
     uvec2,
     vec2,
@@ -40,7 +38,35 @@ import {
     vertexIndex
 } from "three/tsl";
 import * as THREE from 'three/webgpu'
-import { usePlayer } from "../../../Player/PlayerContext";
+import {  usePlayer } from "../../../Player/PlayerContext";
+import { SimpleBackground } from "../../../shaders/Aurora";
+import { Player } from "../../../Player/Player";
+import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
+
+
+export function SatinLevel() {
+
+    return <>
+
+        <group name="Lights">
+            <ambientLight intensity={0.5} />
+            <directionalLight position={[10, 5, 0]} intensity={0.6} />
+        </group>
+
+        <SimpleBackground />
+
+        <Player >
+            <MoveByVel />
+            <Jump />
+            <GroundClampSimple />
+        </Player>
+
+        <SatinFlow />
+
+    </>;
+}
+
+
 
 export function DrawOnTexture() {
 
@@ -343,12 +369,12 @@ export function SatinFlow() {
 
             // player effect
             const d = uv.xy.sub(player.tsl_PlayerWorldPosition.xz.div(size).fract())
-            const m = exp( d.length().negate().div(50)) 
+            //const m = exp( d.length().negate().div(50)) 
 
             const player_mask = d.length().step(0.02)
 
             const dv_out = dv.xyz
-                .add( player_mask.oneMinus().mul(normz(d)).mul(25).mul(player.tsl_PlayerVelocity.length().min(1.0)) )
+                .add(player_mask.oneMinus().mul(normz(d)).mul(25).mul(player.tsl_PlayerVelocity.length().min(1.0)))
                 ;
 
 
@@ -422,8 +448,6 @@ export function SatinFlow() {
 
     const CalcNandOcc = useMemo(() => {
         return Fn(() => {
-            const _index = uint(instanceIndex)
-
             const posX = instanceIndex.mod(res);
             const posY = instanceIndex.div(res);
             const indexUV = uvec2(posX, posY);
@@ -453,7 +477,7 @@ export function SatinFlow() {
 
         if (frame.current % 2 == 0) {
             // Update Position
-            const pwp = player.playerWorldPosition;            
+            const pwp = player.playerWorldPosition;
             ref.current.position.setX(pwp.x - pwp.x % block_size);
             ref.current.position.setZ(pwp.z - pwp.z % block_size);
 
@@ -491,7 +515,7 @@ export function SatinFlow() {
         const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
         const worldUv = worldPos.xz.div(size);
 
-        const height = StorageBufferD.current.element(vertexIndex).x.mul(0.025);
+        //const height = StorageBufferD.current.element(vertexIndex).x.mul(0.025);
         const normal_occ = texture(StorageTextureNormal, worldUv);
 
         mat.colorNode = normal_occ.w;
@@ -511,11 +535,14 @@ export function SatinFlow() {
             material={material}
         //renderOrder={998}
         >
-            <planeGeometry args={[size*1, size*1, 2, 2]} />
+            <planeGeometry args={[size * 1, size * 1, 2, 2]} />
         </mesh>
 
     </group>
 }
+
+
+
 
 export class ColorStorage {
     current: THREE.StorageBufferNode;
@@ -619,7 +646,7 @@ export class ColorStorage {
     });
     sampleBilinearNbr(
         pos: THREE.Node,
-        dist = this.texelSize(),
+        dist = this.texelSize() as THREE.Node,
     ) {
         const d = vec2(dist);
 

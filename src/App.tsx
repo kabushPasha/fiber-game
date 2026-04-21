@@ -18,9 +18,9 @@ import { TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 
 
 //import { Physics } from "@react-three/rapier";
-import { Suspense, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
-import { GroundClamp, GroundClampSimple, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
+import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
@@ -43,8 +43,10 @@ import AspectRatioCanvas from "./components/AspectRationCanvas"
 import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
 import { DynamicWaterSystemToggle, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
-import { SatinFlow } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
+import { SatinLevel } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
 import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
+import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
+import { Badge } from "react-bootstrap"
 
 extend({ MeshStandardNodeMaterial })
 
@@ -60,13 +62,15 @@ export const inputMap = [
 
 
 const App = () => {
-  const [loading, setLoading] = useState(true);
 
-  const controlls = useControls("Lights", {
-    ambient_intensity: { value: 0.5, min: 0, max: 5 },
-    directional_intensity: { value: 0.6, min: 0, max: 3 },
-    directional_angle: { value: { x: 0, y: 0, z: 0 } },
-  }, { collapsed: true });
+  const [loading, setLoading] = useState(true);
+  const [level, setLevel] = useState(0)
+
+  const pickLevel = useCallback((level: number) => {
+    setLoading(true)
+    setLevel(-1)
+    setTimeout(() => setLevel(level), 0)
+  }, [])
 
 
 
@@ -75,8 +79,8 @@ const App = () => {
 
       <UIScreenProvider>
         <AspectRatioCanvas aspectRatio="235/100">
-
           {false && <Leva collapsed />}
+
           <Canvas
             camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
 
@@ -90,117 +94,42 @@ const App = () => {
               return renderer
             }}
             style={{ background: "black" }}
+            key={level}
           >
             <Stats />
 
-            <Suspense fallback={null}>
+            <PlayerProvider>
+              <MouseLockProvider>
+                <KeyboardControls map={inputMap} >
 
-              {/** Forest Level */}
-              {0 && <PlayerProvider>
+                  <UI_Panel >
+                    <h2><Badge bg="secondary">Level Select</Badge></h2>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(0)}>Level 1: The Woods</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(1)}>Level 2: Cloth Flow</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(2)}>Level 3: Smoke Test</button>
+                  </UI_Panel>
 
-                {1 &&
-                  <CameraUniformsProvider>
-                    <WebGPUPostProcessingProvider >
-                      <PP_PixelHighlights />
-                      <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
-                      <PP_Sharpen />
-                      <PP_DoF />
-                      <PP_ColorGrading />
-                      <PP_LUT />
-                      <PP_Vignette />
-                      <PP_Scanline />
-                    </WebGPUPostProcessingProvider>
-                  </CameraUniformsProvider>
-                }
-
-                <Pixelated resolution={256} enabled={true} />
-
-                <group name="Lights">
-                  <ambientLight intensity={controlls.ambient_intensity} />
-                  <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
-                </group>
-
-                <MouseLockProvider>
-                  <KeyboardControls map={inputMap} >
-                    <TerrainProvider textureUrl="textures/HFs/height.png">
-
-                      <Player >
-                        <WorldPositionConstraint>
-                          {1 && <TerrainPlane />}
-                        </WorldPositionConstraint>
-                        {1 && <MoveByVel />}
-                        <Jump />
-                        <GroundClamp />
-                      </Player>
-
-                      {1 && <>
-                        {0 && <Water />}
-                        {/** Geometry */}
-                        {1 && <GrassScatter />}
-                        {1 && <InteractiveBoxesScatter />}
-                        {1 && <PinesScatter />}
-                        {1 && <TerrainMossUI />}
-                        {1 && <DynamicWaterSystemToggle />}
-
-                        {1 && <SnowSpritesUI active={true} showControls={true} />}
-                      </>}
-
-                    </TerrainProvider>
-
-                    {false && <Pause />}
-                  </KeyboardControls>
-                </MouseLockProvider>
-
-                {1 && <SimpleBackground />}
-
-                {0 && <TaskSelectorPawn />}
-                {0 && <AuroraBackground />}
-                {0 && <TestSDF />}
-                {false && <TestTslShader />}
-                {0 && <RaycastOnClick />}
-
-              </PlayerProvider>}
-
-
-              {/** SATIN LEVEL */}
-              {0 && <PlayerProvider>
-                <MouseLockProvider>
-                  <KeyboardControls map={inputMap} >
-
-                    <group name="Lights">
-                      <ambientLight intensity={controlls.ambient_intensity} />
-                      <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
-                    </group>
-
-
-                    {1 && <SimpleBackground />}
+                  {/** LEVELS */}
+                  {level == 0 && <ForestLevel />}
+                  {level == 1 && <SatinLevel />}
+                  {level == 2 && <DryIceLevel />}
 
 
 
-                    <Player >
-                      <MoveByVel />
-                      <Jump />
-                      <GroundClampSimple />
-                    </Player>
-
-                    <SatinFlow />
+                </KeyboardControls>
+              </MouseLockProvider>
+            </PlayerProvider>
 
 
-                  </KeyboardControls>
-                </MouseLockProvider>
-              </PlayerProvider>}
+            {level != -1 && <EverythingIsLoaded onLoaded={() => { setLoading(false) }} />}
 
-              <DryIceLevel />
-
-
-              <EverythingIsLoaded onLoaded={() => { setLoading(false) }} />
-
-            </Suspense>
           </Canvas>
         </AspectRatioCanvas>
       </UIScreenProvider>
 
       <LoadingScreen loading={loading} />
+
+
     </>
   )
 }
@@ -210,8 +139,75 @@ export function EverythingIsLoaded({ onLoaded }: { onLoaded: () => void }) {
   return null;
 }
 
+export function ForestLevel() {
+
+  const controlls = useControls("Lights", {
+    ambient_intensity: { value: 0.5, min: 0, max: 5 },
+    directional_intensity: { value: 0.6, min: 0, max: 3 },
+    directional_angle: { value: { x: 0, y: 0, z: 0 } },
+  }, { collapsed: true });
+
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+          <PP_PixelHighlights />
+          <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
+          <PP_Sharpen />
+          <PP_DoF />
+          <PP_ColorGrading />
+          <PP_LUT />
+          <PP_Vignette />
+          <PP_Scanline />
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
+
+    <Pixelated resolution={256} enabled={true} />
+
+    <group name="Lights">
+      <ambientLight intensity={controlls.ambient_intensity} />
+      <directionalLight position={[10, 5, 0]} intensity={controlls.directional_intensity} />
+    </group>
+
+    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+      <Player >
+        <WorldPositionConstraint>
+          {1 && <TerrainPlane />}
+        </WorldPositionConstraint>
+        {1 && <MoveByVel />}
+        <Jump />
+        <GroundClamp />
+      </Player>
+
+      {1 && <>
+        {0 && <Water />}
+        {/** Geometry */}
+        {1 && <GrassScatter />}
+        {1 && <InteractiveBoxesScatter />}
+        {1 && <PinesScatter />}
+        {1 && <TerrainMossUI />}
+        {1 && <DynamicWaterSystemToggle />}
+
+        {1 && <SnowSpritesUI active={true} showControls={true} />}
+      </>}
+
+    </TerrainProvider>
+
+    {false && <Pause />}
+
+    {1 && <SimpleBackground />}
+
+    {0 && <TaskSelectorPawn />}
+    {0 && <AuroraBackground />}
+    {0 && <TestSDF />}
+    {false && <TestTslShader />}
+    {0 && <RaycastOnClick />}
+  </>
+}
 
 
-export default App
 
 
+export default App;
