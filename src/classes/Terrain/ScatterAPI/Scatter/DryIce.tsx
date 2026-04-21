@@ -1,4 +1,4 @@
-import {  usePlayer } from "../../../Player/PlayerContext";
+import { usePlayer } from "../../../Player/PlayerContext";
 import { SimpleBackground } from "../../../shaders/Aurora";
 import { Player } from "../../../Player/Player";
 import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
@@ -8,15 +8,26 @@ import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
 import * as THREE from 'three/webgpu'
 import { useFrame } from "@react-three/fiber";
 import {
+    cameraPosition,
+    cameraProjectionMatrixInverse,
+    cameraWorldMatrix,
+    clamp,
     float,
+    getViewPosition,
     instanceIndex,
     ivec2,
+    Loop,
+    mix,
+    modelWorldMatrix,
+    positionLocal,
+    screenUV,
     uint,
-    uv,
     vec2,
     vec3,
     vec4,
-    vertexIndex
+    vertexIndex,
+    viewportDepthTexture,
+    viewportSharedTexture
 } from "three/tsl";
 import { Fn } from "three/src/nodes/TSL.js";
 
@@ -245,8 +256,6 @@ export function DryIce() {
         dispatch_size
     ]);
 
-
-
     const frame = useRef(0)
     useFrame(() => {
 
@@ -271,14 +280,16 @@ export function DryIce() {
     const material = useMemo(() => {
         const mat = new THREE.MeshStandardNodeMaterial()
         mat.wireframe = wireframe;
-        mat.colorNode = float(0.0);
+        mat.colorNode = float(.15);
 
-        //const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
+        const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
         //const worldUv = worldPos.xz.div(size);
 
-        mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
-        mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
-        mat.emissiveNode = StorageBufferA.sampleBilinear(uv().setY(uv().y.oneMinus()));
+        mat.colorNode = worldPos.fract().abs().step(0.5).mul(0.5).add(0.25).length();
+
+        //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
+        //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
+        //mat.emissiveNode = StorageBufferA.sampleBilinear(uv().setY(uv().y.oneMinus()));
 
         //mat.emissiveNode = StorageBufferB.current.element(vertexIndex).mul(100);
         //mat.emissiveNode = StorageBufferC.current.element(vertexIndex).mul(100);
@@ -288,6 +299,67 @@ export function DryIce() {
         return mat;
     }, [res, size, wireframe])
 
+
+
+    // Material
+    const fog_material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial()
+        mat.wireframe = wireframe;
+        mat.colorNode = float(0.0);
+
+
+        mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
+        //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
+        //mat.emissiveNode = StorageBufferA.sampleBilinear(uv().setY(uv().y.oneMinus()));
+
+        const vp_tex = viewportSharedTexture(screenUV);
+
+        const viewPos = getViewPosition(screenUV.xy, viewportDepthTexture(screenUV).r, cameraProjectionMatrixInverse);
+        const worldPos = cameraWorldMatrix.mul(vec4(viewPos));
+        mat.emissiveNode = worldPos;
+
+        const sampleFog = (wp: THREE.Node) => {
+            return StorageBufferA.sampleBilinear(wp.xz.div(size).add(0.5)).z.div(1);
+        }
+
+        const camDir = cameraPosition.sub(worldPos).normalize()
+
+        // Uniforms
+        const fogHeight = 2.0;
+        const slices = 32;
+        const fogDensity = 1.;
+
+
+        const fogStep = float(fogHeight / slices).mul(camDir.div(camDir.y.abs()));
+        const fogSlice = float(fogHeight).div(slices);
+        const stepLen = fogStep.length();
+
+        const calcTransmittance = Fn(() => {
+            const transmittance = float(1.0).toVar("Transmittance");
+
+            Loop(slices, ({ i }) => {
+                const samplePos = worldPos.add(fogStep.mul(i))
+                const sampledFogHeight = sampleFog(samplePos);
+                const curSample = clamp(sampledFogHeight.mul(fogHeight).sub(samplePos.y), float(0), fogSlice).mul(stepLen).div(fogSlice);
+                const curDensity = curSample.mul(fogDensity);
+
+                transmittance.mulAssign(float(1.0).sub(curDensity).max(0.0));
+                //transmittance.mulAssign(0.5);
+
+                //If(transmittance.lessThan(0.01), () => {                    Break();                });
+            });
+
+            return transmittance;
+        })
+
+        mat.emissiveNode = sampleFog(worldPos).add(vp_tex);
+        mat.emissiveNode = mix(vp_tex, vec3(1, 0.5, 0.5), calcTransmittance().oneMinus());
+
+
+        return mat;
+    }, [res, size, wireframe])
+
+
     // res should be res-1 to match the thing
     return <group ref={ref} >
         <mesh
@@ -296,7 +368,16 @@ export function DryIce() {
             material={material}
         //renderOrder={998}
         >
-            <planeGeometry args={[size * 1, size * 1, res - 1, res - 1]} />
+            <planeGeometry args={[size * 2, size * 2, 2, 2]} />
+        </mesh>
+
+        <mesh
+            rotation={[-Math.PI * 0.5, 0, 0]}
+            position={[0, 2, 0]}
+            material={fog_material}
+            renderOrder={998}
+        >
+            <planeGeometry args={[size * 1, size * 1, 2, 2]} />
         </mesh>
 
     </group>

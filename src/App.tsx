@@ -64,7 +64,7 @@ export const inputMap = [
 const App = () => {
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(0)
+  const [level, setLevel] = useState(2)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
