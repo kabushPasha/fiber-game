@@ -48,6 +48,7 @@ import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
 
+
 extend({ MeshStandardNodeMaterial })
 
 export const inputMap = [
@@ -61,10 +62,11 @@ export const inputMap = [
 ]
 
 
-const App = () => {
+const App = () => {  
+  const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(2)
+  const [level, setLevel] = useState(isDebug ? 2 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
