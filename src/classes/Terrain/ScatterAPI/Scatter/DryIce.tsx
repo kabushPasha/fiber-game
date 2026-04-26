@@ -6,7 +6,7 @@ import { folder, useControls } from "leva";
 import { useEffect, useMemo, useRef } from "react";
 import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
 import * as THREE from 'three/webgpu'
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useLoader } from "@react-three/fiber";
 import {
     Break,
     cameraPosition,
@@ -21,8 +21,11 @@ import {
     Loop,
     mix,
     modelWorldMatrix,
+    mx_fractal_noise_vec3,
     positionLocal,
     screenUV,
+    texture,
+    time,
     uint,
     uniform,
     vec2,
@@ -34,6 +37,7 @@ import {
 } from "three/tsl";
 import { Fn } from "three/src/nodes/TSL.js";
 import { Pixelated } from "../../../../components/Pixelated";
+import { Sphere } from "@react-three/drei";
 
 export function DryIceLevel() {
 
@@ -61,6 +65,10 @@ export function DryIceLevel() {
 
 
 export function DryIce() {
+    const noise_tex = useLoader(THREE.TextureLoader, "textures/noises/torus_64.png");
+    noise_tex.wrapS = THREE.RepeatWrapping;
+    noise_tex.wrapT = THREE.RepeatWrapping;
+    noise_tex.colorSpace = THREE.NoColorSpace;
 
     const controls = useControls("Terrain", {
         DryIce: folder({
@@ -68,26 +76,57 @@ export function DryIce() {
             size: { value: 64, min: 1, max: 200 },
             wireframe: { value: false },
 
+            Simulation: folder({
+                density_dissipation: { value: 0.98, min: 0.0, max: 1.0, step: 0.0001 },
+
+
+            }, { collapsed: false }),
+
+
+            Fog: folder({
+                castShadows: { value: true },
+                ground_shadow_density: { value: 0.5, min: 0.0, max: 1.0, step: 0.01, render: (get) => get("Terrain.DryIce.Fog.castShadows") === true }
+
+
+            }, { collapsed: false }),
+
             Light: folder({
-                ligth_intensity: { value: 150.0, min: 0.0, max: 200 },
-                follow_player: { value: true }
+                ligth_intensity: { value: 150.0, min: 0.0, max: 1000, step: 0.01 },
+                light_type: { options: ["point", "directional"], value: "directional" },
+                // Point light
+                ligth_height: { value: 10.0, min: 0.0, max: 20, render: (get) => get("Terrain.DryIce.Light.light_type") === "point" },
+                follow_player: { value: true, render: (get) => get("Terrain.DryIce.Light.light_type") === "point" },
+                // directional light angles
+                dir_elevation: { value: 0.5, min: 0.25, max: 1.0, render: (get) => get("Terrain.DryIce.Light.light_type") === "directional" },
+                dir_azimuth: { value: 0, min: 0, max: 1, render: (get) => get("Terrain.DryIce.Light.light_type") === "directional" },
             })
         }, { collapsed: false })
     });
 
     const uniforms = useMemo(() => ({
         ligth_intensity: uniform(controls.ligth_intensity).setName('light_intensity'),
-        light_position:uniform(new THREE.Vector3(0,0,0)).setName('light_position')
+        light_position: uniform(new THREE.Vector3(0, 0, 0)).setName('light_position'),
+        light_height: uniform(controls.ligth_height).setName('light_hight'),
+        light_direction: uniform(new THREE.Vector3(0, -1, 0)),
+        ground_shadow_density: uniform(controls.ground_shadow_density),
+        density_dissipation: uniform(controls.density_dissipation),
     }), []);
 
-    useEffect(() => {
-        uniforms.ligth_intensity.value = controls.ligth_intensity;
+    useEffect(() => { uniforms.ligth_intensity.value = controls.ligth_intensity; }, [uniforms, controls.ligth_intensity]);
+    useEffect(() => { uniforms.light_height.value = controls.ligth_height; }, [uniforms, controls.ligth_height]);
+    useEffect(() => { uniforms.ground_shadow_density.value = controls.ground_shadow_density; }, [uniforms, controls.ground_shadow_density]);
+    useEffect(() => { uniforms.density_dissipation.value = controls.density_dissipation; }, [uniforms, controls.density_dissipation]);
 
-    }, [
-        uniforms,
-        controls.ligth_intensity
-    ]);
 
+    // Direction from angles
+    const dir = useMemo(() => {
+        return new THREE.Vector3(
+            Math.cos(controls.dir_elevation * Math.PI * 0.5) * Math.cos(controls.dir_azimuth * Math.PI * 2),
+            Math.sin(controls.dir_elevation * Math.PI * 0.5),
+            Math.cos(controls.dir_elevation * Math.PI * 0.5) * Math.sin(controls.dir_azimuth * Math.PI * 2)
+        ).normalize();
+    }, [controls.dir_azimuth, controls.dir_elevation]);
+    useEffect(() => { uniforms.light_direction.value.copy(dir); }, [dir]);
 
     const { res, size, wireframe } = controls;
     const ref = useRef<THREE.Mesh>(null!);
@@ -99,11 +138,10 @@ export function DryIce() {
 
     //Reste Position
     useEffect(() => {
-        if (!controls.follow_player) 
-            {
-                lights_group.current.position.copy(new THREE.Vector3(0, 0, 0));
-                uniforms.light_position.value.set( 0,5,0)
-            }
+        if (!controls.follow_player) {
+            lights_group.current.position.copy(new THREE.Vector3(0, 0, 0));
+            uniforms.light_position.value.set(0, 5, 0)
+        }
     }, [controls.follow_player])
 
     // Buffser
@@ -136,12 +174,41 @@ export function DryIce() {
             const vel = veld.xy;
             const d = veld.z;
 
-            const player_mask = worldPos.sub(player.tsl_PlayerWorldPosition).length().step(0.75).oneMinus().mul(player.tsl_PlayerVelocity.length().min(1.0));
+            //const player_mask = worldPos.sub(player.tsl_PlayerWorldPosition).length().step(0.75).oneMinus().mul(player.tsl_PlayerVelocity.length().min(1.0));
+
+            // Wrapped Player Mask
+            const delta = worldPos.sub(player.tsl_PlayerWorldPosition);
+            const wrappedDelta = delta.sub(delta.div(size).round().mul(size));
+            const player_mask = wrappedDelta
+                .length()
+                .step(0.75)
+                .oneMinus()
+                .mul(player.tsl_PlayerVelocity.length().min(1.0));
+
 
             // Add D and Vel
-            const density_dissipation = float(0.999);
-            const out_d = d.add(player_mask).min(1.0).mul(density_dissipation);
-            const out_v = vel.add(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()))
+            const density_dissipation = uniforms.density_dissipation;
+            //const out_d = d.add(player_mask).min(1.0).mul(density_dissipation);
+            //const out_v = vel.add(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()))
+
+            const out_d = d.toVar("density");
+            const out_v = vel.toVar("velocity");
+            out_d.addAssign(player_mask);
+            out_v.addAssign(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()));
+
+            /*
+            const injection_Noise = mx_fractal_noise_vec3(vec3(worldPos.xz.mul(0.05), time.mul(0.1))).xz;
+            out_d.addAssign(injection_Noise.length().mul(0.01));
+            out_v.addAssign(injection_Noise.mul(0.005).mul(StorageBufferA.texelSize()));
+
+            const disturb_Noise = mx_fractal_noise_vec3(vec3(worldPos.xz.mul(2), time.mul(2))).xz;
+            out_d.addAssign(disturb_Noise.length().mul(0.005));
+            out_v.addAssign(disturb_Noise.mul(0.01).mul(StorageBufferA.texelSize()));
+            */
+
+            // Clamp and dissipate
+            out_d.minAssign(1.0);
+            out_d.mulAssign(density_dissipation);
 
             // Output
             StorageBufferA.output.element(instanceIndex).assign(vec4(out_v, out_d, 0.0));
@@ -308,8 +375,16 @@ export function DryIce() {
 
         if (controls.follow_player) {
             lights_group.current.position.copy(player.playerWorldPosition);
-            uniforms.light_position.value.set( player.playerWorldPosition.x,player.playerWorldPosition.y + 5,player.playerWorldPosition.z);
+            uniforms.light_position.value.set(player.playerWorldPosition.x, player.playerWorldPosition.y + controls.ligth_height, player.playerWorldPosition.z);
         }
+
+        // Follow Player
+        if (true) {
+            const pwp = player.playerWorldPosition;
+            ref.current.position.setX(pwp.x);
+            ref.current.position.setZ(pwp.z);
+        }
+
 
     })
 
@@ -323,6 +398,15 @@ export function DryIce() {
         //const worldUv = worldPos.xz.div(size);
 
         mat.colorNode = worldPos.fract().abs().step(0.5).mul(0.5).add(0.25).length();
+        mat.colorNode = worldPos.xz.fract().sub(0.5).abs().step(0.45).length();
+
+        //const grid = floor(uv().mul(scale));
+        //const checker = mod(add(grid.x, grid.y), 2.0);
+
+        const scale = 2;
+        const grid = worldPos.xz.div(scale).floor();
+        const checker = grid.x.add(grid.y).mod(2.0);
+        mat.colorNode = mix(0.5, checker, 0.1);
 
         //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
         //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
@@ -343,7 +427,6 @@ export function DryIce() {
         mat.wireframe = wireframe;
         mat.colorNode = float(0.0);
 
-
         mat.emissiveNode = StorageBufferA.current.element(vertexIndex).xy.mul(100).abs();
         //mat.emissiveNode = StorageBufferA.current.element(vertexIndex).z;
         //mat.emissiveNode = StorageBufferA.sampleBilinear(uv().setY(uv().y.oneMinus()));
@@ -351,30 +434,33 @@ export function DryIce() {
         const vp_tex = viewportSharedTexture(screenUV);
 
         const sampleFog = (wp: THREE.Node) => {
-            return StorageBufferA.sampleBilinear(wp.xz.div(size).add(0.5)).z.clamp(0, 1.0);
+            //const displace = mx_fractal_noise_vec3(wp.mul(2)).xz.mul(0.1);
+            const displace = texture(noise_tex, wp.xz.mul(.10)).sub(.50).mul(2);
+
+            return StorageBufferA.sampleBilinear(wp.xz.add(displace).div(size).add(0.5)).z.clamp(0, 1.0);
         }
 
+        // Input Vectors
+        const ro = modelWorldMatrix.mul(vec4(positionLocal, 1));
+        const rd = ro.sub(cameraPosition).normalize();
+        const viewPos = getViewPosition(screenUV.xy, viewportDepthTexture(screenUV).r, cameraProjectionMatrixInverse);
+        const screenWp = cameraWorldMatrix.mul(vec4(viewPos));
+        const mint = screenWp.sub(ro).dot(rd).abs();
+        const light_pos = uniforms.light_position.add(vec3(0, uniforms.light_height, 0));
+
+        // Uniforms
+        const fogHeight = 2.0;
+        const slices = 32;
+        const fogDensity = 2.;
+        const fogSlice = float(fogHeight).div(slices);
+        const shadowDensity = float(1.0);
+
+
         const calcTransmittance = Fn(() => {
-            // Vectors
-            const ro = modelWorldMatrix.mul(vec4(positionLocal, 1));
-            const rd = ro.sub(cameraPosition).normalize();
-
-            const viewPos = getViewPosition(screenUV.xy, viewportDepthTexture(screenUV).r, cameraProjectionMatrixInverse);
-            const screenWp = cameraWorldMatrix.mul(vec4(viewPos));
-            const mint = screenWp.sub(ro).dot(rd).abs();
-
-            // Uniforms
-            const fogHeight = 2.0;
-            const slices = 32;
-            const fogDensity = 2.;
-            const fogSlice = float(fogHeight).div(slices);
-            const light_pos = uniforms.light_position;
-            const shadowDensity = float(1.0);
 
             // Calculated
             const fogStep = float(fogHeight / slices).mul(rd.div(rd.y.abs()));
             const stepLen = fogStep.length();
-
 
             // Vars 
             const curPos = modelWorldMatrix.mul(vec4(positionLocal, 1)).toVar("CurrentRayPosition");
@@ -394,10 +480,21 @@ export function DryIce() {
                     transmittance.mulAssign(float(1.0).sub(curDensity).max(0.0));
 
                     // Calc Light
-                    const light_dir = light_pos.sub(curPos).normalize();
-                    const lightDist2 = light_pos.sub(curPos).length().pow(2);
-                    //const light_dir = vec3(0,1,0).normalize();                    
-                    //const lightDist2 = float(10.0);
+                    //const light_dir = light_pos.sub(curPos).normalize();
+                    //const lightDist2 = light_pos.sub(curPos).length().pow(2);
+
+                    // Switch Light
+                    let light_dir, lightDist2;
+                    if (controls.light_type == 'point') {
+                        const toLight = light_pos.sub(curPos);
+                        light_dir = toLight.normalize();
+                        lightDist2 = toLight.length().pow(2);
+                    }
+                    else {
+                        light_dir = uniforms.light_direction.normalize();
+                        lightDist2 = float(100.0);
+                    };
+
 
                     const shadowStep = float(fogHeight).div(slices).mul(light_dir.div(light_dir.y));
                     const shadowPos = curPos.add(shadowStep).toVar("shadowPos");
@@ -435,13 +532,48 @@ export function DryIce() {
             return vec2(lightEnergy, transmittance);
         })
 
-        //mat.emissiveNode = sampleFog(worldPos).add(vp_tex);
+        const calcShadows = Fn(() => {
+            // Switch Light
+            let light_dir, lightDist2;
+            if (controls.light_type == 'point') {
+                const toLight = light_pos.sub(screenWp);
+                light_dir = toLight.normalize();
+                lightDist2 = toLight.length().pow(2);
+            }
+            else {
+                light_dir = uniforms.light_direction.normalize();
+                lightDist2 = float(100.0);
+            };
+
+            const shadowStep = float(fogHeight).div(slices).mul(light_dir.div(light_dir.y));
+            const shadowDist = float(0.0).toVar();
+
+            // --- SHADOW MARCH ---
+            Loop(slices, ({ i }) => {
+                const shadowPos = screenWp.add(shadowStep.mul(float(i)));
+                const v = sampleFog(shadowPos).mul(fogHeight);
+                shadowDist.addAssign(v.sub(shadowPos.y).clamp(float(0), fogSlice).mul(shadowStep.length()).div(fogSlice))
+            });
+
+            const shadowFactor = shadowDist
+                .mul(-1.0)
+                .mul(shadowDensity)
+                .exp()
+            return shadowFactor;
+        })
+
         const fog = calcTransmittance()
-        mat.emissiveNode = mix(vp_tex, vec3(1, 0.5, 0.5).mul(fog.r).mul(uniforms.ligth_intensity), fog.y.oneMinus());
-        //mat.emissiveNode = calcTransmittance();
+
+        const finalColor = controls.castShadows ?
+            vp_tex.mul(mix(1.0, calcShadows(), uniforms.ground_shadow_density))
+            :
+            vp_tex;
+
+        mat.emissiveNode = mix(finalColor, vec3(1, 0.5, 0.5).mul(fog.r).mul(uniforms.ligth_intensity), fog.y.oneMinus());
+
 
         return mat;
-    }, [res, size, wireframe, uniforms])
+    }, [res, size, wireframe, uniforms, controls.light_type, controls.castShadows])
 
 
     // res should be res-1 to match the thing
@@ -462,16 +594,30 @@ export function DryIce() {
                 material={fog_material}
                 renderOrder={998}
             >
-                <planeGeometry args={[size * 1, size * 1, 2, 2]} />
+                <planeGeometry args={[size * 2, size * 2, 2, 2]} />
             </mesh>
         </group>
 
         <group ref={lights_group}>
-            <pointLight position={[1, 10, 1]} intensity={controls.ligth_intensity} />
+            {controls.light_type === "point" && (
+                <pointLight
+                    position={[0, controls.ligth_height, 0]}
+                    intensity={controls.ligth_intensity}
+                />
+            )}
+
 
         </group>
 
+        {controls.light_type === "directional" && (
+            <directionalLight
+                position={dir}
+                intensity={controls.ligth_intensity * 0.01}
+            />
+        )}
 
+
+        <Sphere><meshStandardMaterial /></Sphere>
     </group>
 
 }
