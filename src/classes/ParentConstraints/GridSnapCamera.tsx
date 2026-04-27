@@ -51,7 +51,7 @@ export function GridSnapCamera({ children }: GridSnapCameraProps) {
 
         const cam = camera as THREE.OrthographicCamera;
         const worldUnitsPerPixel = (cam.top - cam.bottom) / cam.zoom / gl.domElement.height;
-        console.log(gl.domElement.height, cam.top, cam.bottom);
+        //console.log(gl.domElement.height, cam.top, cam.bottom);
 
         // camera basis vectors
         const right = new THREE.Vector3(1, 0, 0).applyQuaternion(parentOrient);

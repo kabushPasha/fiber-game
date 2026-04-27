@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls, OrthographicCamera, Stats } from "@react-three/drei"
+import { KeyboardControls,  Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -72,7 +72,7 @@ const App = () => {
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
     setLevel(-1)
-    setTimeout(() => setLevel(level), 0)
+    setTimeout(() => setLevel(level), 0)    
   }, [])
 
 
@@ -82,7 +82,7 @@ const App = () => {
 
       <UIScreenProvider>
         <AspectRatioCanvas aspectRatio="235/100">
-          {false && <Leva collapsed />}
+          {true && <Leva collapsed/>}
 
           <Canvas
             camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
@@ -297,12 +297,7 @@ export function OrthoForest() {
       </CameraUniformsProvider>
     }
 
-    <OrthographicCamera
-      makeDefault
-      zoom={40}
-      near={-100}
-      far={100}
-    />
+
 
     <Pixelated resolution={256} enabled={true} />
 
@@ -313,7 +308,7 @@ export function OrthoForest() {
 
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
-      <Player >
+      <Player camera_props={{ default_pitch:45, min_pitch:0.3, max_pitch:0.6, ortho:true }} >
         <WorldPositionConstraint>
           {1 && <TerrainPlane />}
         </WorldPositionConstraint>
@@ -325,7 +320,8 @@ export function OrthoForest() {
       {1 && <>
         {1 && <GrassScatter />}
         {1 && <PinesScatter />}
-        {0 && <SnowSpritesUI active={true} showControls={true} />}
+        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000}/>}
+        {0 && <DynamicWaterSystemToggle />}
       </>}
 
     </TerrainProvider>

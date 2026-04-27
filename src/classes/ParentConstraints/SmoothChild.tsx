@@ -1,25 +1,13 @@
 import { useThree, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
 import { MaybeLateralTilt } from "../Player/LateralTilt";
 import { GridSnapCamera } from "./GridSnapCamera";
-
-type MaybeSmoothChildProps = SmoothChildProps & {
-  enabled?: boolean
-}
-export function MaybeSmoothChild({
-  enabled = true,
-  children,
-  ...props
-}: MaybeSmoothChildProps) {
-  if (!enabled) {
-    return <group>{children}</group>
-  }
-  return <SmoothChild {...props}>{children}</SmoothChild>
-}
-
+import { folder, useControls } from "leva";
+import { OrthographicCamera } from "@react-three/drei";
+import type { LZ_CamerOrientationControllerProps } from "../Player/CameraController";
 
 type SmoothChildProps = React.PropsWithChildren<{
   smooth?: number
@@ -87,20 +75,44 @@ export function SmoothChild({
   return <group ref={groupRef}>{children}</group>
 }
 
-
-
-
 type SmoothCameraProps = {
-  smooth?: number
+  smooth?: number,
+  defaultZ?: number,
 }
 
+export function LZ_PerspectiveCameraSmooth({
+  smooth = 6,
+  defaultZ = 0,
+}: SmoothCameraProps) {
 
-export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
+  const [controls, set] = useControls(() => ({
+    Player: folder({
+      Camera: folder({
+        defaultZ: { value: defaultZ },
+        fow: { value: 50 },
+      }),
+    }),
+  }))
+
+  useEffect(() => {
+    set({ defaultZ });
+  }, [defaultZ, set]);
+
   const { camera } = useThree()
-  const targetZ = useRef(camera.position.z) // target for smooth scroll
+  const targetZ = useRef(0) // target for smooth scroll
 
-  const ortho = useMemo(() => {return camera instanceof THREE.OrthographicCamera}, [camera]);
-  
+  useEffect(() => {
+    (camera as THREE.PerspectiveCamera).fov = controls.fow;
+    camera.updateProjectionMatrix()
+  }, [controls.fow]);
+
+  // update When Defaults Change
+  useEffect(() => {
+    targetZ.current = controls.defaultZ
+    camera.position.z = controls.defaultZ
+  }, [controls.defaultZ])
+
+  // WHEEL ZOOM
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       targetZ.current += e.deltaY * 0.01 // adjust scroll speed
@@ -114,28 +126,129 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
   }, [])
 
   useFrame(() => {
-    // Smoothly interpolate camera z toward targetZ
     camera.position.z += (targetZ.current - camera.position.z) * 0.1 // smooth factor    
   })
 
-
-
   return (
     <>
-      {!ortho ?
-        <MaybeSmoothChild smooth={smooth}>
-          <HeadBob>
-            <MaybeLateralTilt maxTilt={0.15} damping={6}>
-              <primitive object={camera} />
-            </MaybeLateralTilt>
-          </HeadBob>
-        </MaybeSmoothChild>
-        :
-        <GridSnapCamera>
-          <primitive object={camera} />
-        </GridSnapCamera>
-      }
+      <SmoothChild smooth={smooth}>
+        <HeadBob>
+          <MaybeLateralTilt maxTilt={0.15} damping={6}>
+            <primitive object={camera} />
+          </MaybeLateralTilt>
+        </HeadBob>
+      </SmoothChild>
     </>
   )
 }
 
+type LZ_OrthoCameraProps = {
+  smooth?: number,
+  default_zoom?: number,
+  use_camera?: boolean,
+}
+
+export function LZ_OrthoCamera({
+  //smooth = 6,
+  //default_zoom = 0,
+  use_camera = false,
+}: LZ_OrthoCameraProps) {
+
+  /*
+  const [controls, set] = useControls(() => ({
+    Player: folder({
+      Camera: folder({
+        default_zoom: { value: default_zoom },
+      }),
+    }),
+  }))
+
+  useEffect(() => {
+    set({ default_zoom });
+  }, [default_zoom, set]);
+  */
+  const { camera } = useThree()
+
+
+
+  // WHEEL ZOOM - disabled until later
+  /*
+  const target_zoom = useRef(40) // target for smooth scroll
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      // UPDATE ZOOM TARGET
+      target_zoom.current += e.deltaY * -0.01 // invert scroll direction if needed
+      target_zoom.current = Math.min(Math.max(target_zoom.current, 10), 100)
+    }
+
+    document.addEventListener("wheel", onWheel)
+    return () => { document.removeEventListener("wheel", onWheel) }
+  }, [])
+  useFrame(() => {
+    // UPDATE ZOOM  
+    camera.zoom += (target_zoom.current - camera.zoom) * 0.1
+    camera.updateProjectionMatrix()
+  })*/
+
+  return (
+    <>
+      <OrthographicCamera
+        makeDefault={use_camera}
+        zoom={40}
+        near={-100}
+        far={100}
+      />
+
+      {use_camera && <>
+        <GridSnapCamera>
+          <primitive object={camera} />
+        </GridSnapCamera>
+      </>}
+    </>
+  )
+}
+
+
+export function LZ_CameraSwitcher(default_props: LZ_CamerOrientationControllerProps) {
+
+  const ortho = default_props.ortho ?? false;
+  const can_switch = default_props.can_switch_camera ?? true;
+
+  const [controls, set] = useControls(() => ({
+    Player: folder({
+      Camera: folder({
+        ortho: { value: ortho, render: () => { return can_switch } }
+      }),
+    }),
+  }))
+
+  useEffect(() => {
+    set({ ortho, });
+  }, [ortho, set]);
+
+  // ORTHO SWAP
+  useEffect(() => {
+    if (!can_switch) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "KeyF") { set({ ortho: !controls.ortho }) }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [controls.ortho, set, can_switch])
+
+
+  return (
+    <>
+      {!controls.ortho && <LZ_PerspectiveCameraSmooth {...default_props} />}
+      <LZ_OrthoCamera use_camera={controls.ortho} />
+    </>
+  )
+}
+
+
+
+/*
+
+
+  
+  */

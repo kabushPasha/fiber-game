@@ -57,7 +57,7 @@ export function DryIceLevel() {
 
         {0 && <SimpleBackground />}
 
-        <Player >
+        <Player camera_props={{default_pitch:45,defaultZ: 25, min_pitch:0.4,can_switch_camera:false}}>
             <MoveByVel />
             <Jump />
             <GroundClampSimple />

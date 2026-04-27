@@ -5,9 +5,9 @@ import * as THREE from "three"
 import { useUI } from "../../components/UIScreenContext"
 import { CrosshairDot } from "../../components/CrosshairDot"
 import { GameObject3D } from "../GameObjectContext"
-import { SmoothCamera } from "../ParentConstraints/SmoothChild"
+import { LZ_CameraSwitcher, LZ_PerspectiveCameraSmooth } from "../ParentConstraints/SmoothChild"
 import { useMouseLock } from "./MouseLock"
-import { CameraController } from "./CameraController"
+import { LZ_CamerOrientationController, type LZ_CamerOrientationControllerProps } from "./CameraController"
 import { usePlayer } from "./PlayerContext"
 
 
@@ -15,10 +15,11 @@ const SPEED = 10
 const SPRINT_SPEED = 25 // sprint speed
 
 interface PlayerProps {
-  children?: ReactNode
+  children?: ReactNode,
+  camera_props?: LZ_CamerOrientationControllerProps
 }
 
-export function Player({ children }: PlayerProps) {
+export function Player({ children,camera_props }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
   // Register Our Player
   const { setPlayer } = usePlayer()
@@ -92,7 +93,9 @@ export function Player({ children }: PlayerProps) {
           Controls:<br />
           WASD - Move<br />
           SHIFT - Sprint<br />
-          MouseScroll - Zoom IN/OUT
+          MouseScroll - Zoom IN/OUT<br />
+          L - Select Level<br />
+          F - Change Camera(if availible) <br />
         </div>
       </>
 
@@ -110,9 +113,10 @@ export function Player({ children }: PlayerProps) {
     <GameObject3D ref={playerRef} name="Player">
       {children}
 
-      <CameraController>
-        {1 && <SmoothCamera />}
-      </CameraController>
+      <LZ_CamerOrientationController {...camera_props}>
+        {0 && <LZ_PerspectiveCameraSmooth {...camera_props}/>}
+        <LZ_CameraSwitcher {...camera_props}/>
+      </LZ_CamerOrientationController>
 
       <Sphere scale={0.5} />
     </GameObject3D>

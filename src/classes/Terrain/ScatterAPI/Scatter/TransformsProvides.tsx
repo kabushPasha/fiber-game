@@ -44,7 +44,7 @@ export type GridScatterProps = {
     children?: React.ReactNode
     name: string
     showUI?: boolean
-    seed? : number
+    seed?: number
 }
 
 type GridScatterPropsResolved =
@@ -87,7 +87,7 @@ export function useGridScatterControlsUI(_props: GridScatterProps): GridScatterP
             scale: { value: props.scale as number, min: 0.01, max: 10, step: 0.01 },
             scale_random: { value: props.scale_random as number, min: 0, max: 1, step: 0.01 },
             offset_random: { value: props.offset_random as number, min: 0, max: 3, step: 0.01 },
-            seed: { value: props.seed as number,min:0,max:9999,step:1 }
+            seed: { value: props.seed as number, min: 0, max: 9999, step: 1 }
         }, { collapsed: true })
     })
 
@@ -200,20 +200,20 @@ export function createGridTransforms(props: GridScatterProps) {
     } = props
 
     const transforms: THREE.Matrix4[] = []
-    
+
 
     for (let x = 0; x < cellCount; x++) {
         for (let z = 0; z < cellCount; z++) {
 
             const position = new THREE.Vector3((x - (cellCount - 1) / 2) * spacing, 0, (z - (cellCount - 1) / 2) * spacing)
 
-            const randOffset = new THREE.Vector3(randomN(x,z,seed,1) - 0.5, 0, randomN(x,z,seed,2) - 0.5)
+            const randOffset = new THREE.Vector3(randomN(x, z, seed, 1) - 0.5, 0, randomN(x, z, seed, 2) - 0.5)
             position.addScaledVector(randOffset, spacing * offset_random)
-            
-            const rotation = new THREE.Euler(0, randomN(x,z,seed,3) * Math.PI * 2 * rotation_random, 0)
+
+            const rotation = new THREE.Euler(0, randomN(x, z, seed, 3) * Math.PI * 2 * rotation_random, 0)
             const rotQuat = new THREE.Quaternion().setFromEuler(rotation)
 
-            const s = scale * (1 - randomN(x,z,seed,4) * scale_random)
+            const s = scale * (1 - randomN(x, z, seed, 4) * scale_random)
 
             transforms.push(
                 new THREE.Matrix4().compose(
@@ -604,7 +604,7 @@ export function DistanceFadeMaterialGPU() {
 
 
 
-export function GrassPivotMaterial() {
+export function GrassPivotMaterial({ use_distance_mask = true }) {
     const { transformsBufferNode } = useTransformsBuffer();
     const terrain = useTerrain();
     const player = usePlayer();
@@ -649,7 +649,9 @@ export function GrassPivotMaterial() {
         const world_pivot = instanceMatrix.mul(vec4(0, 0, 0, 1));
         const start_dist = 0.1;
         const dist_mask_pow = 1 / 2;
-        const distance_mask = remapFromMin(length(world_pivot.sub(player.tsl_PlayerWorldPosition).xz).div(grid.gridSize * 0.5), start_dist).oneMinus().pow(dist_mask_pow);
+        const distance_mask = use_distance_mask ?
+            remapFromMin(length(world_pivot.sub(player.tsl_PlayerWorldPosition).xz).div(grid.gridSize * 0.5), start_dist).oneMinus().pow(dist_mask_pow)
+            : float(1.0);
 
         // Calculate Position
         const pivot_height = terrain.tsl_sampleHeight(pivot_ws);
@@ -670,7 +672,7 @@ export function GrassPivotMaterial() {
         mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
 
         return mat;
-    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize]);
+    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize,use_distance_mask]);
 
     return <primitive object={material} attach="material" />
 }

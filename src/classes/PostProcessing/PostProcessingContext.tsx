@@ -7,7 +7,7 @@ import { pass, mrt, output, metalness, emissive, normalView } from "three/tsl";
 
 interface WebGPUPostProcessingContextValue {
     postProcessing: THREE.PostProcessing | null;
-    scenePass: THREE.PassNode | null; 
+    scenePass: THREE.PassNode | null;
     effectsRef: ((currentNode: any) => any)[]
     runEffects: () => void;
 }
@@ -53,6 +53,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     // Setup postprocessing and scenePass
     useEffect(() => {
         //console.log("CREATE PP")
+        console.log("CAM CHANGED", camera);
         if (!renderer || !scene || !camera) return;
 
         const scenePass = pass(scene, camera, {
@@ -83,13 +84,17 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
             scenePassRef.current = null;
             effectsRef.current = [];
         };
-    }, [renderer, scene, camera]);
+    }, [renderer, scene]);
+
+
 
     // Render each frame
     useFrame(({ gl }) => {
+        if (scenePassRef.current) { scenePassRef.current.camera = camera; }
+
         if (postProcessingRef.current) {
             gl.clear();
-            postProcessingRef.current.render();            
+            postProcessingRef.current.render();
         }
     }, 1);
 
@@ -115,19 +120,19 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
     const id = useRef<number | null>(null);
 
     useEffect(() => {
-        if (id.current  === null) {
+        if (id.current === null) {
             id.current = effectsRef.length;
-            effectsRef.push( () => {});
-        } 
+            effectsRef.push(() => { });
+        }
 
         return () => {
-            if(id.current) effectsRef[id.current] = () => {};
-        } 
+            if (id.current) effectsRef[id.current] = () => { };
+        }
     }, [])
- 
+
 
     useEffect(() => {
-        if (id.current  === null) {
+        if (id.current === null) {
             id.current = effectsRef.length;
             effectsRef.push(effectFn);
         }
