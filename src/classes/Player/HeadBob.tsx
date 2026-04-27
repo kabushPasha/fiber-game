@@ -6,6 +6,7 @@ import { useFrame } from "@react-three/fiber"
 
 
 type HeadBobProps = {
+  enabled?: boolean
   maxSpeed?: number
 
   walkAmplitude?: number
@@ -26,6 +27,7 @@ type HeadBobProps = {
 }
 
 export function HeadBob({
+  enabled = true,
   maxSpeed = 24,
 
   walkAmplitude = 0.1,
@@ -61,7 +63,8 @@ export function HeadBob({
   useFrame((_, delta) => {
 
     const g = groupRef.current
-    if (!g) return
+    if (!g ||!enabled) return
+
 
     const parent = objectRef.current.parent!
     const vel: THREE.Vector3 = parent.userData.vel ??= new THREE.Vector3(0, 0, 0)
@@ -128,7 +131,7 @@ export function HeadBob({
     // Detect landing: big downward velocity stop near ground
     if (deltaVelY < -10 && velY === 0 && groundDistance <= 0.05) {
       // proportional to how fast we landed
-      const impactStrength = THREE.MathUtils.clamp(-deltaVelY * 0.005, 0, 0.25)*0 + 4
+      const impactStrength = THREE.MathUtils.clamp(-deltaVelY * 0.005, 0, 0.25) * 0 + 4
       landingTarget.current = impactStrength
     }
 

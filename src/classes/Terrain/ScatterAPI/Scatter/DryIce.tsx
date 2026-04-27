@@ -20,8 +20,7 @@ import {
     ivec2,
     Loop,
     mix,
-    modelWorldMatrix,
-    mx_fractal_noise_vec3,
+    modelWorldMatrix,    
     positionLocal,
     screenUV,
     texture,
@@ -39,10 +38,17 @@ import { Fn } from "three/src/nodes/TSL.js";
 import { Pixelated } from "../../../../components/Pixelated";
 import { Sphere } from "@react-three/drei";
 
+
+// Based on :
+// https://www.shadertoy.com/view/WlVyRV
+
+
+
 export function DryIceLevel() {
 
     return <>
         <Pixelated resolution={256} enabled={true} />
+
 
         <group name="Lights">
             <ambientLight intensity={0.0} />
@@ -72,22 +78,32 @@ export function DryIce() {
 
     const controls = useControls("Terrain", {
         DryIce: folder({
-            res: { value: 256, min: 4, max: 1024, step: 1 },
+            res: { value: 512, min: 4, max: 1024, step: 1 },
             size: { value: 64, min: 1, max: 200 },
             wireframe: { value: false },
 
             Simulation: folder({
                 density_dissipation: { value: 0.98, min: 0.0, max: 1.0, step: 0.0001 },
+                player_mode: { options: ["cut", "emit"], value: "emit" },
 
+                injection_noise: folder({
+                    in_enabled: { value: true },
+
+                    in_strength: { value: 0.1, min: 0.0, max: 0.1, step: 0.0001 },
+                    in_vel_strength: { value: 0.50, min: 0.0, max: 1.0, step: 0.0001 },
+                    in_scale: { value: 0.3, min: 0.001, max: 1.0, step: 0.001 },
+                    in_speed: { value: 0.2, min: 0.0, max: 1.0, step: 0.01 },
+                }),
 
             }, { collapsed: false }),
 
 
             Fog: folder({
                 castShadows: { value: true },
-                ground_shadow_density: { value: 0.5, min: 0.0, max: 1.0, step: 0.01, render: (get) => get("Terrain.DryIce.Fog.castShadows") === true }
-
-
+                ground_shadow_density: { value: 0.5, min: 0.0, max: 1.0, step: 0.01, render: (get) => get("Terrain.DryIce.Fog.castShadows") === true },
+                displace: { value: true },
+                displace_tile: { value: 4.0, min: 0.0, max: 10.0, step: 0.01, render: (get) => get("Terrain.DryIce.Fog.displace") === true },
+                displace_amp: { value: 1.0, min: 0.0, max: 10.0, step: 0.01, render: (get) => get("Terrain.DryIce.Fog.displace") === true },
             }, { collapsed: false }),
 
             Light: folder({
@@ -110,12 +126,27 @@ export function DryIce() {
         light_direction: uniform(new THREE.Vector3(0, -1, 0)),
         ground_shadow_density: uniform(controls.ground_shadow_density),
         density_dissipation: uniform(controls.density_dissipation),
+        displace_tile: uniform(controls.displace_tile),
+        displace_amp: uniform(controls.displace_amp),
+
+        injection_noise_strength: uniform(controls.in_strength),
+        injection_noise_vel_strength: uniform(controls.in_vel_strength),
+        injection_noise_scale: uniform(controls.in_scale),
+        injection_noise_speed: uniform(controls.in_speed),
+
     }), []);
 
     useEffect(() => { uniforms.ligth_intensity.value = controls.ligth_intensity; }, [uniforms, controls.ligth_intensity]);
     useEffect(() => { uniforms.light_height.value = controls.ligth_height; }, [uniforms, controls.ligth_height]);
     useEffect(() => { uniforms.ground_shadow_density.value = controls.ground_shadow_density; }, [uniforms, controls.ground_shadow_density]);
     useEffect(() => { uniforms.density_dissipation.value = controls.density_dissipation; }, [uniforms, controls.density_dissipation]);
+    useEffect(() => { uniforms.displace_tile.value = controls.displace_tile; }, [uniforms, controls.displace_tile]);
+    useEffect(() => { uniforms.displace_amp.value = controls.displace_amp; }, [uniforms, controls.displace_amp]);
+
+    useEffect(() => { uniforms.injection_noise_strength.value = controls.in_strength; }, [uniforms, controls.in_strength]);
+    useEffect(() => { uniforms.injection_noise_vel_strength.value = controls.in_vel_strength; }, [uniforms, controls.in_vel_strength]);
+    useEffect(() => { uniforms.injection_noise_scale.value = controls.in_scale; }, [uniforms, controls.in_scale]);
+    useEffect(() => { uniforms.injection_noise_speed.value = controls.in_speed; }, [uniforms, controls.in_speed]);
 
 
     // Direction from angles
@@ -193,22 +224,24 @@ export function DryIce() {
 
             const out_d = d.toVar("density");
             const out_v = vel.toVar("velocity");
-            out_d.addAssign(player_mask);
-            out_v.addAssign(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()));
+            if (controls.player_mode == "emit")
+                out_d.addAssign(player_mask);
+            else
+                out_d.mulAssign(player_mask.oneMinus());
+            out_v.addAssign(player.tsl_PlayerVelocity.xz.mul(player_mask).mul(-0.01).mul(StorageBufferA.texelSize()).mul(5));
 
-            /*
-            const injection_Noise = mx_fractal_noise_vec3(vec3(worldPos.xz.mul(0.05), time.mul(0.1))).xz;
-            out_d.addAssign(injection_Noise.length().mul(0.01));
-            out_v.addAssign(injection_Noise.mul(0.005).mul(StorageBufferA.texelSize()));
 
-            const disturb_Noise = mx_fractal_noise_vec3(vec3(worldPos.xz.mul(2), time.mul(2))).xz;
-            out_d.addAssign(disturb_Noise.length().mul(0.005));
-            out_v.addAssign(disturb_Noise.mul(0.01).mul(StorageBufferA.texelSize()));
-            */
+            if (controls.in_enabled) {
+                const injection_Noise = fbm(7)(vec3(worldPos.xz.mul(uniforms.injection_noise_scale), time.mul(uniforms.injection_noise_speed))).sub(0.5);
+                out_d.addAssign(injection_Noise.max(0.0).length().mul(uniforms.injection_noise_strength));
+                out_v.addAssign(injection_Noise.mul(uniforms.injection_noise_vel_strength).mul(StorageBufferA.texelSize()).mul(0.1));
+            }
 
+            out_v.mulAssign(0.99);
             // Clamp and dissipate
             out_d.minAssign(1.0);
             out_d.mulAssign(density_dissipation);
+
 
             // Output
             StorageBufferA.output.element(instanceIndex).assign(vec4(out_v, out_d, 0.0));
@@ -222,7 +255,10 @@ export function DryIce() {
         StorageBufferD,
         player.tsl_PlayerWorldPosition,
         player.tsl_PlayerVelocity,
-        dispatch_size
+        dispatch_size,
+        controls.in_enabled,
+        controls.player_mode,
+
     ]);
 
     const ComputeB = useMemo(() => {
@@ -435,7 +471,10 @@ export function DryIce() {
 
         const sampleFog = (wp: THREE.Node) => {
             //const displace = mx_fractal_noise_vec3(wp.mul(2)).xz.mul(0.1);
-            const displace = texture(noise_tex, wp.xz.mul(.10)).sub(.50).mul(2);
+            const displace = controls.displace ?
+                texture(noise_tex, wp.xz.div(uniforms.displace_tile)).sub(.50).mul(uniforms.displace_amp)
+                :
+                vec2(0.0);
 
             return StorageBufferA.sampleBilinear(wp.xz.add(displace).div(size).add(0.5)).z.clamp(0, 1.0);
         }
@@ -534,15 +573,13 @@ export function DryIce() {
 
         const calcShadows = Fn(() => {
             // Switch Light
-            let light_dir, lightDist2;
+            let light_dir;
             if (controls.light_type == 'point') {
                 const toLight = light_pos.sub(screenWp);
                 light_dir = toLight.normalize();
-                lightDist2 = toLight.length().pow(2);
             }
             else {
                 light_dir = uniforms.light_direction.normalize();
-                lightDist2 = float(100.0);
             };
 
             const shadowStep = float(fogHeight).div(slices).mul(light_dir.div(light_dir.y));
@@ -573,7 +610,7 @@ export function DryIce() {
 
 
         return mat;
-    }, [res, size, wireframe, uniforms, controls.light_type, controls.castShadows])
+    }, [res, size, wireframe, uniforms, controls.light_type, controls.castShadows, controls.displace])
 
 
     // res should be res-1 to match the thing
@@ -731,3 +768,63 @@ export function generatePreWeights(levels = 10): {
 
     return { weights, total };
 }
+
+
+
+// noise(vec3 p)
+export const value_noise = Fn(([p]: [THREE.Node]) => {
+    // vec3 ip = floor(p);
+    const ip = p.floor();
+    // p -= ip;
+    const fp = p.sub(ip);
+    // vec3 s = vec3(7,157,113);
+    const s = vec3(7.0, 157.0, 113.0);
+    // vec4 h = vec4(0., s.yz, s.y + s.z) + dot(ip, s);
+    let h = vec4(0.0, s.y, s.z, s.y.add(s.z)).add(ip.dot(s));
+
+    // p = p*p*(3.-2.*p);
+    const u = fp.mul(fp).mul(vec3(3.0).sub(fp.mul(2.0)));
+
+    // h = mix(fract(sin(h)*43758.5), fract(sin(h+s.x)*43758.5), p.x);
+    const hmix = mix(
+        h.sin().mul(43758.5).fract(),
+        h.add(s.x).sin().mul(43758.5).fract(),
+        u.x
+    );
+
+    // h.xy = mix(h.xz, h.yw, p.y);
+    const hxy = mix(
+        vec2(hmix.x, hmix.z),
+        vec2(hmix.y, hmix.w),
+        u.y
+    );
+
+    // return mix(h.x, h.y, p.z);
+    return mix(hxy.x, hxy.y, u.z);
+});
+
+export const fbm = (octaveNum = 4) => {
+    return Fn(([pInput]: [THREE.Node]) => {
+        let p = pInput;
+        const acc = vec2(0.0, 0.0).toVar();
+        let amp = 0.5;
+
+        const shift = vec3(100.0, 100.0, 100.0);
+
+        // JS loop → builds node graph
+        for (let i = 0; i < octaveNum; i++) {
+
+            const n1 = value_noise(p);
+            const n2 = value_noise(p.add(vec3(0.0, 0.0, 10.0)));
+
+            const octave = vec2(n1, n2).mul(amp);
+            acc.addAssign(octave);
+
+            // next octave transform
+            p = p.mul(2.0).add(shift);
+            amp *= 0.5;
+        }
+        return acc;
+    });
+
+};

@@ -1,9 +1,24 @@
 import { useThree, useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
-import { LateralTilt } from "../Player/LateralTilt";
+import { MaybeLateralTilt } from "../Player/LateralTilt";
+import { GridSnapCamera } from "./GridSnapCamera";
+
+type MaybeSmoothChildProps = SmoothChildProps & {
+  enabled?: boolean
+}
+export function MaybeSmoothChild({
+  enabled = true,
+  children,
+  ...props
+}: MaybeSmoothChildProps) {
+  if (!enabled) {
+    return <group>{children}</group>
+  }
+  return <SmoothChild {...props}>{children}</SmoothChild>
+}
 
 
 type SmoothChildProps = React.PropsWithChildren<{
@@ -84,6 +99,8 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
   const { camera } = useThree()
   const targetZ = useRef(camera.position.z) // target for smooth scroll
 
+  const ortho = useMemo(() => {return camera instanceof THREE.OrthographicCamera}, [camera]);
+  
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       targetZ.current += e.deltaY * 0.01 // adjust scroll speed
@@ -98,18 +115,26 @@ export function SmoothCamera({ smooth = 6 }: SmoothCameraProps) {
 
   useFrame(() => {
     // Smoothly interpolate camera z toward targetZ
-    camera.position.z += (targetZ.current - camera.position.z) * 0.1 // smooth factor
+    camera.position.z += (targetZ.current - camera.position.z) * 0.1 // smooth factor    
   })
+
+
 
   return (
     <>
-    <SmoothChild smooth={smooth}>
-      <HeadBob>
-        <LateralTilt maxTilt={0.15} damping={6}>
+      {!ortho ?
+        <MaybeSmoothChild smooth={smooth}>
+          <HeadBob>
+            <MaybeLateralTilt maxTilt={0.15} damping={6}>
+              <primitive object={camera} />
+            </MaybeLateralTilt>
+          </HeadBob>
+        </MaybeSmoothChild>
+        :
+        <GridSnapCamera>
           <primitive object={camera} />
-        </LateralTilt>
-      </HeadBob>
-    </SmoothChild>
+        </GridSnapCamera>
+      }
     </>
   )
 }

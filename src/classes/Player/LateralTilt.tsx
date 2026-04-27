@@ -42,3 +42,19 @@ export function LateralTilt({
 
   return <group ref={groupRef}>{children}</group>
 }
+
+
+type MaybeLateralTiltProps = LateralTiltProps & {
+  enabled?: boolean
+}
+export function MaybeLateralTilt({
+  enabled = true,
+  children,
+  ...props
+}: MaybeLateralTiltProps) {
+  if (!enabled) {
+    return <group>{children}</group>
+  }
+
+  return <LateralTilt {...props}>{children}</LateralTilt>
+}

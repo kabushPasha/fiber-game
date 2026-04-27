@@ -4,16 +4,39 @@ import { float, screenSize, screenUV, texture, uniform, vec2, vec3 } from "three
 import { Fn } from "three/src/nodes/TSL.js";
 import { folder, useControls } from "leva";
 
-export function PP_Sharpen() {
+
+type PPSharpenProps = {
+    enabled?: boolean;
+    strength?: number;
+    kernelSize?: number;
+    debug?: boolean;
+};
+
+export function PP_Sharpen({
+    enabled: enabledProp = true,
+    strength: strengthProp = 0.02,
+    kernelSize: kernelSizeProp = 2,
+    debug: debugProp = false
+}: PPSharpenProps) {
     const { scenePass } = useWebGPUPostProcessing();
 
     const { enabled, strength, kernelSize, debug } = useControls("Render", {
         PostProcess: folder({
             Sharpen: folder({
-                enabled: true,
-                debug: false,
-                kernelSize: { value: 2, min: 1, max: 3, step: 1 },
-                strength: { value: 0.02, min: 0, max: 0.5, step: 0.01 }
+                enabled: { value: enabledProp },
+                debug: { value: debugProp },
+                kernelSize: {
+                    value: kernelSizeProp,
+                    min: 1,
+                    max: 3,
+                    step: 1
+                },
+                strength: {
+                    value: strengthProp,
+                    min: 0,
+                    max: 0.5,
+                    step: 0.01
+                }
             })
         })
     });
@@ -39,7 +62,7 @@ export function PP_Sharpen() {
 
         // Mix sharpened edges with original color
         return inputNode.add(sharpen.mul(uniforms.strength));
-    }, [scenePass,enabled, kernelSize, debug]);
+    }, [scenePass, enabled, kernelSize, debug]);
 
     PostProcessingEffect(effect);
 

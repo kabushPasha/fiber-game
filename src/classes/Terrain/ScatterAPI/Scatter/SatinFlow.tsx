@@ -38,11 +38,10 @@ import {
     vertexIndex
 } from "three/tsl";
 import * as THREE from 'three/webgpu'
-import {  usePlayer } from "../../../Player/PlayerContext";
+import { usePlayer } from "../../../Player/PlayerContext";
 import { SimpleBackground } from "../../../shaders/Aurora";
 import { Player } from "../../../Player/Player";
 import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
-
 
 export function SatinLevel() {
 
@@ -523,6 +522,7 @@ export function SatinFlow() {
 
         const normal = normal_occ.xyz;
         mat.normalNode = transformNormalToView(normal.setY(normal.y.negate()));
+
 
         return mat;
     }, [res, size, wireframe])

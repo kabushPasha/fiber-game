@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls, Stats } from "@react-three/drei"
+import { KeyboardControls, OrthographicCamera, Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -47,6 +47,7 @@ import { SatinLevel } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
 import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
+import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -62,11 +63,11 @@ export const inputMap = [
 ]
 
 
-const App = () => {  
+const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 2 : 0)
+  const [level, setLevel] = useState(isDebug ? 4 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -109,13 +110,16 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(0)}>Level 1: The Woods</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(1)}>Level 2: Cloth Flow</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(2)}>Level 3: Smoke Test</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(3)}>Level 4: Retro Pal Dither Forest </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(4)}>Level 4: Ortho Forest </button>
                   </UI_Panel>
 
                   {/** LEVELS */}
                   {level == 0 && <ForestLevel />}
                   {level == 1 && <SatinLevel />}
                   {level == 2 && <DryIceLevel />}
-
+                  {level == 3 && <PalDitherForest />}
+                  {level == 4 && <OrthoForest />}
 
 
                 </KeyboardControls>
@@ -141,6 +145,17 @@ export function EverythingIsLoaded({ onLoaded }: { onLoaded: () => void }) {
   return null;
 }
 
+
+
+
+
+
+
+
+
+
+
+
 export function ForestLevel() {
 
   const controlls = useControls("Lights", {
@@ -165,7 +180,12 @@ export function ForestLevel() {
       </CameraUniformsProvider>
     }
 
+
+
     <Pixelated resolution={256} enabled={true} />
+
+
+
 
     <group name="Lights">
       <ambientLight intensity={controlls.ambient_intensity} />
@@ -208,6 +228,124 @@ export function ForestLevel() {
     {0 && <RaycastOnClick />}
   </>
 }
+
+
+
+export function PalDitherForest() {
+
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+
+          <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
+          <PP_Sharpen kernelSize={1} strength={0.15} />
+          <PP_ColorGrading />
+          <PP_Vignette />
+          <PP_PalDither />
+          <PP_Scanline />
+
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
+
+
+    <Pixelated resolution={256} enabled={true} />
+
+    <group name="Lights">
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 5, 0]} intensity={0.5} />
+    </group>
+
+    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+      <Player >
+        <WorldPositionConstraint>
+          {1 && <TerrainPlane />}
+        </WorldPositionConstraint>
+        {1 && <MoveByVel />}
+        <Jump />
+        <GroundClamp />
+      </Player>
+
+      {1 && <>
+        {1 && <GrassScatter />}
+        {1 && <PinesScatter />}
+        {0 && <SnowSpritesUI active={true} showControls={true} />}
+      </>}
+
+    </TerrainProvider>
+
+    {1 && <SimpleBackground />}
+  </>
+}
+
+export function OrthoForest() {
+
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+
+          <PP_Sharpen kernelSize={1} strength={0.15} />
+          <PP_ColorGrading />
+          <PP_Vignette />
+          <PP_PalDither palette="earthy-1x.png" pal_exposure={-2} dither={0.01}/>
+          <PP_Scanline />
+
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
+
+    <OrthographicCamera
+      makeDefault
+      zoom={40}
+      near={-100}
+      far={100}
+    />
+
+    <Pixelated resolution={256} enabled={true} />
+
+    <group name="Lights">
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 5, 0]} intensity={0.5} />
+    </group>
+
+    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+      <Player >
+        <WorldPositionConstraint>
+          {1 && <TerrainPlane />}
+        </WorldPositionConstraint>
+        {1 && <MoveByVel />}
+        <Jump />
+        <GroundClamp />
+      </Player>
+
+      {1 && <>
+        {1 && <GrassScatter />}
+        {1 && <PinesScatter />}
+        {0 && <SnowSpritesUI active={true} showControls={true} />}
+      </>}
+
+    </TerrainProvider>
+
+    {1 && <SimpleBackground />}
+  </>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
