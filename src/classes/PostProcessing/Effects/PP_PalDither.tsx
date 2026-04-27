@@ -1,6 +1,6 @@
 import { useLoader } from "@react-three/fiber";
 import { PostProcessingEffect, useWebGPUPostProcessing } from "../PostProcessingContext";
-import { useCallback, useEffect, useMemo, } from "react";
+import { useCallback, useEffect, useMemo,} from "react";
 import { TextureLoader } from "three";
 import { float, Fn, instancedArray, instanceIndex, int, mix, screenCoordinate, select, uniform, uniformArray, vec2, vec3, vec4 } from "three/tsl";
 import { texture } from "three/src/nodes/TSL.js";
@@ -8,6 +8,8 @@ import * as THREE from "three/webgpu"
 import { folder, useControls } from "leva";
 import { useWebGPURenderer } from "../../Terrain/ScatterAPI/Scatter/SatinFlow";
 import { toHsv, ToRgb } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
+//import { useUI } from "../../../components/UIScreenContext";
+//import { FloatingPalette } from "../../../components/Palette/FloatingPalette";
 
 type PP_PalDitherProps = {
     palette?: string;
@@ -105,7 +107,8 @@ export function PP_PalDither({
                         exposure_pre: { value: 0.0, min: -3.0, max: 3.0, step: 0.1 },
                         saturation: { value: 1.0, min: 0.0, max: 4.0, step: 0.01 },
                         hue_pre: { value: 0.0, min: -1.0, max: 1.0, step: 0.001 },
-                    })
+                    }),
+                    slice: { value: 0.0, min: 0, max: 1.0, step: 0.05 },
                 })
             })
         })
@@ -115,16 +118,43 @@ export function PP_PalDither({
         set({ palette, dither, pal_exposure, });
     }, [palette, dither, pal_exposure, set]);
 
+
+    // UI Palette EDITOR
+    /*
+    const { mount } = useUI()
+    const [userPal, setUserPal] = useState<string[]>(["#000000", "#ffffff",]);
+    useEffect(() => {
+        const unmount = mount(() =>
+            <>
+                <FloatingPalette onPaletteChanged={(pal) => {
+                    console.log("pal", pal);
+                    setUserPal(pal);
+                }} />
+            </>
+        )
+        return unmount
+    }, [])
+
+    const userPal_RT = useMemo(() => instancedArray(flattenColorArray(userPal), 'vec3').setName('user_pallete_rt'), [userPal])
+
+    */
+
+
+
+
+
     const uniforms = useMemo(() => ({
         blend: uniform(controls.blend),
         dither: uniform(controls.dither),
         pal_exposure: uniform(controls.pal_exposure),
+        slice: uniform(controls.slice)
     }), []);
 
 
     useEffect(() => { uniforms.blend.value = controls.blend; }, [controls.blend]);
     useEffect(() => { uniforms.dither.value = controls.dither; }, [controls.dither]);
     useEffect(() => { uniforms.pal_exposure.value = controls.pal_exposure; }, [controls.pal_exposure]);
+    useEffect(() => { uniforms.slice.value = controls.slice; }, [controls.slice]);
 
     const textureUrl = `textures/palletes/${controls.palette}`;
     const pal_tex = useLoader(TextureLoader, textureUrl);
@@ -168,6 +198,7 @@ export function PP_PalDither({
         if (!inputNode || !scenePass) return inputNode;
 
         const PALETTE_SIZE = pal_tex.image.width;
+        //const PALETTE_SIZE = userPal.length;
 
         const pixel = screenCoordinate.mod(4.0);
 
@@ -186,9 +217,8 @@ export function PP_PalDither({
             bestDist.minAssign(cd.length());
 
             for (let i = 0; i < PALETTE_SIZE; i++) {
-                //const u = float(i + 0.5).div(PALETTE_SIZE);
-                //const palColor = texture(pal_tex, vec2(u, 0.5)).rgb;
                 const palColor = pal_RT.element(i);
+                //const palColor = userPal_RT.element(i);
 
                 const dist = cd.distance(palColor);
 
@@ -203,7 +233,7 @@ export function PP_PalDither({
         const clamped_cd = getNearestPalColor(exposed_input.add(bayer.sub(0.5).mul(uniforms.dither)));
         const exposed_output = clamped_cd.pow(vec3(float(2.0).pow(uniforms.pal_exposure.negate())))
 
-        //const clamped_cd = getNearestPalColor(inputNode.add(bayer.sub(0.5).mul(uniforms.dither)));
+        //return screenUV.x.step(uniforms.slice).mul(uniforms.blend).mix(exposed_output, inputNode);
         return uniforms.blend.mix(exposed_output, inputNode);
 
     }, [scenePass, uniforms, pal_RT]);
@@ -224,3 +254,19 @@ const bayerMatrix = uniformArray(
     ],
     'float'
 );
+
+export function flattenColorArray(
+    colors: string[]
+): Float32Array {
+    const count = colors.length;
+    const result = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+        const c = new THREE.Color(colors[i]);
+
+        result[i * 3 + 0] = c.r;
+        result[i * 3 + 1] = c.g;
+        result[i * 3 + 2] = c.b;
+    }
+    return result;
+}

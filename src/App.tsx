@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls,  Stats } from "@react-three/drei"
+import { KeyboardControls, Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -48,6 +48,7 @@ import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
 import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
+import { PP_KuwaharaSimple } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -67,12 +68,12 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 4 : 0)
+  const [level, setLevel] = useState(isDebug ? 5 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
     setLevel(-1)
-    setTimeout(() => setLevel(level), 0)    
+    setTimeout(() => setLevel(level), 0)
   }, [])
 
 
@@ -82,7 +83,11 @@ const App = () => {
 
       <UIScreenProvider>
         <AspectRatioCanvas aspectRatio="235/100">
-          {true && <Leva collapsed/>}
+          {true && <Leva collapsed theme={{
+            sizes: {
+              rootWidth: '500px',
+            },
+          }} />}
 
           <Canvas
             camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
@@ -112,6 +117,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(2)}>Level 3: Smoke Test</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(3)}>Level 4: Retro Pal Dither Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(4)}>Level 4: Ortho Forest </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(5)}>Level 5: Painterly Forest </button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -120,6 +126,7 @@ const App = () => {
                   {level == 2 && <DryIceLevel />}
                   {level == 3 && <PalDitherForest />}
                   {level == 4 && <OrthoForest />}
+                  {level == 5 && <KuwaharaForest />}
 
 
                 </KeyboardControls>
@@ -144,15 +151,6 @@ export function EverythingIsLoaded({ onLoaded }: { onLoaded: () => void }) {
   useEffect(() => { onLoaded(); }, [onLoaded]);
   return null;
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -286,13 +284,13 @@ export function OrthoForest() {
     {1 &&
       <CameraUniformsProvider>
         <WebGPUPostProcessingProvider >
-
-          <PP_Sharpen kernelSize={1} strength={0.15} />
-          <PP_ColorGrading />
-          <PP_Vignette />
-          <PP_PalDither palette="earthy-1x.png" pal_exposure={-2} dither={0.01}/>
-          <PP_Scanline />
-
+          {1 && <>
+            <PP_Sharpen kernelSize={1} strength={0.15} />
+            <PP_ColorGrading />
+            <PP_Vignette />
+            <PP_PalDither palette="earthy-1x.png" pal_exposure={-2} dither={0.01} />
+            <PP_Scanline />
+          </>}
         </WebGPUPostProcessingProvider>
       </CameraUniformsProvider>
     }
@@ -308,7 +306,7 @@ export function OrthoForest() {
 
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
-      <Player camera_props={{ default_pitch:45, min_pitch:0.3, max_pitch:0.6, ortho:true }} >
+      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} >
         <WorldPositionConstraint>
           {1 && <TerrainPlane />}
         </WorldPositionConstraint>
@@ -320,7 +318,7 @@ export function OrthoForest() {
       {1 && <>
         {1 && <GrassScatter />}
         {1 && <PinesScatter />}
-        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000}/>}
+        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
         {0 && <DynamicWaterSystemToggle />}
       </>}
 
@@ -331,8 +329,52 @@ export function OrthoForest() {
 }
 
 
+export function KuwaharaForest() {
+
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+          {1 && <>
+            <PP_Vignette />
+            <PP_KuwaharaSimple />
+          </>}
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
 
 
+
+    <Pixelated resolution={256} enabled={true} />
+
+    <group name="Lights">
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 5, 0]} intensity={0.5} />
+    </group>
+
+    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} >
+        <WorldPositionConstraint>
+          {1 && <TerrainPlane />}
+        </WorldPositionConstraint>
+        {1 && <MoveByVel />}
+        <Jump />
+        <GroundClamp />
+      </Player>
+
+      {1 && <>
+        {1 && <GrassScatter />}
+        {1 && <PinesScatter />}
+        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
+        {0 && <DynamicWaterSystemToggle />}
+      </>}
+
+    </TerrainProvider>
+
+    {1 && <SimpleBackground />}
+  </>
+}
 
 
 
