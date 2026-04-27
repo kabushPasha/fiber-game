@@ -128,7 +128,6 @@ const App = () => {
                   {level == 4 && <OrthoForest />}
                   {level == 5 && <KuwaharaForest />}
 
-
                 </KeyboardControls>
               </MouseLockProvider>
             </PlayerProvider>
