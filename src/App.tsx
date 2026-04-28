@@ -48,7 +48,7 @@ import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
 import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
-import { PP_KuwaharaSimple } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
+import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -335,8 +335,9 @@ export function KuwaharaForest() {
       <CameraUniformsProvider>
         <WebGPUPostProcessingProvider >
           {1 && <>
+            <PP_Sharpen kernelSize={1} strength={0.1} enabled={false} />
             <PP_Vignette />
-            <PP_KuwaharaSimple />
+            <PP_Kuwahara />
           </>}
         </WebGPUPostProcessingProvider>
       </CameraUniformsProvider>

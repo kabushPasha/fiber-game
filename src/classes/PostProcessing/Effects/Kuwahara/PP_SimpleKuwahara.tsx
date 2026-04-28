@@ -1,44 +1,94 @@
 
-import { useCallback, } from "react";
+import { useCallback, useEffect, useMemo, } from "react";
 
 import * as THREE from "three/webgpu"
 import { PostProcessingEffect, useWebGPUPostProcessing } from "../../PostProcessingContext";
-import { add, array, Continue, convertToTexture, float, If, int, ivec2, Loop, screenCoordinate, screenUV, select, texture, textureLoad, textureSize, vec2, vec3, vec4 } from "three/tsl";
+import { add, array, Continue, convertToTexture, float, If, int, ivec2, Loop, screenCoordinate, screenUV, select, texture, textureLoad, textureSize, uniform, vec2, vec3, vec4 } from "three/tsl";
 import { Fn } from "three/src/nodes/TSL.js";
 import { gaussianBlur } from "three/examples/jsm/tsl/display/GaussianBlurNode.js";
-
-//import { useUI } from "../../../components/UIScreenContext";
-//import { FloatingPalette } from "../../../components/Palette/FloatingPalette";
+import { folder, useControls } from "leva";
 
 
+export function PP_Kuwahara() {
+    const [controls] = useControls(() => ({
+        Render: folder({
+            PostProcess: folder({
+                Kuwahara: folder({
+                    mode: {
+                        value: "blender",
+                        options: {
+                            Simple: "simple",
+                            Blender: "blender",
+                        },
+                    },
+                },)
+            }),
+        }),
+    }));
+
+    const simple = controls.mode === "simple";
+
+    return (
+        <>
+            <PP_KuwaharaSimple enabled={simple} />
+            <PP_KuwaharaBlender enabled={!simple} />
+        </>
+    );
+}
+
+type PP_KuwaharaBlenderProps = {
+    enabled?: boolean;
+}
 
 
-export function PP_KuwaharaSimple() {
+export function PP_KuwaharaBlender({ enabled = true }: PP_KuwaharaBlenderProps) {
     const { scenePass } = useWebGPUPostProcessing();
 
-    const effect = useCallback((inputNode: THREE.Node) => {
-        if (!inputNode || !scenePass) return inputNode;
+    const [controls] = useControls(() => ({
+        Render: folder({
+            PostProcess: folder({
+                Kuwahara: folder({
+                    size: { value: 3.0, min: 0, max: 10.0, step: 0.01 , render:()=> enabled},
+                    eccentricity: { value: .5, min: 0.2, max: 2.0, step: 0.01 ,render:()=> enabled},
+                    //number_of_sectors: { value: 8, min: 2, max: 16, step: 1 },
+                    sharpness: { value: 10.0, min: 0, max: 20, step: 0.01 ,render:()=> enabled},
+                    //sector: { value: 0, min: 0, max: 7, step: 1 },
+                    blur_structure_tensor: {value:true, render:()=> enabled}
+                },           
+            )
+            })
+        })
+    }),[enabled]);
 
-        const kuwaharaBlender = Fn(() => {
+    const uniforms = useMemo(() => ({
+        size: uniform(controls.size),
+        eccentricity: uniform(controls.eccentricity),
+        sharpness: uniform(controls.sharpness),
+        //sector: uniform(controls.sector),
+    }), []);
+
+    useEffect(() => { uniforms.size.value = controls.size; }, [controls.size]);
+    useEffect(() => { uniforms.eccentricity.value = controls.eccentricity; }, [controls.eccentricity]);
+    useEffect(() => { uniforms.sharpness.value = controls.sharpness; }, [controls.sharpness]);
+    //useEffect(() => { uniforms.sector.value = controls.sector; }, [controls.sector]);
+
+    const kuwaharaBlender = useMemo(() => {
+        return Fn(([input_tex, struct_tensor]: [THREE.TextureNode, THREE.Node]) => {
             // Uniforms
-            const size = 5.0;
-            const eccentricity = 3.0;
+            const size = uniforms.size;
+            const eccentricity = uniforms.eccentricity;
             const number_of_sectors = 8;
-            const sharpness = 10.0;
+            const sharpness = uniforms.sharpness;
 
-            const input_tex = convertToTexture(inputNode);
-            const texel = vec2(1.0, 1.0).div(textureSize(input_tex));
+            //const input_tex = convertToTexture(inputNode);
+            //const texel = vec2(1.0, 1.0).div(textureSize(input_tex));
             const pixel = screenCoordinate;
             const src = texture(input_tex, screenUV)
             const out = src.toVar("KuwaBlender_result");
 
-            const struct_tensor = computeStructureTensor(input_tex).mul(2);
-            //const struct_tensor_blurred = gaussianBlur(struct_tensor);
-            const struct_tensor_blurred = struct_tensor;
-
-            const dxdx = struct_tensor_blurred.x;
-            const dxdy = struct_tensor_blurred.y;
-            const dydy = struct_tensor_blurred.z;
+            const dxdx = struct_tensor.x;
+            const dxdy = struct_tensor.y;
+            const dydy = struct_tensor.z;
 
 
             const eigenvalue_first_term = dxdx.add(dydy).div(2.0);
@@ -91,6 +141,7 @@ export function PP_KuwaharaSimple() {
                 // the complex computations below, and it can easily be shown that the weight for the center
                 // pixel in all sectors is simply (1 / number_of_sectors). 
 
+
                 const center_color = src;
                 const center_color_squared = square(center_color);
                 const center_weight = 1.0 / number_of_sectors;
@@ -102,7 +153,6 @@ export function PP_KuwaharaSimple() {
                     sum_of_weights_of_sectors.element(int(i)).assign(center_weight);
                 }
 
-
                 // Loop over the window of pixels inside the bounding box of the ellipse. However, we utilize the
                 // fact that ellipses are mirror symmetric along the horizontal axis, so we reduce the window to
                 // only the upper two quadrants, and compute each two mirrored pixels at the same time using the
@@ -111,9 +161,9 @@ export function PP_KuwaharaSimple() {
                 //for (int j = 0; j <= ellipse_bounds.y; j++) {
                 //for (int i = -ellipse_bounds.x; i <= ellipse_bounds.x; i++) {
 
-                const j = int(0).toVar("iterate_j");
+                const j = int(0).toVar();
                 Loop(j.lessThanEqual(ellipse_bounds.y), () => {
-                    const i = int(ellipse_bounds.x.negate()).toVar("iterate_i");
+                    const i = int(ellipse_bounds.x.negate()).toVar();
                     Loop(i.lessThanEqual(ellipse_bounds.x), () => {
 
                         //Loop({ start: int(0), end: int(ellipse_bounds.y), type: 'int', condition: '<=', name: 'j' }, ({ i: j }) => {
@@ -127,111 +177,111 @@ export function PP_KuwaharaSimple() {
                         // also need to exempt the center pixel with zero coordinates for the same reason, however,
                         // since the mirror of the center pixel is itself, it need to be accumulated separately,
                         // hence why we did that in the code section just before this loop.
+
+
                         If(j.equal(0).and(i.lessThanEqual(0)), () => {
-
-                        }).Else(() => {
-
-                            // Map the pixels of the ellipse into a unit disk, exempting any points that are not part of  the ellipse or disk. 
-                            // -- Matrix Multiplication might be wrong --
-
-                            const disk_point = vec2(
-                                add(i.mul(inverse_ellipse_matrix00), j.mul(inverse_ellipse_matrix10)),
-                                add(i.mul(inverse_ellipse_matrix01), j.mul(inverse_ellipse_matrix11))
-                            );
-
-                            const disk_point_length_squared = disk_point.dot(disk_point);
-                            If(disk_point_length_squared.greaterThan(1.0), () => { 
-                                i.addAssign(1);
-                                Continue(); 
-                            })
-
-                            // While each pixel belongs to a single sector in the ellipse, we expand the definition of
-                            // a sector a bit to also overlap with other sectors as illustrated in Figure 8 of the
-                            // polynomial weights paper. So each pixel may contribute to multiple sectors, and thus we
-                            // compute its weight in each of the 8 sectors. 
-                            const sector_weights = array('float', 8);
-
-                            // We evaluate the weighting polynomial at each of the 8 sectors by rotating the disk point
-                            // by 45 degrees and evaluating the weighting polynomial at each incremental rotation. To
-                            // avoid potentially expensive rotations, we utilize the fact that rotations by 90 degrees
-                            // are simply swapping of the coordinates and negating the x component. We also note that
-                            // since the y term of the weighting polynomial is squared, it is not affected by the sign
-                            // and can be computed once for the x and once for the y coordinates. So we compute every
-                            // other even-indexed 4 weights by successive 90 degree rotations as discussed. 
-                            const polynomial = sector_center_overlap_parameter.sub(cross_sector_overlap_parameter.mul(square(disk_point)));
-                            sector_weights.element(int(0)).assign(square(add(disk_point.y, polynomial.x).max(0.0)))
-                            sector_weights.element(int(2)).assign(square(add(disk_point.x.negate(), polynomial.y).max(0.0)))
-                            sector_weights.element(int(4)).assign(square(add(disk_point.y.negate(), polynomial.x).max(0.0)))
-                            sector_weights.element(int(6)).assign(square(add(disk_point.x, polynomial.y).max(0.0)))
-
-                            // Then we rotate the disk point by 45 degrees, which is a simple expression involving a
-                            // constant as can be demonstrated by applying a 45 degree rotation matrix. 
-                            const rotated_disk_point = vec2(disk_point.x.sub(disk_point.y), disk_point.x.add(disk_point.y)).mul(Math.SQRT1_2);
-
-                            // Finally, we compute every other odd-index 4 weights starting from the 45 degrees rotated
-                            // disk point. 
-                            const rotated_polynomial = sector_center_overlap_parameter.sub(cross_sector_overlap_parameter.mul(square(rotated_disk_point)));
-                            sector_weights.element(int(1)).assign(square(add(rotated_disk_point.y, rotated_polynomial.x).max(0.0)))
-                            sector_weights.element(int(3)).assign(square(add(rotated_disk_point.x.negate(), rotated_polynomial.y).max(0.0)))
-                            sector_weights.element(int(5)).assign(square(add(rotated_disk_point.y.negate(), rotated_polynomial.x).max(0.0)))
-                            sector_weights.element(int(7)).assign(square(add(rotated_disk_point.x, rotated_polynomial.y).max(0.0)))
-
-
-                            // We compute a radial Gaussian weighting component such that pixels further away from the
-                            // sector center gets attenuated, and we also divide by the sum of sector weights to
-                            // normalize them, since the radial weight will eventually be multiplied to the sector weight
-                            // below. 
-                            const sector_weights_sum = float(0.0).toVar("sector_weights_sum")
-                            sector_weights_sum.addAssign(sector_weights[0])
-                            sector_weights_sum.addAssign(sector_weights[1])
-                            sector_weights_sum.addAssign(sector_weights[2])
-                            sector_weights_sum.addAssign(sector_weights[3])
-                            sector_weights_sum.addAssign(sector_weights[4])
-                            sector_weights_sum.addAssign(sector_weights[5])
-                            sector_weights_sum.addAssign(sector_weights[6])
-                            sector_weights_sum.addAssign(sector_weights[7])
-
-                            const radial_gaussian_weight = disk_point_length_squared.mul(-Math.PI).exp().div(sector_weights_sum);
-
-
-                            // Load the color of the pixel and its mirrored pixel and compute their square. 
-                            //const upper_color = texture(input_tex, screenUV.add(vec2(i, j).mul(texel)))
-                            //const lower_color = texture(input_tex, screenUV.sub(vec2(i, j).mul(texel)))
-                            const upper_color = textureLoad(input_tex, pixel.add(vec2(i, j)))
-                            const lower_color = textureLoad(input_tex, pixel.sub(vec2(i,j)))
-
-                            const upper_color_squared = square(upper_color);
-                            const lower_color_squared = square(lower_color);
-
-                            for (let k = 0; k < number_of_sectors; k++) {
-                                const weight = sector_weights.element(int(k)).mul(radial_gaussian_weight);
-
-                                // Accumulate the pixel to each of the sectors multiplied by the sector weight.
-                                const upper_index = int(k);
-                                sum_of_weights_of_sectors.element(upper_index).addAssign(weight);
-                                weighted_mean_of_color_of_sectors.element(upper_index).addAssign(upper_color.mul(weight));
-                                weighted_mean_of_squared_color_of_sectors.element(upper_index).addAssign(upper_color_squared.mul(weight));
-
-                                // Accumulate the mirrored pixel to each of the sectors multiplied by the sector weight.
-                                const lower_index = int((k + number_of_sectors / 2) % number_of_sectors);
-                                sum_of_weights_of_sectors.element(lower_index).addAssign(weight);
-                                weighted_mean_of_color_of_sectors.element(lower_index).addAssign(lower_color.mul(weight));
-                                weighted_mean_of_squared_color_of_sectors.element(lower_index).addAssign(lower_color_squared.mul(weight));
-                            }
-
-
+                            i.addAssign(1);
+                            Continue();
                         })
+
+
+
+                        // Map the pixels of the ellipse into a unit disk, exempting any points that are not part of  the ellipse or disk. 
+                        // -- Matrix Multiplication might be wrong --
+
+                        const disk_point = vec2(
+                            add(i.toFloat().mul(inverse_ellipse_matrix00), j.toFloat().mul(inverse_ellipse_matrix10)),
+                            add(i.toFloat().mul(inverse_ellipse_matrix01), j.toFloat().mul(inverse_ellipse_matrix11))
+                        );
+
+                        const disk_point_length_squared = disk_point.dot(disk_point);
+
+                        If(disk_point_length_squared.greaterThan(1.0), () => {
+                            i.addAssign(1);
+                            Continue();
+                        })
+
+
+                        // While each pixel belongs to a single sector in the ellipse, we expand the definition of
+                        // a sector a bit to also overlap with other sectors as illustrated in Figure 8 of the
+                        // polynomial weights paper. So each pixel may contribute to multiple sectors, and thus we
+                        // compute its weight in each of the 8 sectors. 
+                        const sector_weights = array('float', 8);
+
+                        // We evaluate the weighting polynomial at each of the 8 sectors by rotating the disk point
+                        // by 45 degrees and evaluating the weighting polynomial at each incremental rotation. To
+                        // avoid potentially expensive rotations, we utilize the fact that rotations by 90 degrees
+                        // are simply swapping of the coordinates and negating the x component. We also note that
+                        // since the y term of the weighting polynomial is squared, it is not affected by the sign
+                        // and can be computed once for the x and once for the y coordinates. So we compute every
+                        // other even-indexed 4 weights by successive 90 degree rotations as discussed. 
+                        const polynomial = sector_center_overlap_parameter.sub(cross_sector_overlap_parameter.mul(square(disk_point)));
+                        sector_weights.element(int(0)).assign(square(add(disk_point.y, polynomial.x).max(0.0)))
+                        sector_weights.element(int(2)).assign(square(add(disk_point.x.negate(), polynomial.y).max(0.0)))
+                        sector_weights.element(int(4)).assign(square(add(disk_point.y.negate(), polynomial.x).max(0.0)))
+                        sector_weights.element(int(6)).assign(square(add(disk_point.x, polynomial.y).max(0.0)))
+
+                        // Then we rotate the disk point by 45 degrees, which is a simple expression involving a
+                        // constant as can be demonstrated by applying a 45 degree rotation matrix. 
+                        const rotated_disk_point = vec2(disk_point.x.sub(disk_point.y), disk_point.x.add(disk_point.y)).mul(Math.SQRT1_2);
+
+                        // Finally, we compute every other odd-index 4 weights starting from the 45 degrees rotated
+                        // disk point. 
+                        const rotated_polynomial = sector_center_overlap_parameter.sub(cross_sector_overlap_parameter.mul(square(rotated_disk_point)));
+                        sector_weights.element(int(1)).assign(square(add(rotated_disk_point.y, rotated_polynomial.x).max(0.0)))
+                        sector_weights.element(int(3)).assign(square(add(rotated_disk_point.x.negate(), rotated_polynomial.y).max(0.0)))
+                        sector_weights.element(int(5)).assign(square(add(rotated_disk_point.y.negate(), rotated_polynomial.x).max(0.0)))
+                        sector_weights.element(int(7)).assign(square(add(rotated_disk_point.x, rotated_polynomial.y).max(0.0)))
+
+
+                        // We compute a radial Gaussian weighting component such that pixels further away from the
+                        // sector center gets attenuated, and we also divide by the sum of sector weights to
+                        // normalize them, since the radial weight will eventually be multiplied to the sector weight
+                        // below. 
+                        const sector_weights_sum = float(0.0).toVar()
+                        sector_weights_sum.addAssign(sector_weights[0])
+                        sector_weights_sum.addAssign(sector_weights[1])
+                        sector_weights_sum.addAssign(sector_weights[2])
+                        sector_weights_sum.addAssign(sector_weights[3])
+                        sector_weights_sum.addAssign(sector_weights[4])
+                        sector_weights_sum.addAssign(sector_weights[5])
+                        sector_weights_sum.addAssign(sector_weights[6])
+                        sector_weights_sum.addAssign(sector_weights[7])
+
+                        const radial_gaussian_weight = disk_point_length_squared.mul(-Math.PI).exp().div(sector_weights_sum);
+
+                        // Load the color of the pixel and its mirrored pixel and compute their square. 
+                        const upper_color = textureLoad(input_tex, pixel.add(vec2(i, j)))
+                        const lower_color = textureLoad(input_tex, pixel.sub(vec2(i, j)))
+
+                        const upper_color_squared = square(upper_color);
+                        const lower_color_squared = square(lower_color);
+
+                        for (let k = 0; k < number_of_sectors; k++) {
+                            const weight = sector_weights.element(int(k)).mul(radial_gaussian_weight);
+
+                            // Accumulate the pixel to each of the sectors multiplied by the sector weight.
+                            const upper_index = int(k);
+                            sum_of_weights_of_sectors.element(upper_index).addAssign(weight);
+                            weighted_mean_of_color_of_sectors.element(upper_index).addAssign(upper_color.mul(weight));
+                            weighted_mean_of_squared_color_of_sectors.element(upper_index).addAssign(upper_color_squared.mul(weight));
+
+                            // Accumulate the mirrored pixel to each of the sectors multiplied by the sector weight.                                                     
+                            const lower_index = int((k + number_of_sectors / 2) % number_of_sectors);
+                            sum_of_weights_of_sectors.element(lower_index).addAssign(weight);
+                            weighted_mean_of_color_of_sectors.element(lower_index).addAssign(lower_color.mul(weight));
+                            weighted_mean_of_squared_color_of_sectors.element(lower_index).addAssign(lower_color_squared.mul(weight));
+                        }
+
                         i.addAssign(1);
                     })
                     j.addAssign(1);
                 })
 
-
-                
                 // Compute the weighted sum of mean of sectors, such that sectors with lower standard deviation
                 // gets more significant weight than sectors with higher standard deviation. 
-                const sum_of_weights = float(0.0).toVar("sum_of_weights");
-                const weighted_sum = vec4(0.0).toVar("weighted_sum");
+                const sum_of_weights = float(0.0).toVar();
+                const weighted_sum = vec4(0.0).toVar();
                 for (let i = 0; i < number_of_sectors; i++) {
                     weighted_mean_of_color_of_sectors.element(int(i)).divAssign(sum_of_weights_of_sectors.element(int(i)));
                     weighted_mean_of_squared_color_of_sectors.element(int(i)).divAssign(sum_of_weights_of_sectors.element(int(i)));
@@ -258,27 +308,28 @@ export function PP_KuwaharaSimple() {
                 }).Else(() => {
                     weighted_sum.divAssign(sum_of_weights);
                 })
-
                 out.assign(weighted_sum);
-                
+
             });
 
-
             return out;
         })
+    }, [uniforms])
 
-        //return kuwaharaBlender();
 
-        const kuwaharaMulti = Fn(() => {
-            let out = inputNode;
-            for (let i = 0; i < 10; i++) {
-                out = kuwaharaSimple(out);
-            }
-            return out;
-        })
 
-        return kuwaharaMulti();
-    }, [scenePass]);
+    const effect = useCallback((inputNode: THREE.Node) => {
+        if (!inputNode || !scenePass || !enabled) return inputNode;
+        const input_tex = convertToTexture(inputNode);
+
+        const struct_tensor = computeStructureTensor(input_tex);
+        const struct_tensor_blurred = gaussianBlur(struct_tensor);
+        const st = controls.blur_structure_tensor ? struct_tensor_blurred : struct_tensor;
+
+        return kuwaharaBlender(input_tex, st);
+
+
+    }, [scenePass, uniforms, enabled,controls.blur_structure_tensor]);
 
     PostProcessingEffect(effect);
 
@@ -286,43 +337,82 @@ export function PP_KuwaharaSimple() {
 }
 
 
-const kuwaharaSimple = Fn(([input]: [THREE.Node]) => {
-    const input_tex = convertToTexture(input);
-    const texel = vec2(1.0, 1.0).div(textureSize(input_tex));
 
-    const kernel_size = 3;
-    const min_variance = float(9999).toVar("min_variance")
-    const src = texture(input_tex, screenUV)
-    const out = src.toVar("KuwaSimple_out")
+export function PP_KuwaharaSimple({ enabled = true }: PP_KuwaharaBlenderProps) {
+    const { scenePass } = useWebGPUPostProcessing();
 
-    const dirs = [
-        vec2(1, 1),
-        vec2(-1, 1),
-        vec2(1, -1),
-        vec2(-1, -1),
-    ]
-
-    for (const dir of dirs) {
-        const mean = vec3(0.0).toVar("mean");
-        const variance = float(0.0).toVar("variance");
-
-        for (let i = 0; i <= kernel_size; i++) {
-            for (let j = 0; j <= kernel_size; j++) {
-                const val = texture(input_tex, screenUV.add(dir.mul(vec2(i, j)).mul(texel)))
-                mean.addAssign(val)
-                const deviation = src.sub(val)
-                variance.addAssign(deviation.mul(deviation));
-            }
-        }
-        mean.divAssign((kernel_size + 1) * (kernel_size + 1))
-
-        If(variance.length().lessThan(min_variance), () => {
-            out.assign(mean);
-            min_variance.assign(variance.length());
+    const [controls] = useControls(() => ({
+        Render: folder({
+            PostProcess: folder({
+                Kuwahara: folder({
+                    kernelSize: { value: 3, min: 1, max: 10, step: 1 ,render:()=> enabled},
+                    passes: { value: 10, min: 1, max: 20, step: 1 ,render:()=> enabled},
+                },
+                  )
+            })
         })
-    }
-    return out;
-})
+    }),[enabled]);
+
+    const effect = useCallback((inputNode: THREE.Node) => {
+        if (!inputNode || !scenePass || !enabled) return inputNode;
+
+        const kuwaharaFn = kuwaharaSimple(controls.kernelSize)
+
+        const kuwaharaMulti = Fn(() => {
+            let out = inputNode;
+            for (let i = 0; i < controls.passes; i++) {
+                out = kuwaharaFn(out);
+            }
+            return out;
+        })
+
+        return kuwaharaMulti();
+    }, [scenePass, controls.passes, controls.kernelSize, enabled]);
+
+    PostProcessingEffect(effect);
+
+    return null;
+}
+
+
+const kuwaharaSimple = (kernel_size = 3) => {
+    return Fn(([input]: [THREE.Node]) => {
+        const input_tex = convertToTexture(input);
+        const texel = vec2(1.0, 1.0).div(textureSize(input_tex));
+
+        const min_variance = float(9999).toVar("min_variance")
+        const src = texture(input_tex, screenUV)
+        const out = src.toVar("KuwaSimple_out")
+
+        const dirs = [
+            vec2(1, 1),
+            vec2(-1, 1),
+            vec2(1, -1),
+            vec2(-1, -1),
+        ]
+
+        for (const dir of dirs) {
+            const mean = vec3(0.0).toVar();
+            const variance = float(0.0).toVar();
+
+            for (let i = 0; i <= kernel_size; i++) {
+                for (let j = 0; j <= kernel_size; j++) {
+                    const val = texture(input_tex, screenUV.add(dir.mul(vec2(i, j)).mul(texel)))
+                    mean.addAssign(val)
+                    const deviation = src.sub(val)
+                    variance.addAssign(deviation.mul(deviation));
+                }
+            }
+            mean.divAssign((kernel_size + 1) * (kernel_size + 1))
+
+            If(variance.length().lessThan(min_variance), () => {
+                out.assign(mean);
+                min_variance.assign(variance.length());
+            })
+        }
+        return out;
+    })
+}
 
 export const computeStructureTensor = Fn(([input]: [THREE.TextureNode]) => {
 
@@ -364,7 +454,6 @@ export const computeStructureTensor = Fn(([input]: [THREE.TextureNode]) => {
 
 
 })
-
 
 export const square = (x: THREE.Node) => x.mul(x);
 

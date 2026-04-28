@@ -13,56 +13,62 @@ type PPSharpenProps = {
 };
 
 export function PP_Sharpen({
-    enabled: enabledProp = true,
-    strength: strengthProp = 0.02,
-    kernelSize: kernelSizeProp = 2,
-    debug: debugProp = false
+    enabled = true,
+    strength = 0.02,
+    kernelSize = 2,
+    debug = false
 }: PPSharpenProps) {
     const { scenePass } = useWebGPUPostProcessing();
 
-    const { enabled, strength, kernelSize, debug } = useControls("Render", {
-        PostProcess: folder({
-            Sharpen: folder({
-                enabled: { value: enabledProp },
-                debug: { value: debugProp },
-                kernelSize: {
-                    value: kernelSizeProp,
-                    min: 1,
-                    max: 3,
-                    step: 1
-                },
-                strength: {
-                    value: strengthProp,
-                    min: 0,
-                    max: 0.5,
-                    step: 0.01
-                }
+    const [controls, set] = useControls(() => ({
+        "Render": folder({
+            PostProcess: folder({
+                Sharpen: folder({
+                    enabled: { value: enabled },
+                    debug: { value: debug },
+                    kernelSize: {
+                        value: kernelSize,
+                        min: 1,
+                        max: 3,
+                        step: 1
+                    },
+                    strength: {
+                        value: strength,
+                        min: 0,
+                        max: 0.5,
+                        step: 0.01
+                    }
+                })
             })
         })
-    });
+    }));
+
+    useEffect(() => {
+        set({ enabled, strength, kernelSize, debug, });
+    }, [enabled, strength, kernelSize, debug, set]);
 
     const uniforms = useMemo(() => ({
-        strength: uniform(strength),
+        strength: uniform(controls.strength),
     }), []);
 
     useEffect(() => {
-        uniforms.strength.value = strength;
-    }, [strength]);
+        uniforms.strength.value = controls.strength;
+    }, [controls.strength]);
 
     const effect = useCallback((inputNode: any) => {
-        if (!inputNode || !enabled || !scenePass) return inputNode;
+        if (!inputNode || !controls.enabled || !scenePass) return inputNode;
 
         const e = vec2(1.0).div(screenSize.xy);
 
         // High-pass / Laplacian kernel
         const tex = scenePass.getTextureNode("output");
-        const sharpen = laplacian(tex, screenUV, e, kernelSize * 2 + 1);
+        const sharpen = laplacian(tex, screenUV, e, controls.kernelSize * 2 + 1);
 
-        if (debug) return sharpen;
+        if (controls.debug) return sharpen;
 
         // Mix sharpened edges with original color
         return inputNode.add(sharpen.mul(uniforms.strength));
-    }, [scenePass, enabled, kernelSize, debug]);
+    }, [scenePass, controls.enabled, controls.kernelSize, controls.debug]);
 
     PostProcessingEffect(effect);
 

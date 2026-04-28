@@ -169,8 +169,6 @@ export function LZ_OrthoCamera({
   */
   const { camera } = useThree()
 
-
-
   // WHEEL ZOOM - disabled until later
   /*
   const target_zoom = useRef(40) // target for smooth scroll

@@ -35,7 +35,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
 
     // Rebuild the chain by running all mounted effects in order
     const runEffects = () => {
-        //console.log(effectsRef.current);
+        console.log("RUN EFECTS",effectsRef.current);
         if (!scenePassRef.current) return;
 
         if (postProcessingRef.current) { postProcessingRef.current.dispose(); }
@@ -125,7 +125,7 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
             effectsRef.push(() => { });
         }
 
-        return () => {
+        return () => {            
             if (id.current) effectsRef[id.current] = () => { };
         }
     }, [])
@@ -141,7 +141,6 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
         }
         runEffects();
 
-        //return registerEffect(effectFn);
     }, [effectFn]);
 }
 
