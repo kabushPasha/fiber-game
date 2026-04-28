@@ -14,7 +14,8 @@ import { toHsv, ToRgb } from "../../Terrain/ScatterAPI/Scatter/TransformsProvide
 type PP_PalDitherProps = {
     palette?: string;
     dither?: number;
-    pal_exposure?: number;
+    show_preview?: boolean;
+    gamma?: number;
 };
 
 
@@ -88,25 +89,48 @@ const PALLETES = {
 export function PP_PalDither({
     palette = "atropoeia-1x.png",
     dither = 0.05,
-    pal_exposure = -0.75,
+    show_preview = true,
+    gamma = 1.0,
 }: PP_PalDitherProps) {
     const { scenePass } = useWebGPUPostProcessing();
 
-    const [controls, set] = useControls(() => ({
+    const [controls, set, get] = useControls(() => ({
         Render: folder({
             PostProcess: folder({
                 PalDither: folder({
                     enabled: true,
+                    show_preview: show_preview,
                     palette: {
                         value: palette,
-                        options: PALLETES
+                        options: PALLETES,
+                        label: <>
+                            Pallete
+                            <button onClick={() => {
+                                const paletteValues = Object.values(PALLETES);
+                                const current = get("palette");
+                                console.log(current);
+                                const currentIndex = paletteValues.indexOf(current);
+                                const prevIndex = (currentIndex - 1 + paletteValues.length) % paletteValues.length;
+                                const nextPalette = paletteValues[prevIndex];
+                                set({ palette: nextPalette });
+                            }}>Prev</button>
+                            <button onClick={() => {
+                                const paletteValues = Object.values(PALLETES);
+                                const current = get("palette");
+                                console.log(current);
+                                const currentIndex = paletteValues.indexOf(current);
+                                const nextIndex = (currentIndex + 1) % paletteValues.length;
+                                const nextPalette = paletteValues[nextIndex];
+                                set({ palette: nextPalette });
+                            }}>Next</button>
+                        </>
                     },
 
                     blend: { value: 0.0, min: 0, max: 1.0, step: 0.01 },
                     dither: { value: dither, min: 0.0, max: .1, step: 0.001 },
-                    pal_exposure: { value: pal_exposure, min: -3.0, max: 3.0, step: 0.25 },
                     Preprocess: folder({
                         exposure_pre: { value: 0.0, min: -3.0, max: 3.0, step: 0.1 },
+                        gamma: { value: gamma, min: 0.01, max: 4.0, step: 0.01 },
                         saturation: { value: 1.0, min: 0.0, max: 4.0, step: 0.01 },
                         hue_pre: { value: 0.0, min: -1.0, max: 1.0, step: 0.001 },
                     }),
@@ -117,9 +141,8 @@ export function PP_PalDither({
     }));
 
     useEffect(() => {
-        set({ palette, dither, pal_exposure, });
-    }, [palette, dither, pal_exposure, set]);
-
+        set({ palette, dither, show_preview, gamma});
+    }, [palette, dither, show_preview, gamma,set]);
 
     // UI Palette EDITOR
     /*
@@ -144,14 +167,12 @@ export function PP_PalDither({
     const uniforms = useMemo(() => ({
         blend: uniform(controls.blend),
         dither: uniform(controls.dither),
-        pal_exposure: uniform(controls.pal_exposure),
-        slice: uniform(controls.slice)
+        slice: uniform(controls.slice),
     }), []);
 
 
     useEffect(() => { uniforms.blend.value = controls.blend; }, [controls.blend]);
     useEffect(() => { uniforms.dither.value = controls.dither; }, [controls.dither]);
-    useEffect(() => { uniforms.pal_exposure.value = controls.pal_exposure; }, [controls.pal_exposure]);
     useEffect(() => { uniforms.slice.value = controls.slice; }, [controls.slice]);
 
     // Preload All Pals
@@ -164,13 +185,11 @@ export function PP_PalDither({
         return map;
     }, [textures]);
     const pal_tex = textureMap[controls.palette];
-
+    pal_tex.colorSpace = THREE.SRGBColorSpace;
+    pal_tex.needsUpdate = true;
 
     //const textureUrl = useMemo(() => { return `textures/palletes/${controls.palette}`; }, [controls.palette])
     //const pal_tex2 = useLoader(TextureLoader, textureUrl);
-
-
-
 
     const renderer = useWebGPURenderer()
 
@@ -188,6 +207,8 @@ export function PP_PalDither({
             const col = texture(pal_tex, vec2(u, 0.5)).rgb;
             out_cd.assign(col.mul(float(2.0).pow(controls.exposure_pre)));
 
+            out_cd.assign(out_cd.pow(controls.gamma));
+
             // --- Saturation ---
             const gray = out_cd.r.mul(0.299).add(out_cd.g.mul(0.587)).add(out_cd.b.mul(0.114));
             out_cd.assign(mix(vec3(gray), out_cd, controls.saturation));
@@ -204,12 +225,12 @@ export function PP_PalDither({
         renderer.computeAsync(update, image.width);
 
         return pal_RT;
-    }, [pal_tex, controls.exposure_pre, controls.hue_pre, controls.saturation]);
+    }, [pal_tex, controls.exposure_pre, controls.hue_pre, controls.saturation,controls.gamma]);
 
 
 
     const effect = useCallback((inputNode: any) => {
-        if (!inputNode || !scenePass) return inputNode;
+        if (!inputNode || !scenePass || !controls.enabled) return inputNode;
 
         const image = pal_tex.image as HTMLImageElement;
         const PALETTE_SIZE = image.width;
@@ -240,18 +261,25 @@ export function PP_PalDither({
                 bestColor.assign(select(dist.lessThan(bestDist), palColor, bestColor));
                 bestDist.minAssign(dist, bestDist);
             }
-
             return vec4(bestColor, 1.0);
         })
 
-        const exposed_input = inputNode.pow(vec3(float(2.0).pow(uniforms.pal_exposure)));
-        const clamped_cd = getNearestPalColor(exposed_input.add(bayer.sub(0.5).mul(uniforms.dither)));
-        const exposed_output = clamped_cd.pow(vec3(float(2.0).pow(uniforms.pal_exposure.negate())))
+
+        const clamped_cd = getNearestPalColor(inputNode.add(bayer.sub(0.5).mul(uniforms.dither)));
+
 
         //return screenUV.x.step(uniforms.slice).mul(uniforms.blend).mix(exposed_output, inputNode);
-        return uniforms.blend.mix(exposed_output, inputNode);
 
-    }, [scenePass, uniforms, pal_RT]);
+        const pal_block_size = 15;
+        const pal = pal_RT.element(screenCoordinate.x.toFloat().div(pal_block_size).toInt().mod(PALETTE_SIZE));
+        const pal_mask = screenCoordinate.x.step(PALETTE_SIZE * pal_block_size).oneMinus().mul(screenCoordinate.y.step(pal_block_size).oneMinus());
+
+        if (controls.show_preview)
+            return pal_mask.mix(uniforms.blend.mix(clamped_cd, inputNode), pal);
+
+        return uniforms.blend.mix(clamped_cd, inputNode);
+
+    }, [scenePass, uniforms, pal_RT, controls.show_preview, controls.enabled]);
 
     PostProcessingEffect(effect);
 

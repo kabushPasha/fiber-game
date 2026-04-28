@@ -49,6 +49,7 @@ import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
 import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
 import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
+import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -68,7 +69,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 5 : 0)
+  const [level, setLevel] = useState(isDebug ? 6 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -118,6 +119,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(3)}>Level 4: Retro Pal Dither Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(4)}>Level 4: Ortho Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(5)}>Level 5: Painterly Forest </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(6)}>Level 6: Comix Zone </button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -127,6 +129,7 @@ const App = () => {
                   {level == 3 && <PalDitherForest />}
                   {level == 4 && <OrthoForest />}
                   {level == 5 && <KuwaharaForest />}
+                  {level == 6 && <XDogForest />}
 
                 </KeyboardControls>
               </MouseLockProvider>
@@ -239,7 +242,7 @@ export function PalDitherForest() {
           <PP_Sharpen kernelSize={1} strength={0.15} />
           <PP_ColorGrading />
           <PP_Vignette />
-          <PP_PalDither />
+          <PP_PalDither show_preview={false}/>
           <PP_Scanline />
 
         </WebGPUPostProcessingProvider>
@@ -287,7 +290,7 @@ export function OrthoForest() {
             <PP_Sharpen kernelSize={1} strength={0.15} />
             <PP_ColorGrading />
             <PP_Vignette />
-            <PP_PalDither palette="earthy-1x.png" pal_exposure={-2} dither={0.01} />
+            <PP_PalDither palette="lowlands15-1x.png" dither={0.01} gamma={0.8}/>
             <PP_Scanline />
           </>}
         </WebGPUPostProcessingProvider>
@@ -377,7 +380,54 @@ export function KuwaharaForest() {
 }
 
 
+export function XDogForest() {
 
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+          {1 && <>
+            <PP_Sharpen kernelSize={1} strength={0.1} enabled={false} />
+            <PP_Xdog />
+            <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
+            <PP_Vignette />
+            <PP_PalDither palette="slso8-1x.png" dither={0.01} />
+          </>}
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
+
+
+    <Pixelated resolution={512} enabled={true} />
+
+    <group name="Lights">
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 5, 0]} intensity={0.5} />
+    </group>
+
+    <TerrainProvider textureUrl="textures/HFs/height.png">
+
+      <Player >
+        <WorldPositionConstraint>
+          {1 && <TerrainPlane />}
+        </WorldPositionConstraint>
+        {1 && <MoveByVel />}
+        <Jump />
+        <GroundClamp />
+      </Player>
+
+      {1 && <>
+        {1 && <GrassScatter />}
+        {1 && <PinesScatter />}
+        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
+        {0 && <DynamicWaterSystemToggle />}
+      </>}
+
+    </TerrainProvider>
+
+    {0 && <SimpleBackground />}
+  </>
+}
 
 
 

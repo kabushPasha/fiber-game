@@ -3,15 +3,21 @@ import { folder, useControls } from "leva"
 import { useEffect } from "react"
 import * as THREE from "three"
 
-export function Pixelated({ resolution = 256,enabled = true }) {
+export function Pixelated({ resolution = 256, enabled = true }) {
   const { gl, camera } = useThree()
 
-  const controls = useControls("Render", {
-    Pixelate:folder({
-      enabled: enabled, 
-      resolution: { value: resolution, options: [128,256,512], },
-    }, { collapsed: true })
-  })
+  const [controls, set] = useControls(() => ({
+    "Render": folder({
+      Pixelate: folder({
+        enabled: enabled,
+        resolution: { value: resolution, options: [128, 256, 512], },
+      }, { collapsed: true })
+    })
+  }))
+
+  useEffect(() => {
+    set({ enabled, resolution });
+  }, [enabled, resolution, set]);
 
 
   useEffect(() => {
@@ -58,7 +64,7 @@ export function Pixelated({ resolution = 256,enabled = true }) {
     onResize()
     window.addEventListener("resize", onResize)
     return () => window.removeEventListener("resize", onResize)
-  }, [gl, camera, resolution,controls])
+  }, [gl, camera, resolution, controls])
 
   return null
 }

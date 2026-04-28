@@ -35,7 +35,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
 
     // Rebuild the chain by running all mounted effects in order
     const runEffects = () => {
-        console.log("RUN EFECTS",effectsRef.current);
+        //console.log("RUN EFECTS",effectsRef.current);
         if (!scenePassRef.current) return;
 
         if (postProcessingRef.current) { postProcessingRef.current.dispose(); }
@@ -53,7 +53,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     // Setup postprocessing and scenePass
     useEffect(() => {
         //console.log("CREATE PP")
-        console.log("CAM CHANGED", camera);
+        //console.log("CAM CHANGED", camera);
         if (!renderer || !scene || !camera) return;
 
         const scenePass = pass(scene, camera, {
