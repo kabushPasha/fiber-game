@@ -5,7 +5,7 @@ import { TextureLoader } from "three";
 import { float, Fn, instancedArray, instanceIndex, int, mix, screenCoordinate, select, uniform, uniformArray, vec2, vec3, vec4 } from "three/tsl";
 import { texture } from "three/src/nodes/TSL.js";
 import * as THREE from "three/webgpu"
-import { folder, useControls } from "leva";
+import { button, folder, useControls } from "leva";
 import { useWebGPURenderer } from "../../Terrain/ScatterAPI/Scatter/SatinFlow";
 import { toHsv, ToRgb } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
 //import { useUI } from "../../../components/UIScreenContext";
@@ -100,40 +100,138 @@ export function PP_PalDither({
                 PalDither: folder({
                     enabled: true,
                     show_preview: show_preview,
-                    palette: {
-                        value: palette,
-                        options: PALLETES,
-                        label: <>
-                            Pallete
-                            <button onClick={() => {
-                                const paletteValues = Object.values(PALLETES);
-                                const current = get("palette");
-                                console.log(current);
-                                const currentIndex = paletteValues.indexOf(current);
-                                const prevIndex = (currentIndex - 1 + paletteValues.length) % paletteValues.length;
-                                const nextPalette = paletteValues[prevIndex];
-                                set({ palette: nextPalette });
-                            }}>Prev</button>
-                            <button onClick={() => {
-                                const paletteValues = Object.values(PALLETES);
-                                const current = get("palette");
-                                console.log(current);
-                                const currentIndex = paletteValues.indexOf(current);
-                                const nextIndex = (currentIndex + 1) % paletteValues.length;
-                                const nextPalette = paletteValues[nextIndex];
-                                set({ palette: nextPalette });
-                            }}>Next</button>
-                        </>
-                    },
-
                     blend: { value: 0.0, min: 0, max: 1.0, step: 0.01 },
                     dither: { value: dither, min: 0.0, max: .1, step: 0.001 },
-                    Preprocess: folder({
-                        exposure_pre: { value: 0.0, min: -3.0, max: 3.0, step: 0.1 },
-                        gamma: { value: gamma, min: 0.01, max: 4.0, step: 0.01 },
-                        saturation: { value: 1.0, min: 0.0, max: 4.0, step: 0.01 },
-                        hue_pre: { value: 0.0, min: -1.0, max: 1.0, step: 0.001 },
-                    }),
+
+                    palette_type: {
+                        value: "preset_image",
+                        options: {
+                            "preset_image": "preset_image",
+                            "indigo_formula": "indigo_formula",
+                            "ok_pal": "ok_pal",
+                            "user_picked": "user_picked",
+                        }
+                    },
+
+                    preset_image: folder({
+                        palette: {
+                            value: palette,
+                            options: PALLETES,
+                            label: <>
+                                Pallete
+                                <button onClick={() => {
+                                    const paletteValues = Object.values(PALLETES);
+                                    const current = get("palette");
+                                    console.log(current);
+                                    const currentIndex = paletteValues.indexOf(current);
+                                    const prevIndex = (currentIndex - 1 + paletteValues.length) % paletteValues.length;
+                                    const nextPalette = paletteValues[prevIndex];
+                                    set({ palette: nextPalette });
+                                }}>Prev</button>
+                                <button onClick={() => {
+                                    const paletteValues = Object.values(PALLETES);
+                                    const current = get("palette");
+                                    console.log(current);
+                                    const currentIndex = paletteValues.indexOf(current);
+                                    const nextIndex = (currentIndex + 1) % paletteValues.length;
+                                    const nextPalette = paletteValues[nextIndex];
+                                    set({ palette: nextPalette });
+                                }}>Next</button>
+                            </>
+                        },
+
+                        Preprocess: folder({
+                            exposure_pre: { value: 0.0, min: -3.0, max: 3.0, step: 0.1 },
+                            gamma: { value: gamma, min: 0.01, max: 4.0, step: 0.01 },
+                            saturation: { value: 1.0, min: 0.0, max: 4.0, step: 0.01 },
+                            hue_pre: { value: 0.0, min: -1.0, max: 1.0, step: 0.001 },
+                        }),
+
+                    }, { render: (get) => (get("Render.PostProcess.PalDither.palette_type") == "preset_image"), }),
+
+                    indigo_formula: folder({
+
+                        randomize: button(() => {
+                            const rand = () => Math.random();
+
+                            set({
+                                indigo_a_x: rand(),
+                                indigo_a_y: rand(),
+                                indigo_a_z: rand(),
+
+                                indigo_b_x: rand(),
+                                indigo_b_y: rand(),
+                                indigo_b_z: rand(),
+
+                                indigo_c_x: rand(),
+                                indigo_c_y: rand(),
+                                indigo_c_z: rand(),
+
+                                indigo_d_x: rand(),
+                                indigo_d_y: rand(),
+                                indigo_d_z: rand(),
+                            });
+                        }),
+
+                        brightness: folder({
+                            rand_a: button(() => {
+                                const rand = () => Math.random();
+                                set({
+                                    indigo_a_x: rand(),
+                                    indigo_a_y: rand(),
+                                    indigo_a_z: rand(),
+                                });
+                            }),
+                            indigo_a_x: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_a_y: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_a_z: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                        }),
+
+                        contrast: folder({
+                            rand_b: button(() => {
+                                const rand = () => Math.random();
+                                set({
+                                    indigo_b_x: rand(),
+                                    indigo_b_y: rand(),
+                                    indigo_b_z: rand(),
+                                });
+                            }),
+                            indigo_b_x: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_b_y: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_b_z: { value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+                        }),
+
+                        variation: folder({
+                            rand_c: button(() => {
+                                const rand = () => Math.random();
+                                set({
+                                    indigo_c_x: rand(),
+                                    indigo_c_y: rand(),
+                                    indigo_c_z: rand(),
+                                });
+                            }),
+                            indigo_c_x: { value: 1.0, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_c_y: { value: 1.0, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_c_z: { value: 1.0, min: 0.0, max: 1.0, step: 0.01 },
+                        }),
+
+                        offset: folder({
+                            rand_d: button(() => {
+                                const rand = () => Math.random();
+                                set({
+                                    indigo_d_x: rand(),
+                                    indigo_d_y: rand(),
+                                    indigo_d_z: rand(),
+                                });
+                            }),
+                            indigo_d_x: { value: 0.0, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_d_y: { value: 0.1, min: 0.0, max: 1.0, step: 0.01 },
+                            indigo_d_z: { value: 0.2, min: 0.0, max: 1.0, step: 0.01 },
+                        })
+
+                    }, { render: (get) => (get("Render.PostProcess.PalDither.palette_type") == "indigo_formula"), }),
+
+
                     slice: { value: 0.0, min: 0, max: 1.0, step: 0.05 },
                 })
             })
@@ -141,7 +239,7 @@ export function PP_PalDither({
     }));
 
     useEffect(() => {
-        set({ palette, dither, show_preview, gamma});
+        set({ palette, dither, show_preview, gamma });
     }, [palette, dither, show_preview, gamma,set]);
 
     // UI Palette EDITOR
@@ -193,47 +291,91 @@ export function PP_PalDither({
 
     const renderer = useWebGPURenderer()
 
-    const pal_RT = useMemo(() => {
+    const [pal_RT, pal_RT_size] = useMemo(() => {
+        switch (controls.palette_type) {
+            case "indigo_formula": {
 
-        const image = pal_tex.image as HTMLImageElement;
+                const pal_RT_size = 32;
+                const pal_RT = instancedArray(pal_RT_size, 'vec3').setName('pallete_rt');
 
-        const pal_RT = instancedArray(image.width, 'vec3').setName('pallete_rt');
+                const update = Fn(() => {
+                    const out_cd = vec3(0.0).toVar();
+                    const i = instanceIndex;
 
-        const update = Fn(() => {
+                    const a = vec3(controls.indigo_a_x, controls.indigo_a_y, controls.indigo_a_z)
+                    const b = vec3(controls.indigo_b_x, controls.indigo_b_y, controls.indigo_b_z)
+                    const c = vec3(controls.indigo_c_x, controls.indigo_c_y, controls.indigo_c_z)
+                    const d = vec3(controls.indigo_d_x, controls.indigo_d_y, controls.indigo_d_z)
 
-            const out_cd = vec3(0.0).toVar();
-            const i = instanceIndex;
-            const u = float(i).add(0.5).div(float(image.width));
-            const col = texture(pal_tex, vec2(u, 0.5)).rgb;
-            out_cd.assign(col.mul(float(2.0).pow(controls.exposure_pre)));
+                    const u = i.toFloat().div(pal_RT_size)
+                    const color = a.add(b.mul(((c.mul(u).add(d)).mul(Math.PI * 2)).cos()));
 
-            out_cd.assign(out_cd.pow(controls.gamma));
+                    out_cd.assign(color.pow(2.2).clamp(0, 1));
+                    pal_RT.element(i).assign(out_cd);
 
-            // --- Saturation ---
-            const gray = out_cd.r.mul(0.299).add(out_cd.g.mul(0.587)).add(out_cd.b.mul(0.114));
-            out_cd.assign(mix(vec3(gray), out_cd, controls.saturation));
+                })().compute(pal_RT_size);
 
-            // --- Hue shift ---
-            const hsv = toHsv(out_cd);
-            const shiftedH = hsv.x.add(controls.hue_pre).fract();
-            out_cd.assign(ToRgb(vec3(shiftedH, hsv.y, hsv.z)));
+                renderer.computeAsync(update, pal_RT_size);
 
-            pal_RT.element(i).assign(out_cd);
+                return [pal_RT, pal_RT_size];
+            }
+            default: {
+                const image = pal_tex.image as HTMLImageElement;
+                const pal_RT_size = image.width;
+                const pal_RT = instancedArray(pal_RT_size, 'vec3').setName('pallete_rt');
 
-        })().compute(image.width);
+                const update = Fn(() => {
 
-        renderer.computeAsync(update, image.width);
+                    const out_cd = vec3(0.0).toVar();
+                    const i = instanceIndex;
+                    const u = float(i).add(0.5).div(float(pal_RT_size));
+                    const col = texture(pal_tex, vec2(u, 0.5)).rgb;
+                    out_cd.assign(col.mul(float(2.0).pow(controls.exposure_pre)));
 
-        return pal_RT;
-    }, [pal_tex, controls.exposure_pre, controls.hue_pre, controls.saturation,controls.gamma]);
+                    out_cd.assign(out_cd.pow(controls.gamma));
+
+                    // --- Saturation ---
+                    const gray = out_cd.r.mul(0.299).add(out_cd.g.mul(0.587)).add(out_cd.b.mul(0.114));
+                    out_cd.assign(mix(vec3(gray), out_cd, controls.saturation));
+
+                    // --- Hue shift ---
+                    const hsv = toHsv(out_cd);
+                    const shiftedH = hsv.x.add(controls.hue_pre).fract();
+                    out_cd.assign(ToRgb(vec3(shiftedH, hsv.y, hsv.z)));
+
+                    pal_RT.element(i).assign(out_cd);
+
+                })().compute(pal_RT_size);
+
+                renderer.computeAsync(update, pal_RT_size);
+
+                return [pal_RT, pal_RT_size];
+            }
+
+        }
+
+
+    }, [pal_tex, controls.exposure_pre, controls.hue_pre, controls.saturation, controls.gamma, controls.palette_type,
+        controls.indigo_a_x,
+        controls.indigo_a_y,
+        controls.indigo_a_z,
+        controls.indigo_b_x,
+        controls.indigo_b_y,
+        controls.indigo_b_z,
+        controls.indigo_c_x,
+        controls.indigo_c_y,
+        controls.indigo_c_z,
+        controls.indigo_d_x,
+        controls.indigo_d_y,
+        controls.indigo_d_z,
+    ]);
 
 
 
     const effect = useCallback((inputNode: any) => {
         if (!inputNode || !scenePass || !controls.enabled) return inputNode;
 
-        const image = pal_tex.image as HTMLImageElement;
-        const PALETTE_SIZE = image.width;
+        const PALETTE_SIZE = pal_RT_size;
         //const PALETTE_SIZE = userPal.length;
 
         const pixel = screenCoordinate.mod(4.0);
@@ -270,7 +412,7 @@ export function PP_PalDither({
 
         //return screenUV.x.step(uniforms.slice).mul(uniforms.blend).mix(exposed_output, inputNode);
 
-        const pal_block_size = 15;
+        const pal_block_size = 10;
         const pal = pal_RT.element(screenCoordinate.x.toFloat().div(pal_block_size).toInt().mod(PALETTE_SIZE));
         const pal_mask = screenCoordinate.x.step(PALETTE_SIZE * pal_block_size).oneMinus().mul(screenCoordinate.y.step(pal_block_size).oneMinus());
 
@@ -279,7 +421,7 @@ export function PP_PalDither({
 
         return uniforms.blend.mix(clamped_cd, inputNode);
 
-    }, [scenePass, uniforms, pal_RT, controls.show_preview, controls.enabled]);
+    }, [scenePass, uniforms, pal_RT, controls.show_preview, controls.enabled, pal_RT_size]);
 
     PostProcessingEffect(effect);
 
