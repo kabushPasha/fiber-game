@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber"
 import "./App.css"
 import * as THREE from "three/webgpu"
 
-import { KeyboardControls, Stats } from "@react-three/drei"
+import { KeyboardControls, Sphere, Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
@@ -20,7 +20,7 @@ import { TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 //import { Physics } from "@react-three/rapier";
 import { useCallback, useEffect, useState } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
-import { GroundClamp, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
+import { GroundClamp, GroundClampSimple, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
 import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
@@ -50,6 +50,7 @@ import { Badge } from "react-bootstrap"
 import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
 import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
+import { PP_GlowFieldDepth } from "./classes/PostProcessing/Effects/Volumetric/PP_GlowField"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -69,7 +70,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 6 : 0)
+  const [level, setLevel] = useState(isDebug ? 7 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -120,6 +121,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(4)}>Level 4: Ortho Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(5)}>Level 5: Painterly Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(6)}>Level 6: Comix Zone </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(7)}>Level 7: GlowField </button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -130,6 +132,7 @@ const App = () => {
                   {level == 4 && <OrthoForest />}
                   {level == 5 && <KuwaharaForest />}
                   {level == 6 && <XDogForest />}
+                  {level == 7 && <GlowSwirl />}
 
                 </KeyboardControls>
               </MouseLockProvider>
@@ -242,7 +245,7 @@ export function PalDitherForest() {
           <PP_Sharpen kernelSize={1} strength={0.15} />
           <PP_ColorGrading />
           <PP_Vignette />
-          <PP_PalDither show_preview={false}/>
+          <PP_PalDither show_preview={false} />
           <PP_Scanline />
 
         </WebGPUPostProcessingProvider>
@@ -290,7 +293,7 @@ export function OrthoForest() {
             <PP_Sharpen kernelSize={1} strength={0.15} />
             <PP_ColorGrading />
             <PP_Vignette />
-            <PP_PalDither palette="lowlands15-1x.png" dither={0.01} gamma={0.8}/>
+            <PP_PalDither palette="lowlands15-1x.png" dither={0.01} gamma={0.8} />
             <PP_Scanline />
           </>}
         </WebGPUPostProcessingProvider>
@@ -431,7 +434,41 @@ export function XDogForest() {
 
 
 
+export function GlowSwirl() {
 
+  return <>
+    {1 &&
+      <CameraUniformsProvider>
+        <WebGPUPostProcessingProvider >
+          {1 && <>
+            <PP_GlowFieldDepth />
+          </>}
+        </WebGPUPostProcessingProvider>
+      </CameraUniformsProvider>
+    }
+
+    <Pixelated resolution={256} enabled={true} />
+
+
+
+    <Player >
+      {1 && <MoveByVel speed={0.5} />}
+      <GroundClampSimple />
+    </Player>
+
+    {0 && <>
+      <Sphere></Sphere>
+      <mesh
+        rotation={[-Math.PI * 0.5, 0, 0]}
+        position={[0, 0, 0]}
+        material={new THREE.MeshStandardMaterial()}
+      >
+        <planeGeometry args={[100, 100, 2, 2]} />
+      </mesh>
+    </>}
+
+  </>
+}
 
 
 

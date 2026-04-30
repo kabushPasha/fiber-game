@@ -19,6 +19,9 @@ type PP_PalDitherProps = {
 };
 
 
+// OK LAB HSL
+// https://bottosson.github.io/posts/colorpicker/
+
 const PALLETES = {
     "24 Ghostly Spooky Gold": "24-ghostly-spooky-colors-and-gold-1x.png",
     "31": "31-1x.png",

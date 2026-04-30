@@ -5,7 +5,7 @@ import { useKeyboardControls } from "@react-three/drei";
 import { useTerrain } from "../Terrain/TerrainProvider";
 
 
-export function MoveByVel() {
+export function MoveByVel({ speed = 1 }: { speed?: number }) {
     const { objectRef } = useGameObject3D()
 
     const force = new THREE.Vector3(0, -30, 0);
@@ -17,7 +17,7 @@ export function MoveByVel() {
         const vel: THREE.Vector3 = obj.userData.vel ??= new THREE.Vector3(0, 0, 0)
 
         // Move object
-        obj.position.addScaledVector(vel, delta)
+        obj.position.addScaledVector(vel, delta * speed)
         // Gravity
         vel.addScaledVector(force, delta)
     }, -6)

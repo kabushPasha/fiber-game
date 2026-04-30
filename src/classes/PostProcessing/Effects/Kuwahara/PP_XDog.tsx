@@ -61,7 +61,7 @@ export function PP_Xdog() {
 }
 
 
-const tanh = Fn(([x]: [THREE.Node]) => {
+export const tanh = Fn(([x]: [THREE.Node]) => {
     const ex = x.exp();
     const emx = x.negate().exp();
     return ex.sub(emx).div(ex.add(emx));
