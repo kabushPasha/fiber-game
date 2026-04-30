@@ -2,7 +2,7 @@
 import { RigidBody, HeightfieldCollider } from "@react-three/rapier";
 import { useEffect, useMemo, useRef } from "react";
 import { MeshStandardNodeMaterial } from "three/webgpu";
-import {  modelWorldMatrix, positionLocal, vec3, vec4, texture, vec2, modelWorldMatrixInverse, transformNormalToView, instanceIndex,  float, mix, uniform } from "three/tsl";
+import { modelWorldMatrix, positionLocal, vec3, vec4, texture, vec2, modelWorldMatrixInverse, transformNormalToView, instanceIndex, float, mix, uniform } from "three/tsl";
 import { useTerrain } from "./TerrainProvider";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
@@ -122,7 +122,7 @@ export function TerrainMoss() {
             tile: { value: 0.5, min: 0, max: 2 },
             blocks: { value: 64, min: 0, max: 2048 },
             count: { value: 32, min: 0, max: 128 },
-            color: {value: "#9ec9a2"},
+            color: { value: "#9ec9a2" },
         }, { collapsed: true })
     });
 
@@ -133,7 +133,7 @@ export function TerrainMoss() {
     }, [controlled.blocks]);
     const size = block_size * (n_blocks);
 
-    const count = useMemo(() => {return controlled.count}, [controlled.count]);
+    const count = useMemo(() => { return controlled.count }, [controlled.count]);
     const player = usePlayer();
 
     useFrame(() => {
@@ -148,7 +148,7 @@ export function TerrainMoss() {
         () => ({
             offset: uniform(float(0.25)),
             tile: uniform(float(0.75)),
-            color:uniform(vec3(1.0)),
+            color: uniform(vec3(1.0)),
         }),
         []
     );
@@ -163,7 +163,7 @@ export function TerrainMoss() {
     useEffect(() => {
         const c = new THREE.Color(controlled.color);
         uniforms.color.value.set(c.r, c.g, c.b);
-    }, [ controlled.color])
+    }, [controlled.color])
 
 
     const material = useMemo(() => {
@@ -241,7 +241,7 @@ export function TerrainMossUI() {
         }, { collapsed: true })
     });
 
-    if(!controlled.enabled) return null;
-    
-        return <TerrainMoss/>
+    if (!controlled.enabled) return null;
+
+    return <TerrainMoss />
 }

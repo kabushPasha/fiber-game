@@ -732,7 +732,29 @@ export function GrassScatter() {
                 <WrapAroundPlayerGPU />
                 <InstancedMeshSimple>
                     {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
-                    <GrassPivotMaterial />
+                    <GrassPivotMaterial use_distance_mask ={true}/>
+                </InstancedMeshSimple>
+            </TransformsBufferProvider>
+        </SnapToTerrainHeightCPU>
+    </GridScatter >
+}
+
+export function TopDownGrassScatter() {
+    return <GridScatter
+        name={"GrassTopDown"}
+        spacing={3.0}
+        cellCount={20}
+        scale={3}
+        rotation_random={1}
+        offset_random={2}
+        scale_random={1.0}
+    >
+        <SnapToTerrainHeightCPU>
+            <TransformsBufferProvider>
+                <WrapAroundPlayerGPU />
+                <InstancedMeshSimple>
+                    {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
+                    <GrassPivotMaterial use_distance_mask ={false}/>
                 </InstancedMeshSimple>
             </TransformsBufferProvider>
         </SnapToTerrainHeightCPU>

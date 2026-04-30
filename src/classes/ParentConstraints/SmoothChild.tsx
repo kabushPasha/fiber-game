@@ -154,6 +154,8 @@ export function LZ_OrthoCamera({
   use_camera = false,
 }: LZ_OrthoCameraProps) {
 
+  const { camera } = useThree()
+
   /*
   const [controls, set] = useControls(() => ({
     Player: folder({
@@ -167,7 +169,6 @@ export function LZ_OrthoCamera({
     set({ default_zoom });
   }, [default_zoom, set]);
   */
-  const { camera } = useThree()
 
   // WHEEL ZOOM - disabled until later
   /*
@@ -195,6 +196,8 @@ export function LZ_OrthoCamera({
         zoom={40}
         near={-100}
         far={100}
+        top={400}
+        bottom={-400}
       />
 
       {use_camera && <>

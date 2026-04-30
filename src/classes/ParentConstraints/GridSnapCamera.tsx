@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber"
 import { useGameObject3D } from "../GameObjectContext"
 
 
+
 type GridSnapCameraProps = React.PropsWithChildren<{}>
 
 export function GridSnapCamera({ children }: GridSnapCameraProps) {
@@ -30,51 +31,57 @@ export function GridSnapCamera({ children }: GridSnapCameraProps) {
         }
     }, [scene])
 
+
     // Each frame, copy parent's world position only
     useFrame(() => {
         const parent = objectRef.current
         const g = groupRef.current
         if (!parent || !g) return
 
+        const cam = camera as THREE.OrthographicCamera;
+
         parent.getWorldPosition(parentWorld)
         parent.getWorldQuaternion(parentOrient)
 
-        //const snap_size = 0.3;
-        //parentWorld.setX( parentWorld.x - parentWorld.x%snap_size )
-        //parentWorld.setZ( parentWorld.z - parentWorld.z%snap_size )
-        //parentWorld.setY( parentWorld.y - parentWorld.y%snap_size )
-
-        //g.position.copy(parentWorld)
-        //g.rotation.setFromQuaternion(parentOrient)
-
         const snap = (value: number, size: number) => Math.round(value / size) * size;
 
-        const cam = camera as THREE.OrthographicCamera;
         const worldUnitsPerPixel = (cam.top - cam.bottom) / cam.zoom / gl.domElement.height;
-        //console.log(gl.domElement.height, cam.top, cam.bottom);
+        const worldUnitsPerPixel2 = (cam.right - cam.left) / cam.zoom / gl.domElement.width;
 
         // camera basis vectors
         const right = new THREE.Vector3(1, 0, 0).applyQuaternion(parentOrient);
         const up = new THREE.Vector3(0, 1, 0).applyQuaternion(parentOrient);
-
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(parentOrient);
 
         // project into camera plane coordinates
         const x = parentWorld.dot(right);
         const y = parentWorld.dot(up);
 
         // snap in pixel-aligned world units
-        const snappedX = snap(x, worldUnitsPerPixel);
+        const snappedX = snap(x, worldUnitsPerPixel2);
         const snappedY = snap(y, worldUnitsPerPixel);
 
-        // rebuild position
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(parentOrient);
-
+        // rebuild position      
         g.position
             .copy(right.multiplyScalar(snappedX))
             .add(up.multiplyScalar(snappedY))
             .add(forward.multiplyScalar(parentWorld.dot(forward)));
 
         g.rotation.setFromQuaternion(parentOrient)
+
+
+        // Update Canvas Offset
+        const client_width = gl.domElement.clientWidth;
+        const pixel_scale = client_width / gl.domElement.width;
+        const screen_offsetX = -pixel_scale * (x - snappedX) / worldUnitsPerPixel2;
+        const screen_offsetY = pixel_scale * (y - snappedY) / worldUnitsPerPixel;
+        let scale = gl.domElement.height / (gl.domElement.height - 1);
+        gl.domElement.style.transform = `scale(${scale}) translate(${screen_offsetX}px, ${screen_offsetY}px)`;
+
+        // update Uniform
+        cam.userData["pixel_grid_offset"] = [snappedX / worldUnitsPerPixel2, -snappedY / worldUnitsPerPixel];
+
+
     }, -5)
 
     return <group ref={groupRef}>{children}</group>

@@ -1,8 +1,8 @@
-import { useLoader } from "@react-three/fiber";
+import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { PostProcessingEffect, useWebGPUPostProcessing } from "../PostProcessingContext";
 import { useCallback, useEffect, useMemo, } from "react";
 import { TextureLoader } from "three";
-import { float, Fn, instancedArray, instanceIndex, int, mix, screenCoordinate, select, uniform, uniformArray, vec2, vec3, vec4 } from "three/tsl";
+import { float, Fn, instancedArray, instanceIndex, int, mix, screenCoordinate,  select, uniform, uniformArray, vec2, vec3, vec4 } from "three/tsl";
 import { texture } from "three/src/nodes/TSL.js";
 import * as THREE from "three/webgpu"
 import { button, folder, useControls } from "leva";
@@ -243,7 +243,7 @@ export function PP_PalDither({
 
     useEffect(() => {
         set({ palette, dither, show_preview, gamma });
-    }, [palette, dither, show_preview, gamma,set]);
+    }, [palette, dither, show_preview, gamma, set]);
 
     // UI Palette EDITOR
     /*
@@ -374,6 +374,14 @@ export function PP_PalDither({
     ]);
 
 
+    const { camera } = useThree()
+    const pixel_grid_offset = useMemo(() => { return uniform(new THREE.Vector2()); }, []);
+
+    useFrame(() => {
+        if (camera.userData.pixel_grid_offset) {
+            pixel_grid_offset.value.set(camera.userData.pixel_grid_offset[0], camera.userData.pixel_grid_offset[1])
+        }
+    })
 
     const effect = useCallback((inputNode: any) => {
         if (!inputNode || !scenePass || !controls.enabled) return inputNode;
@@ -381,10 +389,7 @@ export function PP_PalDither({
         const PALETTE_SIZE = pal_RT_size;
         //const PALETTE_SIZE = userPal.length;
 
-        const pixel = screenCoordinate.mod(4.0);
-
-        //const resolution = inputNode.resolution();
-        //const pixel = uv.mul(resolution);
+        let pixel = screenCoordinate.add(pixel_grid_offset).mod(4.0);
 
         const index = pixel.y.mul(4).add(pixel.x);
         const bayer = bayerMatrix.element(int(index)).div(16.0);
@@ -409,11 +414,7 @@ export function PP_PalDither({
             return vec4(bestColor, 1.0);
         })
 
-
         const clamped_cd = getNearestPalColor(inputNode.add(bayer.sub(0.5).mul(uniforms.dither)));
-
-
-        //return screenUV.x.step(uniforms.slice).mul(uniforms.blend).mix(exposed_output, inputNode);
 
         const pal_block_size = 10;
         const pal = pal_RT.element(screenCoordinate.x.toFloat().div(pal_block_size).toInt().mod(PALETTE_SIZE));
@@ -424,7 +425,7 @@ export function PP_PalDither({
 
         return uniforms.blend.mix(clamped_cd, inputNode);
 
-    }, [scenePass, uniforms, pal_RT, controls.show_preview, controls.enabled, pal_RT_size]);
+    }, [scenePass, uniforms, pal_RT, controls.show_preview, controls.enabled, pal_RT_size, camera, pixel_grid_offset]);
 
     PostProcessingEffect(effect);
 

@@ -33,7 +33,7 @@ import { PP_FogPass } from "./classes/PostProcessing/Effects/PP_FogPass"
 import { PP_PixelHighlights } from "./classes/PostProcessing/Effects/PP_PixelatedPass"
 import { CameraUniformsProvider } from "./classes/PostProcessing/cameraUniformsContext"
 
-import { GrassScatter, InteractiveBoxesScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
+import { GrassScatter, InteractiveBoxesScatter, TopDownGrassScatter } from "./classes/Terrain/ScatterAPI/Scatter/TransformsProvides"
 import { PinesScatter } from "./classes/Terrain/ScatterAPI/Scatter/Presets"
 import { PP_LUT } from "./classes/PostProcessing/Effects/PP_3DLUTPass"
 import { PP_ColorGrading } from "./classes/PostProcessing/Effects/PP_ColorGrading"
@@ -70,7 +70,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 7 : 0)
+  const [level, setLevel] = useState(isDebug ? 4 : 0)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -94,13 +94,19 @@ const App = () => {
           <Canvas
             camera={{ fov: 50, aspect: 2.35, position: [0, 0, 0] }}
 
+
             gl={async (props) => {
               const renderer = new THREE.WebGPURenderer({
                 ...props,
                 antialias: false,
               } as any)
 
+              renderer.setPixelRatio(1)
+
+
               await renderer.init()
+
+
               return renderer
             }}
             style={{ background: "black" }}
@@ -183,12 +189,7 @@ export function ForestLevel() {
       </CameraUniformsProvider>
     }
 
-
-
     <Pixelated resolution={256} enabled={true} />
-
-
-
 
     <group name="Lights">
       <ambientLight intensity={controlls.ambient_intensity} />
@@ -231,8 +232,6 @@ export function ForestLevel() {
     {0 && <RaycastOnClick />}
   </>
 }
-
-
 
 export function PalDitherForest() {
 
@@ -290,19 +289,18 @@ export function OrthoForest() {
       <CameraUniformsProvider>
         <WebGPUPostProcessingProvider >
           {1 && <>
-            <PP_Sharpen kernelSize={1} strength={0.15} />
-            <PP_ColorGrading />
-            <PP_Vignette />
-            <PP_PalDither palette="lowlands15-1x.png" dither={0.01} gamma={0.8} />
-            <PP_Scanline />
+            <PP_Sharpen kernelSize={1} strength={0.15} enabled={true} />
+            {1 && <PP_ColorGrading />}
+            {1 && <PP_Vignette />}
+            {1 && <PP_PalDither palette="lowlands15-1x.png" dither={0.01} gamma={0.8} />}
+            {1 && <PP_Scanline />}
           </>}
         </WebGPUPostProcessingProvider>
       </CameraUniformsProvider>
     }
 
 
-
-    <Pixelated resolution={256} enabled={true} />
+    <Pixelated resolution={128} enabled={true} />
 
     <group name="Lights">
       <ambientLight intensity={0.5} />
@@ -311,20 +309,21 @@ export function OrthoForest() {
 
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
-      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} >
+      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 1.0, ortho: true }} >
         <WorldPositionConstraint>
           {1 && <TerrainPlane />}
         </WorldPositionConstraint>
-        {1 && <MoveByVel />}
+        {1 && <MoveByVel speed={0.5} />}
         <Jump />
         <GroundClamp />
       </Player>
 
       {1 && <>
-        {1 && <GrassScatter />}
+        {1 && <TopDownGrassScatter />}
         {1 && <PinesScatter />}
-        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
+        {0 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
         {0 && <DynamicWaterSystemToggle />}
+        {0 && <TerrainMossUI />}
       </>}
 
     </TerrainProvider>
@@ -332,7 +331,6 @@ export function OrthoForest() {
     {1 && <SimpleBackground />}
   </>
 }
-
 
 export function KuwaharaForest() {
 
@@ -370,10 +368,12 @@ export function KuwaharaForest() {
       </Player>
 
       {1 && <>
-        {1 && <GrassScatter />}
+        {0 && <GrassScatter />}
+        {1 && <TopDownGrassScatter />}
         {1 && <PinesScatter />}
-        {1 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
+        {0 && <SnowSpritesUI active={true} showControls={true} fallSpeed={0.0} areaSize={100} count={1000} />}
         {0 && <DynamicWaterSystemToggle />}
+        {1 && <TerrainMossUI />}
       </>}
 
     </TerrainProvider>
@@ -381,7 +381,6 @@ export function KuwaharaForest() {
     {1 && <SimpleBackground />}
   </>
 }
-
 
 export function XDogForest() {
 
@@ -432,8 +431,6 @@ export function XDogForest() {
   </>
 }
 
-
-
 export function GlowSwirl() {
 
   return <>
@@ -469,8 +466,6 @@ export function GlowSwirl() {
 
   </>
 }
-
-
 
 
 

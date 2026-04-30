@@ -5,7 +5,7 @@ import * as THREE from "three"
 import { useUI } from "../../components/UIScreenContext"
 import { CrosshairDot } from "../../components/CrosshairDot"
 import { GameObject3D } from "../GameObjectContext"
-import { LZ_CameraSwitcher, LZ_PerspectiveCameraSmooth } from "../ParentConstraints/SmoothChild"
+import { LZ_CameraSwitcher } from "../ParentConstraints/SmoothChild"
 import { useMouseLock } from "./MouseLock"
 import { LZ_CamerOrientationController, type LZ_CamerOrientationControllerProps } from "./CameraController"
 import { usePlayer } from "./PlayerContext"
@@ -114,7 +114,6 @@ export function Player({ children,camera_props }: PlayerProps) {
       {children}
 
       <LZ_CamerOrientationController {...camera_props}>
-        {0 && <LZ_PerspectiveCameraSmooth {...camera_props}/>}
         <LZ_CameraSwitcher {...camera_props}/>
       </LZ_CamerOrientationController>
 
