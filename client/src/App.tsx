@@ -51,6 +51,7 @@ import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
 import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
 import { PP_GlowFieldDepth } from "./classes/PostProcessing/Effects/Volumetric/PP_GlowField"
+import { MultiplayerTestLevel } from "./classes/LEVELS/Multiplayer/Multiplayer"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -70,7 +71,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 4 : 6)
+  const [level, setLevel] = useState(isDebug ? 8 : 6)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -139,6 +140,7 @@ const App = () => {
                   {level == 5 && <KuwaharaForest />}
                   {level == 6 && <XDogForest />}
                   {level == 7 && <GlowSwirl />}
+                  {level == 8 && <MultiplayerTestLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>
@@ -432,7 +434,6 @@ export function XDogForest() {
 }
 
 export function GlowSwirl() {
-
   return <>
     {1 &&
       <CameraUniformsProvider>
@@ -463,9 +464,9 @@ export function GlowSwirl() {
         <planeGeometry args={[100, 100, 2, 2]} />
       </mesh>
     </>}
-
   </>
 }
+
 
 
 
