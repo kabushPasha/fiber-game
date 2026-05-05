@@ -70,7 +70,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 4 : 0)
+  const [level, setLevel] = useState(isDebug ? 4 : 6)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
