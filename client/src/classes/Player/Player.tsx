@@ -9,6 +9,7 @@ import { LZ_CameraSwitcher } from "../ParentConstraints/SmoothChild"
 import { useMouseLock } from "./MouseLock"
 import { LZ_CamerOrientationController, type LZ_CamerOrientationControllerProps } from "./CameraController"
 import { usePlayer } from "./PlayerContext"
+import { PixelCameraSnap } from "../LEVELS/Assets/Characters/Knight"
 
 
 const SPEED = 10
@@ -16,10 +17,11 @@ const SPRINT_SPEED = 25 // sprint speed
 
 interface PlayerProps {
   children?: ReactNode,
-  camera_props?: LZ_CamerOrientationControllerProps
+  camera_props?: LZ_CamerOrientationControllerProps,
+  show_sphere? : boolean,
 }
 
-export function Player({ children,camera_props }: PlayerProps) {
+export function Player({ children, camera_props,show_sphere=true }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
   // Register Our Player
   const { setPlayer } = usePlayer()
@@ -111,13 +113,16 @@ export function Player({ children,camera_props }: PlayerProps) {
 
   return (
     <GameObject3D ref={playerRef} name="Player">
-      {children}
+      <PixelCameraSnap>
+        {children}
 
-      <LZ_CamerOrientationController {...camera_props}>
-        <LZ_CameraSwitcher {...camera_props}/>
-      </LZ_CamerOrientationController>
+        <LZ_CamerOrientationController {...camera_props}>
+          <LZ_CameraSwitcher {...camera_props} />
+        </LZ_CamerOrientationController>
 
-      <Sphere scale={0.5} />
+        {show_sphere && <Sphere scale={0.5} />}
+        
+      </PixelCameraSnap>
     </GameObject3D>
   )
 }

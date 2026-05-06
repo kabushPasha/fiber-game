@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from "react"
-import { useGameObject3D } from "../GameObjectContext"
 import * as THREE from "three"
 import { useFrame } from "@react-three/fiber"
+import { usePlayer } from "./PlayerContext"
 
 
 
@@ -54,21 +54,18 @@ export function HeadBob({
   const blend = useRef(0)
   const groundBlend = useRef(1)
 
-  const { objectRef } = useGameObject3D()
-
   const lastVelY = useRef(0)
   const landingOffset = useRef(0)
   const landingTarget = useRef(0)
 
+  const {player} = usePlayer();
+
   useFrame((_, delta) => {
-
     const g = groupRef.current
-    if (!g ||!enabled) return
+    if (!g ||!enabled || !player) return
 
-
-    const parent = objectRef.current.parent!
-    const vel: THREE.Vector3 = parent.userData.vel ??= new THREE.Vector3(0, 0, 0)
-    const groundDistance: number = parent.userData.ground_distance ?? 0
+    const vel: THREE.Vector3 = player.userData.vel ??= new THREE.Vector3(0, 0, 0)
+    const groundDistance: number = player.userData.ground_distance ?? 0
 
     const targetGroundBlend = 1 - THREE.MathUtils.smoothstep(groundDistance, 0.1, .25)
     groundBlend.current = THREE.MathUtils.damp(
@@ -125,7 +122,7 @@ export function HeadBob({
 
 
     // Fall BOB --------------------------------
-    const velY = parent.userData.vel?.y ?? 0
+    const velY = player.userData.vel?.y ?? 0
     const deltaVelY = lastVelY.current - velY
 
     // Detect landing: big downward velocity stop near ground

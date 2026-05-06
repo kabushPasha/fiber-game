@@ -4,7 +4,6 @@ import * as THREE from "three";
 import { useGameObject3D } from "../GameObjectContext";
 import { HeadBob } from "../Player/HeadBob";
 import { MaybeLateralTilt } from "../Player/LateralTilt";
-import { GridSnapCamera } from "./GridSnapCamera";
 import { folder, useControls } from "leva";
 import { OrthographicCamera } from "@react-three/drei";
 import type { LZ_CamerOrientationControllerProps } from "../Player/CameraController";
@@ -201,9 +200,7 @@ export function LZ_OrthoCamera({
       />
 
       {use_camera && <>
-        <GridSnapCamera>
           <primitive object={camera} />
-        </GridSnapCamera>
       </>}
     </>
   )

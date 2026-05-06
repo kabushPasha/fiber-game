@@ -52,6 +52,7 @@ import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_Simple
 import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
 import { PP_GlowFieldDepth } from "./classes/PostProcessing/Effects/Volumetric/PP_GlowField"
 import { MultiplayerTestLevel } from "./classes/LEVELS/Multiplayer/Multiplayer"
+import { KnightLevel } from "./classes/LEVELS/Assets/Characters/Knight"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -71,7 +72,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 8 : 6)
+  const [level, setLevel] = useState(isDebug ? 0 : 6)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -129,6 +130,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(5)}>Level 5: Painterly Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(6)}>Level 6: Comix Zone </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(7)}>Level 7: GlowField </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -141,6 +143,7 @@ const App = () => {
                   {level == 6 && <XDogForest />}
                   {level == 7 && <GlowSwirl />}
                   {level == 8 && <MultiplayerTestLevel />}
+                  {level == 9 && <KnightLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>
@@ -433,6 +436,14 @@ export function XDogForest() {
   </>
 }
 
+
+
+
+
+
+
+
+
 export function GlowSwirl() {
   return <>
     {1 &&
@@ -472,3 +483,7 @@ export function GlowSwirl() {
 
 
 export default App;
+
+
+
+

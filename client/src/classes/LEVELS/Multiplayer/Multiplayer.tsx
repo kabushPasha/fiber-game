@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import { usePlayer } from "../../Player/PlayerContext";
 import { useFrame } from "@react-three/fiber";
 import { useRef, useState } from "react";
-import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets";
+//import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets";
 
 
 

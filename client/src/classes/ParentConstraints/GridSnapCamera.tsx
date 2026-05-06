@@ -68,15 +68,17 @@ export function GridSnapCamera({ children }: GridSnapCameraProps) {
             .add(forward.multiplyScalar(parentWorld.dot(forward)));
 
         g.rotation.setFromQuaternion(parentOrient)
-
+        //g.position.copy(parentWorld);
 
         // Update Canvas Offset
+        /*
         const client_width = gl.domElement.clientWidth;
         const pixel_scale = client_width / gl.domElement.width;
         const screen_offsetX = -pixel_scale * (x - snappedX) / worldUnitsPerPixel2;
         const screen_offsetY = pixel_scale * (y - snappedY) / worldUnitsPerPixel;
         let scale = gl.domElement.height / (gl.domElement.height - 1);
         gl.domElement.style.transform = `scale(${scale}) translate(${screen_offsetX}px, ${screen_offsetY}px)`;
+        */
 
         // update Uniform
         cam.userData["pixel_grid_offset"] = [snappedX / worldUnitsPerPixel2, -snappedY / worldUnitsPerPixel];
