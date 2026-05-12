@@ -170,7 +170,7 @@ export function LZ_OrthoCamera({
   */
 
   // WHEEL ZOOM - disabled until later
-  /*
+
   const target_zoom = useRef(40) // target for smooth scroll
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
@@ -184,9 +184,11 @@ export function LZ_OrthoCamera({
   }, [])
   useFrame(() => {
     // UPDATE ZOOM  
-    camera.zoom += (target_zoom.current - camera.zoom) * 0.1
-    camera.updateProjectionMatrix()
-  })*/
+    if (camera instanceof THREE.OrthographicCamera) {
+      camera.zoom += (target_zoom.current - camera.zoom) * 0.1
+      camera.updateProjectionMatrix()
+    }
+  })
 
   return (
     <>
@@ -200,7 +202,7 @@ export function LZ_OrthoCamera({
       />
 
       {use_camera && <>
-          <primitive object={camera} />
+        <primitive object={camera} />
       </>}
     </>
   )

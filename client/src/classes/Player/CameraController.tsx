@@ -21,6 +21,7 @@ export interface LZ_CamerOrientationControllerProps {
     defaultZ?: number
     ortho?: boolean
     can_switch_camera?: boolean
+    head_y?: number
 }
 export function LZ_CamerOrientationController({
     children,
@@ -32,6 +33,7 @@ export function LZ_CamerOrientationController({
     default_yaw = 0.0,
     min_pitch = .2,
     max_pitch = .8,    
+    head_y = 2.0,
 }: LZ_CamerOrientationControllerProps) {
     const { objectRef: playerRef } = useGameObject3D() // parent Player
     const neckRef = useRef<THREE.Group>(null!)
@@ -149,7 +151,7 @@ export function LZ_CamerOrientationController({
     })
 
     return (
-        <GameObject3D ref={neckRef} name="PlayerNeck" position={[0, 2, 0]} rotation={[0, 0, 0]}>
+        <GameObject3D ref={neckRef} name="PlayerNeck" position={[0, head_y, 0]} rotation={[0, 0, 0]}>
             {children}
         </GameObject3D>
     )

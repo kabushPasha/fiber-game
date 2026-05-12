@@ -52,7 +52,7 @@ import { PP_Kuwahara } from "./classes/PostProcessing/Effects/Kuwahara/PP_Simple
 import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
 import { PP_GlowFieldDepth } from "./classes/PostProcessing/Effects/Volumetric/PP_GlowField"
 import { MultiplayerTestLevel } from "./classes/LEVELS/Multiplayer/Multiplayer"
-import { KnightLevel } from "./classes/LEVELS/Assets/Characters/Knight"
+import { ImmortalLeva, KnightLevel } from "./classes/LEVELS/Assets/Characters/Knight"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -72,7 +72,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 0 : 6)
+  const [level, setLevel] = useState(isDebug ? 9 : 9)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -363,13 +363,15 @@ export function KuwaharaForest() {
 
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
-      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} >
+      <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} show_sphere={false}>
         <WorldPositionConstraint>
           {1 && <TerrainPlane />}
         </WorldPositionConstraint>
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />
+
+        <ImmortalLeva />
       </Player>
 
       {1 && <>
@@ -421,6 +423,7 @@ export function XDogForest() {
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />
+
       </Player>
 
       {1 && <>
