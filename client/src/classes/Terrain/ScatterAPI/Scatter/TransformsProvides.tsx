@@ -291,10 +291,15 @@ export function flattenMatrix4Array(
 }
 
 // Instanced Mesh Simple
-export function InstancedMeshSimple({ children }: PropsWithChildren) {
+type InstancedMeshSimpleProps = PropsWithChildren<{
+    geometry?: THREE.BufferGeometry;
+    material?: THREE.Material;
+}>;
+
+export function InstancedMeshSimple({ children, geometry, material, }: InstancedMeshSimpleProps) {
     const { count } = useTransformsBuffer();
     return <instancedMesh
-        args={[undefined, undefined, count]}
+        args={[geometry, material, count]}
         position={[0, 0, 0]}
         frustumCulled={false}
     >
@@ -667,7 +672,7 @@ export function GrassPivotMaterial({ use_distance_mask = true }) {
         mat.colorNode = mix(base_color, bright_color, dist_mix.mul(uv_mix));
 
         return mat;
-    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize,use_distance_mask]);
+    }, [instanceMatrix, terrain.tsl_sampleHeight, terrain.tsl_sampleN, player.tsl_PlayerWorldPosition, terrain.tsl_sampleColor, grid.gridSize, use_distance_mask]);
 
     return <primitive object={material} attach="material" />
 }
@@ -724,7 +729,7 @@ export function GrassScatter() {
                 <WrapAroundPlayerGPU />
                 <InstancedMeshSimple>
                     {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
-                    <GrassPivotMaterial use_distance_mask ={true}/>
+                    <GrassPivotMaterial use_distance_mask={true} />
                 </InstancedMeshSimple>
             </TransformsBufferProvider>
         </SnapToTerrainHeightCPU>
@@ -746,7 +751,7 @@ export function TopDownGrassScatter() {
                 <WrapAroundPlayerGPU />
                 <InstancedMeshSimple>
                     {1 && <GLTFGeometry url="models/GrassPivot.glb" />}
-                    <GrassPivotMaterial use_distance_mask ={false}/>
+                    <GrassPivotMaterial use_distance_mask={false} />
                 </InstancedMeshSimple>
             </TransformsBufferProvider>
         </SnapToTerrainHeightCPU>
