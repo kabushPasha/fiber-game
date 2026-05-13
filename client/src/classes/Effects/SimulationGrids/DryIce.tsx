@@ -1,10 +1,5 @@
-import { usePlayer } from "../../../Player/PlayerContext";
-import { SimpleBackground } from "../../../shaders/Aurora";
-import { Player } from "../../../Player/Player";
-import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
 import { folder, useControls } from "leva";
 import { useEffect, useMemo, useRef } from "react";
-import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
 import * as THREE from 'three/webgpu'
 import { useFrame, useLoader } from "@react-three/fiber";
 import {
@@ -35,8 +30,13 @@ import {
     viewportSharedTexture
 } from "three/tsl";
 import { Fn } from "three/src/nodes/TSL.js";
-import { Pixelated } from "../../../../components/Pixelated";
 import { Sphere } from "@react-three/drei";
+import { Pixelated } from "../../../components/Pixelated";
+import { SimpleBackground } from "../../shaders/Aurora";
+import { Player } from "../../Player/Player";
+import { GroundClampSimple, Jump, MoveByVel } from "../../Player/PlayerPhysics";
+import { ColorStorageWriteback, useWebGPURenderer } from "./SatinFlow";
+import { usePlayer } from "../../Player/PlayerContext";
 
 
 // Based on :

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useUI } from "../../../components/UIScreenContext";
-import type { GameObjectEventMap } from "../../GameObjectEventMap";
+import { useUI } from "../../../../components/UIScreenContext";
+import type { GameObjectEventMap } from "../../../GameObjectEventMap";
 
 export function useThreeEvent<K extends keyof GameObjectEventMap>(
     object: THREE.EventDispatcher<GameObjectEventMap> | null | undefined,

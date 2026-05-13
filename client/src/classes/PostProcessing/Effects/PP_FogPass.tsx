@@ -3,7 +3,7 @@ import { PostProcessingEffect, useWebGPUPostProcessing } from "../PostProcessing
 import * as THREE from "three/webgpu";
 import { useCallback, useEffect, useMemo } from "react";
 import { mix, uniform, vec3 } from "three/tsl";
-import { FogNode } from "../FogPass";
+import { FogNode } from "../Nodes/FogPass";
 import { folder, useControls } from "leva";
 
 interface PP_FogPassProps {

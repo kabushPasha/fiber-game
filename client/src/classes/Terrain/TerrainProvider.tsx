@@ -166,6 +166,8 @@ export function TerrainProvider(_props: TerrainProps) {
 }
 
 
+
+
 function textureToHeightData(hf_tex: THREE.Texture,): number[] {
     const img = hf_tex.image as HTMLImageElement;
     const { width, height } = img;

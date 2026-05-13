@@ -1,7 +1,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import type { GameObjectEventMap } from "../../GameObjectEventMap";
+import type { GameObjectEventMap } from "../../../GameObjectEventMap";
+
 
 export type TargetEvent = {
   event: "mount" | "hit" | "hover" | "tick" | string; // string allows future custom events

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { AddCallbackToParentEvent } from "./AddCallbackToParentEvent";
-import type { GameObject } from "../../GameObjectEventMap";
+import type { GameObject } from "../../../GameObjectEventMap";
+
 
 interface ScoreComponentProps {
     onScoreChange?: (source: THREE.Object3D) => void; // optional callback for parent

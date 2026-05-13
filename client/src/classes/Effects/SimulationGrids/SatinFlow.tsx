@@ -38,10 +38,10 @@ import {
     vertexIndex
 } from "three/tsl";
 import * as THREE from 'three/webgpu'
-import { usePlayer } from "../../../Player/PlayerContext";
-import { SimpleBackground } from "../../../shaders/Aurora";
-import { Player } from "../../../Player/Player";
-import { GroundClampSimple, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
+import { usePlayer } from "../../Player/PlayerContext";
+import { SimpleBackground } from "../../shaders/Aurora";
+import { Player } from "../../Player/Player";
+import { GroundClampSimple, Jump, MoveByVel } from "../../Player/PlayerPhysics";
 
 export function SatinLevel() {
 

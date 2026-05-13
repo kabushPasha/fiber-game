@@ -11,7 +11,7 @@ import { usePlayer } from "../Player/PlayerContext";
 import { folder, useControls } from "leva";
 
 
-export function Terrain() {
+export function TerrainRapier() {
     const { heights, width, height, hf_height, hf_size, hf_tex } = useTerrain();
 
     const material = useMemo(() => {
@@ -51,8 +51,6 @@ export function Terrain() {
         </>
     );
 }
-
-
 
 
 
@@ -101,10 +99,6 @@ export function TerrainPlane() {
         </group>
     );
 }
-
-
-
-
 
 
 

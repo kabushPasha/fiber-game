@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { AllTasks, type TaskDefinition } from "./Task";
-import { useUI } from "../../../components/UIScreenContext";
+import { useUI } from "../../../../components/UIScreenContext";
 import { TaskSelector } from "../UI/TaskSelector";
 
 

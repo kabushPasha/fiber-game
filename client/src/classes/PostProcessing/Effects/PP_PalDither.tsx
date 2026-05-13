@@ -6,7 +6,7 @@ import { float, Fn, instancedArray, instanceIndex, int, mix, screenCoordinate,  
 import { texture } from "three/src/nodes/TSL.js";
 import * as THREE from "three/webgpu"
 import { button, folder, useControls } from "leva";
-import { useWebGPURenderer } from "../../Terrain/ScatterAPI/Scatter/SatinFlow";
+import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow";
 import { toHsv, ToRgb } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
 //import { useUI } from "../../../components/UIScreenContext";
 //import { FloatingPalette } from "../../../components/Palette/FloatingPalette";

@@ -379,8 +379,6 @@ export function HoverInstancedMeshCPU({ children }: PropsWithChildren) {
     </instancedMesh>;
 }
 
-
-
 export function InstancedTransformMaterial() {
     const { transformsBufferNode } = useTransformsBuffer();
 
@@ -471,7 +469,6 @@ export function WrapAroundPlayer({ children }: PropsWithChildren) {
         </useTransformsContext.Provider>
     );
 }
-
 
 export function WrapAroundPlayerGPU() {
     const { gl } = useThree();
@@ -602,8 +599,6 @@ export function DistanceFadeMaterialGPU() {
     return <primitive object={material} attach="material" />
 }
 
-
-
 export function GrassPivotMaterial({ use_distance_mask = true }) {
     const { transformsBufferNode } = useTransformsBuffer();
     const terrain = useTerrain();
@@ -714,9 +709,6 @@ export function ToRgb(c: THREE.Node) {
     );
 }
 
-
-
-
 export function GrassScatter() {
     return <GridScatter
         name={"Grass"}
@@ -761,7 +753,6 @@ export function TopDownGrassScatter() {
     </GridScatter >
 }
 
-
 export function TreesScatter() {
     return <GridScatter
         name={"Trees New"}
@@ -784,10 +775,6 @@ export function TreesScatter() {
     </GridScatter >
 }
 
-
-
-
-
 export function InteractiveBoxesScatter() {
     return <GridScatter name={"Interactive Boxes"} spacing={1.5} cellCount={15} visible={false}>
         <WrapAroundPlayer>
@@ -798,10 +785,6 @@ export function InteractiveBoxesScatter() {
         </WrapAroundPlayer>
     </GridScatter>
 }
-
-
-
-
 
 export function TansformsProviderDebug() {
     return (
@@ -847,7 +830,6 @@ export function TansformsProviderDebug() {
         </>
     );
 }
-
 
 
 // WORK IN PROGRESS HERE

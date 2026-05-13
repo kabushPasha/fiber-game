@@ -1,7 +1,16 @@
 import { createContext, forwardRef, useContext, useRef, type ReactNode, type RefObject } from "react"
 import * as THREE from "three"
 
-// Context
+/**
+ * GameObject3D
+ * -------------
+ * A reusable React + Three.js wrapper component that creates a shared
+ * THREE.Group and exposes its reference through React Context.
+ *
+ * This allows any nested child component to access the parent 3D object
+ * without prop drilling by using the `useGameObject3D()` hook.
+ *
+ */
 
 interface GameObject3DContextValue {
   objectRef: RefObject<THREE.Object3D>
@@ -16,7 +25,6 @@ export function useGameObject3D() {
 }
 
 export { GameObject3DContext }
-
 
 // Provider
 interface GameObject3DProps {

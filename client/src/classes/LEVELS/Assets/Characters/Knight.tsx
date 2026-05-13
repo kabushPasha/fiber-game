@@ -3,7 +3,7 @@ import { GLTFGeometry, GrassScatter } from "../../../Terrain/ScatterAPI/Scatter/
 import * as THREE from "three/webgpu"
 import { normalLocal, positionLocal, texture, uv, vec2, vec3 } from "three/tsl";
 import { useEffect, useMemo, useRef } from "react";
-import { ParentWorldPositionConstraint, WorldPositionConstraint } from "../../../ParentConstraints/WorldPositionConstraint";
+import { ParentWorldPositionConstraint } from "../../../ParentConstraints/ParentWorldPositionConstraint";
 import { CameraUniformsProvider } from "../../../PostProcessing/cameraUniformsContext";
 import { WebGPUPostProcessingProvider } from "../../../PostProcessing/PostProcessingContext";
 import { PP_Vignette } from "../../../PostProcessing/Effects/PP_Dof";
@@ -15,12 +15,12 @@ import { TerrainPlane } from "../../../Terrain/Terrain";
 import { GroundClamp, Jump, MoveByVel } from "../../../Player/PlayerPhysics";
 import { PinesScatter } from "../../../Terrain/ScatterAPI/Scatter/Presets";
 import { SnowSpritesUI } from "../../../Terrain/SnowSprites";
-import { DynamicWaterSystemToggle } from "../../../Terrain/ScatterAPI/Scatter/Water";
 import { SimpleBackground } from "../../../shaders/Aurora";
 import { useFrame, useThree } from "@react-three/fiber";
 import { usePlayer } from "../../../Player/PlayerContext";
 import { useControls } from "leva";
 import { useUI } from "../../../../components/UIScreenContext";
+import { DynamicWaterSystemToggle } from "../../../Effects/SimulationGrids/Water";
 
 
 
@@ -82,7 +82,7 @@ export function Knight() {
 
 
 const CHARACTERS = [
-    "bigknight",    
+    "bigknight",
     "elf",
     //"elk",
     "femknight",
@@ -91,8 +91,8 @@ const CHARACTERS = [
     "goat",
     "mage",
     "orkking",
-    "viking",   
-    "immortal", 
+    "viking",
+    "immortal",
 ] as const;
 
 type CharName = typeof CHARACTERS[number];
@@ -114,7 +114,7 @@ export function ImmortalLeva() {
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             const k = e.code;
-            console.log(e);
+            //console.log(e);
 
             if (k === "KeyN") {
                 const i = CHARACTERS.indexOf(get("character") as CharName);
@@ -412,9 +412,9 @@ export function KnightLevel() {
         <TerrainProvider textureUrl="textures/HFs/height.png">
 
             <Player camera_props={{ defaultZ: 9, default_pitch: 15, default_yaw: 180, head_y: 2.75 }} show_sphere={false}>
-                <WorldPositionConstraint>
+                <ParentWorldPositionConstraint>
                     {1 && <TerrainPlane />}
-                </WorldPositionConstraint>
+                </ParentWorldPositionConstraint>
                 {1 && <MoveByVel speed={0.5} />}
                 <Jump />
                 <GroundClamp />

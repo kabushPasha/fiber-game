@@ -6,7 +6,7 @@ import { KeyboardControls, Sphere, Stats } from "@react-three/drei"
 import { Player } from "./classes/Player/Player"
 import { Pixelated } from "./components/Pixelated"
 import { UIScreenProvider } from "./components/UIScreenContext"
-import { TaskSelectorPawn } from "./classes/FPS/Components/TaskSelector"
+import { TaskSelectorPawn } from "./classes/GamplayPlugins/FPS/Components/TaskSelector"
 import { AuroraBackground, SimpleBackground } from "./classes/shaders/Aurora"
 import { TestSDF } from "./classes/shaders/Raymarcher"
 
@@ -21,7 +21,7 @@ import { TerrainMossUI, TerrainPlane } from "./classes/Terrain/Terrain"
 import { useCallback, useEffect, useState } from "react"
 import { TerrainProvider } from "./classes/Terrain/TerrainProvider"
 import { GroundClamp, GroundClampSimple, Jump, MoveByVel } from "./classes/Player/PlayerPhysics"
-import { WorldPositionConstraint } from "./classes/ParentConstraints/WorldPositionConstraint"
+import { ParentWorldPositionConstraint } from "./classes/ParentConstraints/ParentWorldPositionConstraint"
 import { MouseLockProvider } from "./classes/Player/MouseLock"
 import { WebGPUPostProcessingProvider } from "./classes/PostProcessing/PostProcessingContext"
 
@@ -42,9 +42,6 @@ import { PP_DoF, PP_Scanline, PP_Vignette } from "./classes/PostProcessing/Effec
 import AspectRatioCanvas from "./components/AspectRationCanvas"
 import { LoadingScreen } from "./components/LoadingScreen"
 import { Pause } from "./classes/Player/Pause"
-import { DynamicWaterSystemToggle, Water } from "./classes/Terrain/ScatterAPI/Scatter/Water"
-import { SatinLevel } from "./classes/Terrain/ScatterAPI/Scatter/SatinFlow"
-import { DryIceLevel } from "./classes/Terrain/ScatterAPI/Scatter/DryIce"
 import { UI_Panel } from "./classes/UI_Panels/UI_Panel"
 import { Badge } from "react-bootstrap"
 import { PP_PalDither } from "./classes/PostProcessing/Effects/PP_PalDither"
@@ -53,6 +50,10 @@ import { PP_Xdog } from "./classes/PostProcessing/Effects/Kuwahara/PP_XDog"
 import { PP_GlowFieldDepth } from "./classes/PostProcessing/Effects/Volumetric/PP_GlowField"
 import { MultiplayerTestLevel } from "./classes/LEVELS/Multiplayer/Multiplayer"
 import { ImmortalLeva, KnightLevel } from "./classes/LEVELS/Assets/Characters/Knight"
+import { SatinLevel } from "./classes/Effects/SimulationGrids/SatinFlow"
+import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
+import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
+import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -72,7 +73,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 9 : 9)
+  const [level, setLevel] = useState(isDebug ? 10 : 9)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -144,6 +145,7 @@ const App = () => {
                   {level == 7 && <GlowSwirl />}
                   {level == 8 && <MultiplayerTestLevel />}
                   {level == 9 && <KnightLevel />}
+                  {level == 10 && <VatCrowds_Level />}
 
                 </KeyboardControls>
               </MouseLockProvider>
@@ -204,16 +206,15 @@ export function ForestLevel() {
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
       <Player >
-        <WorldPositionConstraint>
+        <ParentWorldPositionConstraint>
           {1 && <TerrainPlane />}
-        </WorldPositionConstraint>
+        </ParentWorldPositionConstraint>
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />
       </Player>
 
       {1 && <>
-        {0 && <Water />}
         {/** Geometry */}
         {1 && <GrassScatter />}
         {1 && <InteractiveBoxesScatter />}
@@ -267,9 +268,9 @@ export function PalDitherForest() {
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
       <Player >
-        <WorldPositionConstraint>
+        <ParentWorldPositionConstraint>
           {1 && <TerrainPlane />}
-        </WorldPositionConstraint>
+        </ParentWorldPositionConstraint>
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />
@@ -315,9 +316,9 @@ export function OrthoForest() {
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
       <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 1.0, ortho: true }} >
-        <WorldPositionConstraint>
+        <ParentWorldPositionConstraint>
           {1 && <TerrainPlane />}
-        </WorldPositionConstraint>
+        </ParentWorldPositionConstraint>
         {1 && <MoveByVel speed={0.5} />}
         <Jump />
         <GroundClamp />
@@ -364,9 +365,9 @@ export function KuwaharaForest() {
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
       <Player camera_props={{ default_pitch: 45, min_pitch: 0.3, max_pitch: 0.6, ortho: true }} show_sphere={false}>
-        <WorldPositionConstraint>
+        <ParentWorldPositionConstraint>
           {1 && <TerrainPlane />}
-        </WorldPositionConstraint>
+        </ParentWorldPositionConstraint>
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />
@@ -417,9 +418,9 @@ export function XDogForest() {
     <TerrainProvider textureUrl="textures/HFs/height.png">
 
       <Player >
-        <WorldPositionConstraint>
+        <ParentWorldPositionConstraint>
           {1 && <TerrainPlane />}
-        </WorldPositionConstraint>
+        </ParentWorldPositionConstraint>
         {1 && <MoveByVel />}
         <Jump />
         <GroundClamp />

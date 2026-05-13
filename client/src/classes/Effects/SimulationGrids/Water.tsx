@@ -34,9 +34,10 @@ import {
     viewportDepthTexture,
     viewportSharedTexture,
 } from 'three/tsl'
-import { usePlayer } from '../../../Player/PlayerContext'
-import { useTerrain } from '../../TerrainProvider'
+
 import { folder, useControls } from 'leva'
+import { usePlayer } from '../../Player/PlayerContext'
+import { useTerrain } from '../../Terrain/TerrainProvider'
 
 type ReflectivePlaneProps = {
     size?: number

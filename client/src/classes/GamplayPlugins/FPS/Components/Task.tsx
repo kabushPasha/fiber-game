@@ -1,5 +1,5 @@
 import {  AddHitCallback, AddHoverCallback, AddMountCallback, AddTickCallback, TickComponent } from "./AddCallbackToParentEvent"
-import { SimpleTarget } from "../../SimpleTarget"
+import { SimpleTarget } from "../SimpleTarget"
 import { AddPositionProvider, GridPositionProviderComponent, useParentPositionProvider } from "./AddPositionProvider"
 import { AddScoreChangeCallback, ScoreComponent } from "./ScoreComponent"
 import * as THREE from "three";
@@ -10,7 +10,7 @@ import { UseNoisePosition } from "./TragetComponents/UseNoisePosition"
 import React, { useRef, useState } from "react"
 //import { useUI } from "../../../components/UIScreenContext"
 import { UIComponent, useThreeEvent } from "../UI/UIComponent"
-import type { GameObject } from "../../GameObjectEventMap";
+import type { GameObject } from "../../../GameObjectEventMap";
 
 export interface TaskProps {
     onTaskEnd?: (e: any) => void,
