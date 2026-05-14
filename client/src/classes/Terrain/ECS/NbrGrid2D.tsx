@@ -1,6 +1,6 @@
-import { storage, Fn, instanceIndex, int,  positionLocal,  vec3, atomicAdd, atomicStore, float, atomicLoad, vec2, If } from "three/tsl"
+import { storage, Fn, instanceIndex, int, positionLocal, vec3, atomicAdd, atomicStore, float, atomicLoad, vec2, If, uniform } from "three/tsl"
 import { MeshStandardNodeMaterial, Node, StorageBufferAttribute, StorageInstancedBufferAttribute } from "three/webgpu"
-import * as THREE from "three"
+import * as THREE from "three/webgpu"
 
 export class NeighbourGrid2D {
     size: number
@@ -8,6 +8,7 @@ export class NeighbourGrid2D {
     cellSize: number
     totalCells: number
     maxPerCell: number
+    gridCenterUniform = uniform(vec3(0, 0,0))
 
     gridCounts
     gridParticles
@@ -24,6 +25,8 @@ export class NeighbourGrid2D {
         this.cellSize = size / numCells
         this.totalCells = numCells * numCells
         this.maxPerCell = maxPerCell
+
+
 
         const counts = new Uint32Array(this.totalCells)
         const particles = new Uint32Array(this.totalCells * maxPerCell)
@@ -57,7 +60,7 @@ export class NeighbourGrid2D {
 
     inGridTSL(pos: Node) {
         const half = float(this.size * 0.5)
-        const p = pos.xz
+        const p = pos.xz.sub(this.gridCenterUniform.xz)
 
         return p.x.greaterThanEqual(half.negate())
             .and(p.x.lessThan(half))
@@ -67,7 +70,11 @@ export class NeighbourGrid2D {
 
     posToIndex2TSL(pos: Node) {
         const half = float(this.size * 0.5)
-        return pos.xz.add(vec2(half)).div(this.cellSize).floor()
+        return pos.xz
+            .sub(this.gridCenterUniform.xz)
+            .add(vec2(half))
+            .div(this.cellSize)
+            .floor()
     }
     index2ToLinearTSL(i: Node) {
         return i.x.add(i.y.mul(this.numCells))
@@ -127,8 +134,9 @@ export class NeighbourGrid2D {
 
         mat.positionNode =
             this.cellTransformsBuffer
-                .element(instanceIndex)
+                .element(instanceIndex)                
                 .mul(positionLocal.mul(0.9).mul(vec3(1, scale, 1)))
+                .add(vec3(this.gridCenterUniform, 0))
         return mat
     }
 
@@ -139,6 +147,7 @@ export class NeighbourGrid2D {
             this.totalCells
         )
 
+        mesh.frustumCulled = false
         // Make it ignore raycasts
         mesh.raycast = () => { }
         return mesh

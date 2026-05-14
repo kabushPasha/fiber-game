@@ -132,7 +132,6 @@ export function ECS_NBRGrid(_props: TerrainScatterProps) {
                 grid.insertParticle(offset, instanceIndex)
             })
         })().compute(count)
-
     }, [grid, instanceMatrix, count, uniforms])
 
     /*

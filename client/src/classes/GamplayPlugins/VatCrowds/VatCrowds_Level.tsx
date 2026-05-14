@@ -11,12 +11,13 @@ import { GrassScatter, GridScatter, InstancedMeshSimple, TransformsBufferProvide
 import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets"
 import { SimpleBackground } from "../../shaders/Aurora"
 import { useEffect, useMemo } from "react"
-import { attribute, deltaTime, float, Fn, instanceIndex, int, mix, normalLocal, positionLocal, storage, texture, time, uniform, uv, vec2, vec3, vec4 } from "three/tsl"
+import { atomicLoad, attribute, deltaTime, float, Fn, If, instanceIndex, int, ivec2, mix, normalLocal, positionLocal, storage, texture, time, uniform, uv, vec2, vec3, vec4 } from "three/tsl"
 import { useGLTF, useTexture } from "@react-three/drei"
 import { useFrame, useLoader } from "@react-three/fiber"
-import { useControls } from "leva"
+import { folder, useControls } from "leva"
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow"
 import { usePlayer } from "../../Player/PlayerContext"
+import { NeighbourGrid2D } from "../../Terrain/ECS/NbrGrid2D"
 
 
 
@@ -68,9 +69,6 @@ export function parseAnimBin(anim_raw: ArrayBuffer) {
         data,
     };
 }
-
-
-
 export function Vat_Character() {
     const map = useTexture("models/Char/VatChar/BigK.glb.png")
     map.minFilter = THREE.NearestFilter;
@@ -171,7 +169,10 @@ export function Vat_Character() {
 
 }
 
-export function VatCharacterScatter() {
+
+export function VatCharacterScatter() {    
+    
+
     return <GridScatter
         name={"Warriors"}
         spacing={10}
@@ -188,6 +189,7 @@ export function VatCharacterScatter() {
 
             <WrapAroundPlayerGPU />
 
+            <NgbGrid_Collide />
 
         </TransformsBufferProvider>
     </GridScatter>
@@ -213,26 +215,26 @@ export function MoveByOrient() {
             // Move
             offset.assign(offset.add(forward.mul(deltaTime.mul(3))));
 
-            // Rotate Towards Player
-            const toPlayer = player.tsl_PlayerWorldPosition.sub(worldPos.xyz).setY( float(0) ).normalize();
+            // Rotate Towards Player            
+            const toPlayer = player.tsl_PlayerWorldPosition.sub(worldPos.xyz).setY(float(0)).normalize();
 
-            const turnSpeed = deltaTime.mul(5) ;
-            const newForward = mix(forward.xyz, toPlayer ,turnSpeed).setY( float(0) ).normalize();
+            const turnSpeed = deltaTime.mul(5);
+            const newForward = mix(forward.xyz, toPlayer, turnSpeed).setY(float(0)).normalize();
 
-            const up = vec3(0,1,0);
-            const right = up.cross(newForward).normalize();            
+            const up = vec3(0, 1, 0);
+            const right = up.cross(newForward).normalize();
 
             const rightCol = instanceMatrix.element(int(0));
             const upCol = instanceMatrix.element(int(1));
             const forwardCol = instanceMatrix.element(int(2));
-            
+
             const scaleX = rightCol.length();
             const scaleY = upCol.length();
             const scaleZ = forwardCol.length();
 
-            instanceMatrix.element(int(0)).assign(vec4(right, 0) .mul(scaleX)  );
-            instanceMatrix.element(int(1)).assign(vec4(up, 0) .mul(scaleY) );
-            instanceMatrix.element(int(2)).assign(vec4(newForward, 0) .mul(scaleZ) );  
+            instanceMatrix.element(int(0)).assign(vec4(right, 0).mul(scaleX));
+            instanceMatrix.element(int(1)).assign(vec4(up, 0).mul(scaleY));
+            instanceMatrix.element(int(2)).assign(vec4(newForward, 0).mul(scaleZ));
 
         })().compute(count);
     }, [instanceMatrix, count, player.tsl_PlayerWorldPosition]);
@@ -242,6 +244,159 @@ export function MoveByOrient() {
 
     return null;
 }
+
+type NgbGridCollideProps = {
+    size?: number
+    cells?: number
+    max_nbrs?: number
+    radius?: number
+    strength?: number
+    show_debug_mesh?: boolean
+    follow_player?: boolean
+}
+
+export function NgbGrid_Collide({
+    size = 100,
+    cells = 20,
+    max_nbrs = 16 * 2,
+    radius = 2.0,
+    strength = 0.2,
+    show_debug_mesh = false,
+    follow_player = true,
+}: NgbGridCollideProps) {
+    const [controls, set] = useControls(() => ({
+        NBR_Grid: folder({
+            size: { value: size, min: 10, max: 500, step: 5.0 },
+            cells: { value: cells, min: 1, max: 256, step: 1 },
+            max_nbrs: { value: max_nbrs, min: 1, max: 512, step: 1 },
+            show_debug_mesh: show_debug_mesh,
+            follow_player: follow_player,
+            Physics: folder({
+                radius: { value: radius, min: 0.1, max: 10.0, step: 0.1 },
+                strength: { value: strength, min: 0.0, max: 5.0, step: 0.01 },
+            }),
+        })
+    }));
+
+    useEffect(() => {
+        set({ size, cells, max_nbrs, radius, strength, show_debug_mesh, follow_player, });
+    }, [size, cells, max_nbrs, radius, strength, show_debug_mesh, follow_player, set]);
+
+    const renderer = useWebGPURenderer();
+    const transformsBuffer = useTransformsBuffer();
+    const player = usePlayer();
+
+    const nbr_grid = useMemo(() => {
+        return new NeighbourGrid2D(
+            controls.size,
+            controls.cells,
+            controls.max_nbrs
+        )
+    }, [controls.size, controls.cells, controls.max_nbrs])
+
+    const uniforms = useMemo(
+        () => ({
+            radius: uniform(float(2.0)),
+            strength: uniform(float(0.2)),
+        }),
+        []
+    );
+    useEffect(() => {
+        uniforms.radius.value = controls.radius;
+        uniforms.strength.value = controls.strength;
+    }, [controls.radius, controls.strength])
+
+
+    // Write Particle to grid
+    const fillGridCompute = useMemo(() => {
+        return Fn(() => {
+            If(instanceIndex.lessThan(transformsBuffer.count), () => {
+                const instanceMatrix = transformsBuffer.transformsBufferNode.element(instanceIndex)
+                const offset = instanceMatrix.element(int(3))
+                nbr_grid.insertParticle(offset, instanceIndex)
+            })
+        })().compute(transformsBuffer.count);
+    }, [nbr_grid, transformsBuffer])
+
+    // Compute PBD
+    const pbdCompute = useMemo(() => {
+        return pbdRepelCompute(
+            transformsBuffer.transformsBufferNode,
+            nbr_grid,
+            transformsBuffer.count,
+            uniforms.radius,
+            uniforms.strength
+        ).compute(transformsBuffer.count);
+    }, [nbr_grid, transformsBuffer, uniforms])
+
+    // Follow player
+    useEffect(() => {
+        if (controls.follow_player) nbr_grid.gridCenterUniform.value = player.playerWorldPosition;
+        else nbr_grid.gridCenterUniform.value = new THREE.Vector3(0.0);
+    }, [controls.follow_player, player])
+
+    useFrame(async () => {
+        await renderer.computeAsync(nbr_grid.clearCompute())
+        await renderer.computeAsync(fillGridCompute)
+        await renderer.computeAsync(nbr_grid.computeMirror())
+        await renderer.computeAsync(pbdCompute)
+    })
+
+    if (!controls.show_debug_mesh) return null
+    return (
+        <primitive object={nbr_grid.createDebugMesh()} />
+    )
+}
+
+export const pbdRepelCompute = Fn((
+    [transformsBuffer, grid, count, radius, strength]: [THREE.StorageBufferNode, NeighbourGrid2D, THREE.UniformNode<number>, number, number]
+) => {
+    If(instanceIndex.lessThan(count), () => {
+        const self = transformsBuffer.element(instanceIndex)
+        const pos = self.element(int(3))
+
+        const cell2 = grid.posToIndex2TSL(pos)
+        const correction = vec3(0).toVar("OffsetCorrection")
+
+        const size = 1;
+
+        for (let oy = -size; oy <= size; oy++) {
+            for (let ox = -size; ox <= size; ox++) {
+
+                const neighborCell2 = cell2.add(ivec2(ox, oy));
+                const linear = grid.index2ToLinearTSL(neighborCell2)
+                const base = grid.getCellBaseIndex(linear)
+
+                // iterate fixed max per cell
+                const countInCell = atomicLoad(grid.gridCounts.element(linear))
+                for (let i = 0; i < grid.maxPerCell; i++) {
+                    If(int(i).lessThan(countInCell), () => {
+                        const otherIndex = grid.gridParticles.element(base.add(int(i)))
+                        const otherMatrix = transformsBuffer.element(otherIndex)
+                        const otherPos = otherMatrix.element(int(3))
+
+                        const dir = pos.xyz.sub(otherPos.xyz).mul(vec3(1, 0, 1))
+                        const dist = dir.length()
+
+                        If(otherIndex.notEqual(instanceIndex), () => {
+
+                            If(dist.lessThan(float(radius)), () => {
+                                const push = dir.normalize()
+                                    .mul(float(radius).sub(dist))
+                                    .mul(strength)
+                                correction.addAssign(push)
+                            })
+                        })
+                    })
+                }
+            }
+        }
+
+        // apply correction
+        const offset = self.element(int(3))
+        offset.addAssign(vec4(correction, 0.0))
+    })
+})
 
 
 function float16ToFloat32(bits: number): number {
@@ -263,7 +418,6 @@ function float16ToFloat32(bits: number): number {
         (1 + f / Math.pow(2, 10))
     )
 }
-
 
 export function VatCrowds_Level() {
 
