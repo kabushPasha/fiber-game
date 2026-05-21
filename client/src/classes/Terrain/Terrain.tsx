@@ -53,7 +53,6 @@ export function TerrainRapier() {
 }
 
 
-
 export function TerrainPlane() {
     const ref = useRef<THREE.Group>(null!);
 
@@ -94,7 +93,7 @@ export function TerrainPlane() {
     return (
         <group name="TerrainPlane" ref={ref} >
             <mesh rotation-x={-Math.PI / 2} material={material} receiveShadow name="TerrainPlaneMesh" raycast={() => { }}>
-                {1 && <planeGeometry args={[size, size, n_blocks, n_blocks]} />}
+                <planeGeometry args={[size, size, n_blocks, n_blocks]} />                
             </mesh>
         </group>
     );

@@ -73,7 +73,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 10 : 9)
+  const [level, setLevel] = useState(isDebug ? 10 : 10)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -132,6 +132,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(6)}>Level 6: Comix Zone </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(7)}>Level 7: GlowField </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(10)}>Level 10: Horde Mode </button>
                   </UI_Panel>
 
                   {/** LEVELS */}

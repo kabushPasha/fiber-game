@@ -45,6 +45,7 @@ export type GridScatterProps = {
     name: string
     showUI?: boolean
     seed?: number
+    shuffele?: boolean
 }
 
 type GridScatterPropsResolved =
@@ -56,7 +57,8 @@ type GridScatterPropsResolved =
         "rotation_random" |
         "scale" |
         "scale_random" |
-        "offset_random"
+        "offset_random" |
+        "shuffele"
     >>
 
 const GridScatterProps_defaults: GridScatterProps = {
@@ -72,6 +74,7 @@ const GridScatterProps_defaults: GridScatterProps = {
     showUI: true,
     name: "Unnamed",
     seed: 0,
+    shuffele: false,
 };
 
 export function useGridScatterControlsUI(_props: GridScatterProps): GridScatterPropsResolved {
@@ -87,7 +90,8 @@ export function useGridScatterControlsUI(_props: GridScatterProps): GridScatterP
             scale: { value: props.scale as number, min: 0.01, max: 10, step: 0.01 },
             scale_random: { value: props.scale_random as number, min: 0, max: 1, step: 0.01 },
             offset_random: { value: props.offset_random as number, min: 0, max: 3, step: 0.01 },
-            seed: { value: props.seed as number, min: 0, max: 9999, step: 1 }
+            seed: { value: props.seed as number, min: 0, max: 9999, step: 1 },
+            shuffele: {value:props.shuffele as boolean}
         }, { collapsed: true })
     })
 
@@ -197,6 +201,7 @@ export function createGridTransforms(props: GridScatterProps) {
         rotation_random = 0,
         offset_random = 0,
         seed = 0,
+        shuffele = false,
     } = props
 
     const transforms: THREE.Matrix4[] = []
@@ -224,6 +229,14 @@ export function createGridTransforms(props: GridScatterProps) {
             )
         }
     }
+
+    if (shuffele) {
+        for (let i = transforms.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[transforms[i], transforms[j]] = [transforms[j], transforms[i]]
+        }
+    }
+
     return transforms
 }
 
@@ -294,12 +307,14 @@ export function flattenMatrix4Array(
 type InstancedMeshSimpleProps = PropsWithChildren<{
     geometry?: THREE.BufferGeometry;
     material?: THREE.Material;
+    count?: number;
 }>;
 
-export function InstancedMeshSimple({ children, geometry, material, }: InstancedMeshSimpleProps) {
-    const { count } = useTransformsBuffer();
+export function InstancedMeshSimple({ children, geometry, material,count }: InstancedMeshSimpleProps) {
+    const transformsBuffer = useTransformsBuffer();
+
     return <instancedMesh
-        args={[geometry, material, count]}
+        args={[geometry, material, count ?? transformsBuffer.count]}
         position={[0, 0, 0]}
         frustumCulled={false}
     >

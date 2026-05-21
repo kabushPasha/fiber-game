@@ -1,87 +1,41 @@
 
 import * as THREE from "three/webgpu"
 import { Pixelated } from "../../../components/Pixelated"
-import { TerrainProvider } from "../../Terrain/TerrainProvider"
+import { TerrainProvider, useTerrain } from "../../Terrain/TerrainProvider"
 import { Player } from "../../Player/Player"
 import { ParentWorldPositionConstraint } from "../../ParentConstraints/ParentWorldPositionConstraint"
-import { TerrainPlane } from "../../Terrain/Terrain"
 import { GroundClamp, Jump, MoveByVel } from "../../Player/PlayerPhysics"
 import { ImmortalLeva, Knight } from "../../LEVELS/Assets/Characters/Knight"
 import { GrassScatter, GridScatter, InstancedMeshSimple, TransformsBufferProvider, useTransformsBuffer, WrapAroundPlayerGPU } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides"
 import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets"
 import { SimpleBackground } from "../../shaders/Aurora"
-import { useEffect, useMemo } from "react"
-import { atomicLoad, attribute, deltaTime, float, Fn, If, instanceIndex, int, ivec2, mix, normalLocal, positionLocal, storage, texture, time, uniform, uv, vec2, vec3, vec4 } from "three/tsl"
-import { useGLTF, useTexture } from "@react-three/drei"
+import { useEffect, useMemo, useRef } from "react"
+import { atomicLoad, deltaTime, depth, float, Fn, If, instanceIndex, int, ivec2, mix, modelWorldMatrix, modelWorldMatrixInverse, positionLocal, texture, transformNormalToView, uniform, vec3, vec4 } from "three/tsl"
 import { useFrame, useLoader } from "@react-three/fiber"
 import { folder, useControls } from "leva"
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow"
 import { usePlayer } from "../../Player/PlayerContext"
 import { NeighbourGrid2D } from "../../Terrain/ECS/NbrGrid2D"
+import { useVatCharLoader } from "./VatLoader"
+import { CameraUniformsProvider } from "../../PostProcessing/cameraUniformsContext"
+import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessingContext"
+import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen"
+import { PP_Vignette } from "../../PostProcessing/Effects/PP_Dof"
+import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 
 
+type VatCharacterProps = {
+    count?: number;
+    offset?: number;
+    url?: string;
+};
 
-export function parseAnimBin(anim_raw: ArrayBuffer) {
-    const view = new DataView(anim_raw);
 
-    let offset = 0;
-
-    // 1. Basic header
-    const bones = view.getUint32(offset, true);
-    offset += 4;
-
-    const numClips = view.getUint32(offset, true);
-    offset += 4;
-
-    // 2. Clip frames array
-    const clipFrames: number[] = new Array(numClips);
-
-    for (let i = 0; i < numClips; i++) {
-        clipFrames[i] = view.getUint32(offset, true);
-        offset += 4;
-    }
-
-    // 3. Build offsets (frame start per clip)
-    const clipOffsets: number[] = new Array(numClips);
-
-    let running = 0;
-    for (let i = 0; i < numClips; i++) {
-        clipOffsets[i] = running;
-        running += clipFrames[i];
-    }
-
-    // 4. Remaining buffer = animation data (float16)
-    const remainingBytes = anim_raw.byteLength - offset;
-    const count = remainingBytes / 2;
-
-    const data = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) {
-        const uint16 = view.getUint16(offset + i * 2, true);
-        data[i] = float16ToFloat32(uint16);
-    }
-
-    return {
-        bones,
-        numClips,
-        clipFrames,
-        clipOffsets,
-        data,
-    };
-}
-export function Vat_Character() {
-    const map = useTexture("models/Char/VatChar/BigK.glb.png")
-    map.minFilter = THREE.NearestFilter;
-    map.magFilter = THREE.NearestFilter;
-    map.colorSpace = 'srgb'
-
-    const gltf_model = useGLTF("models/Char/VatChar/BigK.glb")
-    // Get first meshas
-    const mesh = useMemo(() => { return gltf_model.meshes[Object.keys(gltf_model.meshes)[0]] }, [gltf_model])
-    const num_bones_per_vt = useMemo(() => mesh.geometry.attributes._bone_i.itemSize, [mesh]);
-    //const num_bones_per_vt = 3;
-
-    //console.log(mesh);
+export function Vat_Character({
+    count,
+    offset = 0,
+    url = "models/Char/VatChar/BigK.glb",
+}: VatCharacterProps) {
 
     const controlled = useControls("FRAME", {
         frame: { value: 0.0, min: 0, max: 24, step: 1.0 },
@@ -98,94 +52,49 @@ export function Vat_Character() {
         uniforms.frame.value = controlled.frame;
     }, [controlled])
 
-
-    // Load Animation File
-    const anim_raw = useLoader(
-        THREE.FileLoader,
-        "models/Char/VatChar/BigK.bin",
-        async (loader) => { loader.setResponseType("arraybuffer") }
-    ) as ArrayBuffer;
-    // Parse
-    const anim_parsed = useMemo(() => parseAnimBin(anim_raw), [anim_raw]);
-
-
-    // Store Into Buffer
-    const boneTransfomrsBufferAttribute = useMemo(() => {
-        return new THREE.StorageInstancedBufferAttribute(anim_parsed.data, 16);
-    }, [anim_parsed])
-    const boneTransformsBufferNode = useMemo(() =>
-        storage(boneTransfomrsBufferAttribute)
-        , [boneTransfomrsBufferAttribute]);
-
-    const animatedPosition = useMemo(() => {
-        return Fn(([frame]: [THREE.Node]) => {
-            const P = vec3(0.0).toVar();
-            for (let i = 0; i < num_bones_per_vt; i++) {
-                const bone_index = attribute(`_bone_i`).element(int(i));
-                const bone_w = attribute(`_bone_w`).element(int(i));
-                const t = boneTransformsBufferNode.element(bone_index.add(frame.mul(anim_parsed.bones)));
-                const pos = vec4(positionLocal, 1.0).mul(t.transpose());
-                P.addAssign(pos.mul(bone_w).xyz);
-            }
-            return P;
-        });
-    }, [num_bones_per_vt, boneTransformsBufferNode, anim_parsed.bones])
-
+    const vatChar = useVatCharLoader(url);
 
     const { transformsBufferNode } = useTransformsBuffer();
-    const instanceMatrix = useMemo(() => { return transformsBufferNode.element(instanceIndex) }, [transformsBufferNode])
+    const instanceMatrix = useMemo(() => { return transformsBufferNode.element(instanceIndex.add(offset)) }, [transformsBufferNode, offset])
+
+    const [mat, outline_material, shadow_material] = useMemo(() => {
+        const [material, outline_material] = vatChar.simple_materials({ instanceMatrix, clip: int(1) });
+        const shadow_material = new THREE.MeshStandardNodeMaterial();
+
+        shadow_material.colorNode = outline_material.colorNode;
+        shadow_material.positionNode = outline_material.positionNode!.setY(float(0))
+            .add(vec3(outline_material.positionNode!.y.mul(0.5), 0, 0));
 
 
-    const [mat, outline_material] = useMemo(() => {
-        const material = new THREE.MeshBasicNodeMaterial();
-        const flippedUV = vec2(uv().x, uv().y.oneMinus())
-        const materialColor = texture(map, flippedUV);
-        material.colorNode = materialColor.clamp(0, 1);
-
-        const fps = 12;
-        const clip = 1;
-        const frame = time.mul(fps).floor().mod(anim_parsed.clipFrames[clip] - 1).add(anim_parsed.clipOffsets[clip]);
-        //const frame = uniforms.frame.mod( anim_parsed.clipFrames[clip] - 1 ).add(anim_parsed.clipOffsets[clip]);
-
-        material.positionNode = instanceMatrix.mul(animatedPosition(frame));
-
-        // Outline Material
-        const outline_material = new THREE.MeshBasicNodeMaterial();
-        outline_material.side = THREE.BackSide;
-        outline_material.positionNode = instanceMatrix.mul(animatedPosition(frame).add(normalLocal.mul(0.02)));
-        outline_material.colorNode = vec3(0.0);
-
-
-        return [material, outline_material];
-    }, [map, boneTransformsBufferNode, anim_parsed, num_bones_per_vt, uniforms, instanceMatrix]);
+        return [material, outline_material, shadow_material];
+    }, [vatChar.map, vatChar.vatLoader, uniforms, instanceMatrix]);
 
 
     return <>
-        <InstancedMeshSimple geometry={mesh.geometry} material={mat} />
-        <InstancedMeshSimple geometry={mesh.geometry} material={outline_material} />
+        <InstancedMeshSimple geometry={vatChar.geometry} material={mat} count={count} />
+        <InstancedMeshSimple geometry={vatChar.geometry} material={outline_material} count={count} />
+        <InstancedMeshSimple geometry={vatChar.geometry} material={shadow_material} count={count} />
     </>
-
-    //return <mesh scale={2} rotation={[0, Math.PI, 0]} material={customMaterial} geometry={mesh.geometry}/>;
-
 }
 
+export function VatCharacterScatter() {
 
-export function VatCharacterScatter() {    
-    
 
     return <GridScatter
         name={"Warriors"}
         spacing={10}
-        cellCount={20}
+        cellCount={30}
         scale={2}
         rotation_random={1}
-        offset_random={0}
+        offset_random={3}
         scale_random={0.3}
+        shuffele={true}
     >
         <TransformsBufferProvider>
-            <Vat_Character />
+            <Vat_Character count={700} />
+            <Vat_Character count={200} offset={700} url="models/Char/VatChar/OrkKing.glb" />
 
-            <MoveByOrient />
+            <MoveByOrient speed={3} />
 
             <WrapAroundPlayerGPU />
 
@@ -195,7 +104,7 @@ export function VatCharacterScatter() {
     </GridScatter>
 }
 
-export function MoveByOrient() {
+export function MoveByOrient({ speed = 3 }) {
     const renderer = useWebGPURenderer()
     const { transformsBufferNode, count } = useTransformsBuffer();
 
@@ -213,7 +122,7 @@ export function MoveByOrient() {
             const forward = instanceMatrix.mul(vec4(0, 0, 1, 0)).normalize();
 
             // Move
-            offset.assign(offset.add(forward.mul(deltaTime.mul(3))));
+            offset.assign(offset.add(forward.mul(deltaTime.mul(speed))));
 
             // Rotate Towards Player            
             const toPlayer = player.tsl_PlayerWorldPosition.sub(worldPos.xyz).setY(float(0)).normalize();
@@ -237,7 +146,7 @@ export function MoveByOrient() {
             instanceMatrix.element(int(2)).assign(vec4(newForward, 0).mul(scaleZ));
 
         })().compute(count);
-    }, [instanceMatrix, count, player.tsl_PlayerWorldPosition]);
+    }, [instanceMatrix, count, player.tsl_PlayerWorldPosition, speed]);
 
 
     useFrame(() => { renderer.compute(computeUpdate) })
@@ -398,32 +307,21 @@ export const pbdRepelCompute = Fn((
     })
 })
 
-
-function float16ToFloat32(bits: number): number {
-    const s = (bits & 0x8000) >> 15
-    const e = (bits & 0x7C00) >> 10
-    const f = bits & 0x03FF
-
-    if (e === 0) {
-        return (s ? -1 : 1) * Math.pow(2, -14) * (f / Math.pow(2, 10))
-    }
-
-    if (e === 0x1F) {
-        return f ? NaN : ((s ? -1 : 1) * Infinity)
-    }
-
-    return (
-        (s ? -1 : 1) *
-        Math.pow(2, e - 15) *
-        (1 + f / Math.pow(2, 10))
-    )
-}
-
 export function VatCrowds_Level() {
 
     return <>
 
-        <Pixelated resolution={256} enabled={true} />
+        <Pixelated resolution={512} enabled={true} />
+
+        <CameraUniformsProvider>
+            <WebGPUPostProcessingProvider >
+                {0 && <>
+                    <PP_Sharpen kernelSize={1} strength={0.1} enabled={false} />
+                    <PP_Vignette />
+                    <PP_Kuwahara />
+                </>}
+            </WebGPUPostProcessingProvider>
+        </CameraUniformsProvider>
 
         <group name="Lights">
             <ambientLight intensity={0.5} />
@@ -432,12 +330,11 @@ export function VatCrowds_Level() {
 
         <TerrainProvider textureUrl="textures/HFs/height.png" hf_height={0}>
 
-            <Player camera_props={{ defaultZ: 9, default_pitch: 15, default_yaw: 180, head_y: 2.75 }} show_sphere={false}>
+            <Player camera_props={{ defaultZ: 40, default_pitch: 45, default_yaw: 180, head_y: 2.75 }} show_sphere={false}>
                 <ParentWorldPositionConstraint>
-                    {1 && <TerrainPlane />}
                 </ParentWorldPositionConstraint>
                 {1 && <MoveByVel speed={0.5} />}
-                <Jump />
+                {0 && <Jump />}
                 <GroundClamp />
 
                 {0 && <Knight />}
@@ -450,7 +347,9 @@ export function VatCrowds_Level() {
             </>}
 
             {/** <Vat_Character />*/}
-            <VatCharacterScatter />
+            {0 && <VatCharacterScatter />}
+
+            {1 && <TexturedTerrain />}
 
         </TerrainProvider>
 
@@ -458,3 +357,238 @@ export function VatCrowds_Level() {
     </>
 }
 
+
+
+
+
+
+
+// Split this class into different pieces:
+export function TexturedTerrain() {
+    const ref = useRef<THREE.Group>(null!);
+
+    const { hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor, tsl_sampleHeight, tsl_sampleN } = useTerrain();
+
+    //const block_size = hf_size / (width - 1) * 1.0;
+    const block_size = 0.2;
+    const n_blocks = 1024 + 1;
+    const size = block_size * (n_blocks);
+
+    const player = usePlayer()
+
+    useFrame(() => {
+        console.log(player.playerWorldPosition);
+        ref.current.position.setX(player.playerWorldPosition.x - player.playerWorldPosition.x % block_size);
+        ref.current.position.setZ(player.playerWorldPosition.z - player.playerWorldPosition.z % block_size);
+    }, -10);
+
+    const tex = useLoader(THREE.TextureLoader, "textures/ENV/Ground_tile/Env_Rock.png");
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+
+    const tex2 = useLoader(THREE.TextureLoader, "textures/ENV/Ground_tile/Env_Desert.png");
+    tex2.wrapS = THREE.RepeatWrapping;
+    tex2.wrapT = THREE.RepeatWrapping;
+    tex2.colorSpace = THREE.NoColorSpace;
+    tex2.minFilter = THREE.NearestFilter;
+    tex2.magFilter = THREE.NearestFilter;
+
+    const tex_perlin32 = useLoader(THREE.TextureLoader, "textures/noises/Perlin.32.png");
+    tex_perlin32.wrapS = THREE.RepeatWrapping;
+    tex_perlin32.wrapT = THREE.RepeatWrapping;
+    tex_perlin32.colorSpace = THREE.NoColorSpace;
+
+
+    const controlled = useControls("TerrainTex", {
+        noiseAmp: { value: 5.0, min: 0, max: 10, step: .01 },
+        stepCenter: { value: -1.0, min: -5, max: 5, step: .01 },
+        stepSmooth: { value: 2.0, min: 0.0, max: 5, step: .01 },
+        parallax_height: { value: 0.5, min: 0.0, max: 1.0, step: .001 },
+    });
+
+    const uniforms = useMemo(
+        () => ({
+            noiseAmp: uniform(float(0)),
+            stepCenter: uniform(float(0)),
+            stepSmooth: uniform(float(0)),
+            parallax_height: uniform(float(0)),
+        }),
+        []
+    );
+
+    useEffect(() => {
+        uniforms.noiseAmp.value = controlled.noiseAmp;
+        uniforms.stepCenter.value = controlled.stepCenter;
+        uniforms.stepSmooth.value = controlled.stepSmooth;
+        uniforms.parallax_height.value = controlled.parallax_height;
+    }, [controlled])
+
+    const tile_tex1 = lz_tile_tex("textures/ENV/Ground_tile/Env_Rock.png")
+    const tile_tex2 = lz_tile_tex("textures/ENV/Ground_tile/Env_Desert.png")
+
+    const material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial();
+        mat.side = THREE.DoubleSide
+
+        const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
+
+        // Color burning
+        // Custom colors 
+        mat.colorNode = vec3(0.0);
+        const base_tex = texture(tex, worldPos.xz.div(20)).x;
+        const big_noise = texture(tex, worldPos.xz.div(75)).y;
+        const A = base_tex.oneMinus().pow(uniforms.stepSmooth);
+        const B = big_noise.mul(uniforms.noiseAmp).add(uniforms.stepCenter).clamp(0., 1.0);
+        const burned = B.equal(0.0).select(0.0, A.negate().add(1.0).div(B).negate().add(1)).clamp(0.0, 1.0);
+        const burned_cd = mix(base_tex, base_tex.mul(vec3(.2, 0.1, 0.1)), burned.mul(.90));
+
+
+        //mat.depthNode = depth.add(.1);
+
+        // displacement
+        const heightSampleTex = texture(tex, worldPos.xz.div(20));
+        const heightSampleTex2 = texture(tex2, worldPos.xz.div(30)).mul(vec3(1, 0.5, 1));
+
+        const power_curve = float(1.0).div(uniforms.stepSmooth);
+        const noise_mix = mix(texture(tex_perlin32, worldPos.xz.div(75)), 0.5, uniforms.stepCenter);
+        const mask1 = noise_mix.pow(power_curve).clamp(0, 1);
+        const mask2 = noise_mix.oneMinus().pow(power_curve).clamp(0, 1);
+        const h2_masked = heightSampleTex2.y.mul(mask2)
+        const h1_masked = heightSampleTex.y.mul(mask1)
+        const height_final = h1_masked.max(h2_masked)
+
+        const new_pos3 = worldPos.setY(height_final.mul(uniforms.noiseAmp));
+        const localPos3 = modelWorldMatrixInverse.mul(new_pos3).xyz;
+        mat.positionNode = localPos3;
+
+        const shadows_blend = uniforms.parallax_height;
+        const material_blend = h2_masked.sub(h1_masked).add(0.05).div(0.05).clamp(0, 1)
+
+        mat.emissiveNode = material_blend.mix(heightSampleTex.x.mul(vec3(0.5, 0.5, 0.5)), heightSampleTex2.x)
+            .mul(
+                float(shadows_blend).mix(
+                    mask1.oneMinus().mix(heightSampleTex.z, 1.0)
+                        .mul(
+                            mask2.oneMinus().mix(heightSampleTex2.z.pow(2.2), 1.0)
+                        ), 1.0)
+            );
+
+
+
+        mat.emissiveNode = heightSampleTex.x;
+
+        // NEW WAY
+        mat.emissiveNode = tile_tex2.sample_color_wp;
+        mat.positionNode = tile_tex2.lp_final;
+
+        mat.positionNode = height2localP(tile_tex1.height.max(tile_tex2.height));
+        mat.emissiveNode = tile_tex1.height.max(tile_tex2.height);
+
+        const mask = delta_height_mask(tile_tex1.height, tile_tex2.height,uniforms.parallax_height );
+        mat.emissiveNode = mask.mix(tile_tex1.sample_color_wp, tile_tex2.sample_color_wp);
+
+
+        return mat;
+    }, [hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor, tsl_sampleHeight, tsl_sampleN, uniforms]);
+
+
+    return (
+        <group name="TerrainPlane" ref={ref} >
+            <mesh rotation-x={-Math.PI / 2} material={material} receiveShadow name="TerrainPlaneMesh" raycast={() => { }}>
+                <planeGeometry args={[size, size, n_blocks, n_blocks]} />
+            </mesh>
+        </group>
+    );
+}
+
+const height2localP = Fn(([height]: [THREE.Node]) => {
+    const wp = modelWorldMatrix.mul(vec4(positionLocal, 1));
+    const new_wp = wp.setY(height);
+    return modelWorldMatrixInverse.mul(new_wp).xyz;
+});
+
+const delta_height_mask = Fn(([h1, h2, w]: [THREE.Node, THREE.Node, THREE.Node]) => {
+    return h2.sub(h1).add(w.mul(0.5)).div(w).clamp(0, 1);
+})
+
+
+
+const lz_tile_tex = (url: string) => {
+    const tex = useLoader(THREE.TextureLoader, url);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+
+    // filename without extension
+    const name = useMemo(() => {
+        const file = url.split('/').pop() ?? "Texture";
+        return file.split('.').slice(0, -1).join('.');
+    }, [url]);
+
+
+    const controlled = useControls("TerrainTex", {
+        [name]: folder({
+            tile_size: { value: 20.0, min: 1, max: 50, step: .01 },
+            height_amp: { value: 1.0, min: 0.0, max: 5.0, step: .01 },
+            height_offset: { value: 0.0, min: -2.0, max: 2.0, step: .01 },
+            shadow_mix: { value: 0.0, min: 0.0, max: 1.0, step: .01 },
+            contrast: { value: 1.0, min: 0.0, max: 3.0, step: .01 },
+            tint: "#ff8844",
+        })
+    });
+
+    const uniforms = useMemo(
+        () => ({
+            tile_size: uniform(float(20.0)),
+            height_amp: uniform(float(1)),
+            height_offset: uniform(float(0)),
+            shadow_mix: uniform(float(0)),
+            contrast: uniform(float(1)),
+            tint: uniform(new THREE.Color("#ffffff")),
+        }),
+        []
+    );
+
+    useEffect(() => {
+        uniforms.tile_size.value = controlled.tile_size;
+        uniforms.height_amp.value = controlled.height_amp;
+        uniforms.height_offset.value = controlled.height_offset;
+        uniforms.shadow_mix.value = controlled.shadow_mix;
+        uniforms.contrast.value = controlled.contrast;
+        uniforms.tint.value.set(controlled.tint);
+    }, [controlled])
+
+
+
+    const [sample_color_wp, height, lp_final,tex_sample] = useMemo(() => {
+
+        const wp = modelWorldMatrix.mul(vec4(positionLocal, 1));
+        const tex_sample = texture(tex, wp.xz.div(uniforms.tile_size));   
+
+        const color = uniforms.contrast.mix(0.5, tex_sample.x)
+            .mul(uniforms.tint).
+            mul(uniforms.shadow_mix.mix(1.0, tex_sample.z));
+        const heihgt = tex_sample.y.mul(uniforms.height_amp).add(uniforms.height_offset);
+
+        const new_wp = wp.setY(heihgt);
+        const lp_final = modelWorldMatrixInverse.mul(new_wp).xyz;
+
+        return [color, heihgt, lp_final,tex_sample];
+
+    }, [tex, uniforms])
+
+    const value = useMemo(() => ({
+        tex,
+        sample_color_wp,
+        height,
+        lp_final,
+        tex_sample
+    }), [tex, sample_color_wp, height, lp_final]);
+
+    return value;
+}
