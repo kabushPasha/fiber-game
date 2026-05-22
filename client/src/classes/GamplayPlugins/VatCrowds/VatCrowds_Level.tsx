@@ -10,7 +10,7 @@ import { GrassScatter, GridScatter, InstancedMeshSimple, TransformsBufferProvide
 import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets"
 import { SimpleBackground } from "../../shaders/Aurora"
 import { useEffect, useMemo, useRef } from "react"
-import { atomicLoad, deltaTime, float, Fn, If, instanceIndex, int, ivec2, mix, modelWorldMatrix, modelWorldMatrixInverse, positionLocal, texture, uniform, vec3, vec4 } from "three/tsl"
+import { atomicLoad, deltaTime, float, Fn, If, instanceIndex, int, ivec2, mix, modelWorldMatrix, modelWorldMatrixInverse, normalLocal, positionLocal, texture, uniform, vec3, vec4, vertexColor } from "three/tsl"
 import { useFrame, useLoader } from "@react-three/fiber"
 import { folder, useControls } from "leva"
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow"
@@ -22,6 +22,7 @@ import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessin
 import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen"
 import { PP_Vignette } from "../../PostProcessing/Effects/PP_Dof"
 import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
+import { useGLTF } from "@react-three/drei"
 
 
 type VatCharacterProps = {
@@ -315,9 +316,9 @@ export function VatCrowds_Level() {
 
         <CameraUniformsProvider>
             <WebGPUPostProcessingProvider >
+                <PP_Vignette />                
                 {0 && <>
                     <PP_Sharpen kernelSize={1} strength={0.1} enabled={false} />
-                    <PP_Vignette />
                     <PP_Kuwahara />
                 </>}
             </WebGPUPostProcessingProvider>
@@ -351,6 +352,7 @@ export function VatCrowds_Level() {
 
             {1 && <TexturedTerrain />}
 
+            {0 && <LowPolyMolly />}
         </TerrainProvider>
 
         {0 && <SimpleBackground />}
@@ -362,12 +364,12 @@ export function VatCrowds_Level() {
 
 
 
-/*
+
 // Low Poly Model TEst
 export function LowPolyMolly() {
 
     // Load GLTF
-    const gltf_model = useGLTF("models/Char/LowPoly/LowPollyMech.glb")
+    const gltf_model = useGLTF("models/Char/LowPoly/LowPollyMech1.glb")
     // Get first meshas
     const mesh = useMemo(() => { return gltf_model.meshes[Object.keys(gltf_model.meshes)[0]] }, [gltf_model])
     const geometry = useMemo(() => mesh.geometry, [mesh]);
@@ -378,18 +380,18 @@ export function LowPolyMolly() {
         const shadow_material = new THREE.MeshStandardNodeMaterial();
         material.side = THREE.DoubleSide;
         material.colorNode = vec3(0.0);
-        material.emissiveNode = vertexColor() .mul(0.75);        
+        material.emissiveNode = vertexColor().mul(0.5);
         //material.colorNode = vertexColor().mul(2);
 
 
         outline_material.side = THREE.BackSide;
         outline_material.colorNode = vec3(0.0);
 
-        
-        outline_material.positionNode =positionLocal.add(normalLocal.mul(0.01));
 
-        //shadow_material.colorNode = outline_material.colorNode;
-        //shadow_material.positionNode = outline_material.positionNode!.setY(float(0)).add(vec3(outline_material.positionNode!.y.mul(0.5), 0, 0));
+        outline_material.positionNode = positionLocal.add(normalLocal.mul(0.03));
+
+        shadow_material.colorNode = outline_material.colorNode;
+        shadow_material.positionNode = outline_material.positionNode!.setY(float(0)).add(vec3(outline_material.positionNode!.y.mul(0.5), 0, 0));
 
 
         return [material, outline_material, shadow_material];
@@ -397,10 +399,11 @@ export function LowPolyMolly() {
 
     return <>
         <mesh scale={2} geometry={geometry} material={mat} />
-        <mesh scale={2} geometry={geometry} material={outline_material} />a
+        <mesh scale={2} geometry={geometry} material={outline_material} />
+        <mesh scale={2} geometry={geometry} material={shadow_material} />
     </>
 }
-*/
+
 
 
 
