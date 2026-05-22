@@ -10,7 +10,7 @@ import { GrassScatter, GridScatter, InstancedMeshSimple, TransformsBufferProvide
 import { PinesScatter } from "../../Terrain/ScatterAPI/Scatter/Presets"
 import { SimpleBackground } from "../../shaders/Aurora"
 import { useEffect, useMemo, useRef } from "react"
-import { atomicLoad, deltaTime, depth, float, Fn, If, instanceIndex, int, ivec2, mix, modelWorldMatrix, modelWorldMatrixInverse, positionLocal, texture, transformNormalToView, uniform, vec3, vec4 } from "three/tsl"
+import { atomicLoad, deltaTime, float, Fn, If, instanceIndex, int, ivec2, mix, modelWorldMatrix, modelWorldMatrixInverse, positionLocal, texture, uniform, vec3, vec4 } from "three/tsl"
 import { useFrame, useLoader } from "@react-three/fiber"
 import { folder, useControls } from "leva"
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow"
@@ -347,7 +347,7 @@ export function VatCrowds_Level() {
             </>}
 
             {/** <Vat_Character />*/}
-            {0 && <VatCharacterScatter />}
+            {1 && <VatCharacterScatter />}
 
             {1 && <TexturedTerrain />}
 
@@ -377,30 +377,9 @@ export function TexturedTerrain() {
     const player = usePlayer()
 
     useFrame(() => {
-        console.log(player.playerWorldPosition);
         ref.current.position.setX(player.playerWorldPosition.x - player.playerWorldPosition.x % block_size);
         ref.current.position.setZ(player.playerWorldPosition.z - player.playerWorldPosition.z % block_size);
     }, -10);
-
-    const tex = useLoader(THREE.TextureLoader, "textures/ENV/Ground_tile/Env_Rock.png");
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.minFilter = THREE.NearestFilter;
-    tex.magFilter = THREE.NearestFilter;
-
-    const tex2 = useLoader(THREE.TextureLoader, "textures/ENV/Ground_tile/Env_Desert.png");
-    tex2.wrapS = THREE.RepeatWrapping;
-    tex2.wrapT = THREE.RepeatWrapping;
-    tex2.colorSpace = THREE.NoColorSpace;
-    tex2.minFilter = THREE.NearestFilter;
-    tex2.magFilter = THREE.NearestFilter;
-
-    const tex_perlin32 = useLoader(THREE.TextureLoader, "textures/noises/Perlin.32.png");
-    tex_perlin32.wrapS = THREE.RepeatWrapping;
-    tex_perlin32.wrapT = THREE.RepeatWrapping;
-    tex_perlin32.colorSpace = THREE.NoColorSpace;
-
 
     const controlled = useControls("TerrainTex", {
         noiseAmp: { value: 5.0, min: 0, max: 10, step: .01 },
@@ -426,59 +405,31 @@ export function TexturedTerrain() {
         uniforms.parallax_height.value = controlled.parallax_height;
     }, [controlled])
 
-    const tile_tex1 = lz_tile_tex("textures/ENV/Ground_tile/Env_Rock.png")
-    const tile_tex2 = lz_tile_tex("textures/ENV/Ground_tile/Env_Desert.png")
+    const tile_tex1 = chsTileTex({
+        url: "textures/ENV/Ground_tile/Env_Rock.512.png",
+        tile_size: 30,
+        height_amp: 5,
+        height_offset: -2,
+        shadow_mix: 0.7,
+        contrast: 0.5,
+        tint: "#ffcfb1"
+    })
+    const tile_tex2 = chsTileTex({
+        url: "textures/ENV/Ground_tile/Env_Desert.512.png",
+        tile_size: 40,
+        height_amp: 5,
+        height_offset: -1.75,
+        shadow_mix: 0.7,
+        contrast: 1.0,
+        tint: "#ffcdae"
+    })
 
     const material = useMemo(() => {
         const mat = new THREE.MeshStandardNodeMaterial();
         mat.side = THREE.DoubleSide
-
-        const worldPos = modelWorldMatrix.mul(vec4(positionLocal, 1));
-
-        // Color burning
-        // Custom colors 
+        
         mat.colorNode = vec3(0.0);
-        const base_tex = texture(tex, worldPos.xz.div(20)).x;
-        const big_noise = texture(tex, worldPos.xz.div(75)).y;
-        const A = base_tex.oneMinus().pow(uniforms.stepSmooth);
-        const B = big_noise.mul(uniforms.noiseAmp).add(uniforms.stepCenter).clamp(0., 1.0);
-        const burned = B.equal(0.0).select(0.0, A.negate().add(1.0).div(B).negate().add(1)).clamp(0.0, 1.0);
-        const burned_cd = mix(base_tex, base_tex.mul(vec3(.2, 0.1, 0.1)), burned.mul(.90));
-
-
-        //mat.depthNode = depth.add(.1);
-
-        // displacement
-        const heightSampleTex = texture(tex, worldPos.xz.div(20));
-        const heightSampleTex2 = texture(tex2, worldPos.xz.div(30)).mul(vec3(1, 0.5, 1));
-
-        const power_curve = float(1.0).div(uniforms.stepSmooth);
-        const noise_mix = mix(texture(tex_perlin32, worldPos.xz.div(75)), 0.5, uniforms.stepCenter);
-        const mask1 = noise_mix.pow(power_curve).clamp(0, 1);
-        const mask2 = noise_mix.oneMinus().pow(power_curve).clamp(0, 1);
-        const h2_masked = heightSampleTex2.y.mul(mask2)
-        const h1_masked = heightSampleTex.y.mul(mask1)
-        const height_final = h1_masked.max(h2_masked)
-
-        const new_pos3 = worldPos.setY(height_final.mul(uniforms.noiseAmp));
-        const localPos3 = modelWorldMatrixInverse.mul(new_pos3).xyz;
-        mat.positionNode = localPos3;
-
-        const shadows_blend = uniforms.parallax_height;
-        const material_blend = h2_masked.sub(h1_masked).add(0.05).div(0.05).clamp(0, 1)
-
-        mat.emissiveNode = material_blend.mix(heightSampleTex.x.mul(vec3(0.5, 0.5, 0.5)), heightSampleTex2.x)
-            .mul(
-                float(shadows_blend).mix(
-                    mask1.oneMinus().mix(heightSampleTex.z, 1.0)
-                        .mul(
-                            mask2.oneMinus().mix(heightSampleTex2.z.pow(2.2), 1.0)
-                        ), 1.0)
-            );
-
-
-
-        mat.emissiveNode = heightSampleTex.x;
+      
 
         // NEW WAY
         mat.emissiveNode = tile_tex2.sample_color_wp;
@@ -487,12 +438,24 @@ export function TexturedTerrain() {
         mat.positionNode = height2localP(tile_tex1.height.max(tile_tex2.height));
         mat.emissiveNode = tile_tex1.height.max(tile_tex2.height);
 
-        const mask = delta_height_mask(tile_tex1.height, tile_tex2.height,uniforms.parallax_height );
-        mat.emissiveNode = mask.mix(tile_tex1.sample_color_wp, tile_tex2.sample_color_wp);
+        const mask = delta_height_mask(tile_tex1.height, tile_tex2.height, uniforms.parallax_height);
+        const mixed_cd = mask.mix(tile_tex1.sample_color_wp, tile_tex2.sample_color_wp);
+        mat.emissiveNode = mixed_cd;
+
+
+        /*
+        const base_tex = mixed_cd;
+        const big_noise = texture(tex, worldPos.xz.div(150)).y;
+        const A = base_tex.length().oneMinus().pow(uniforms.stepSmooth);
+        const B = big_noise.mul(uniforms.noiseAmp).add(uniforms.stepCenter).clamp(0., 1.0);
+        const burned = B.equal(0.0).select(0.0, A.negate().add(1.0).div(B).negate().add(1)).clamp(0.0, 1.0);
+        const burned_cd = mix(base_tex, base_tex.mul(vec3(.1, 0.1, 0.1)), burned.mul(1));
+        mat.emissiveNode = burned_cd;*/
+
 
 
         return mat;
-    }, [hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor, tsl_sampleHeight, tsl_sampleN, uniforms]);
+    }, [hf_size, width, hf_tex, hf_height, hf_nml, tsl_sampleColor, tsl_sampleHeight, tsl_sampleN, uniforms, tile_tex1, tile_tex2]);
 
 
     return (
@@ -511,36 +474,86 @@ const height2localP = Fn(([height]: [THREE.Node]) => {
 });
 
 const delta_height_mask = Fn(([h1, h2, w]: [THREE.Node, THREE.Node, THREE.Node]) => {
-    return h2.sub(h1).add(w.mul(0.5)).div(w).clamp(0, 1);
+    return h2.sub(h1).add(w.mul(0.5)).div(w).clamp(0, 1).smoothstep(0, 1);
 })
 
 
 
-const lz_tile_tex = (url: string) => {
-    const tex = useLoader(THREE.TextureLoader, url);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.minFilter = THREE.NearestFilter;
-    tex.magFilter = THREE.NearestFilter;
+
+// -------- CHS TEXTURE ------------------
+
+const CHS_Textures = {
+    "Env_Rock.512.png": "textures/ENV/Ground_tile/Env_Rock.512.png",
+    "Env_Rock.png": "textures/ENV/Ground_tile/Env_Rock.png",
+    "Env_Desert.png": "textures/ENV/Ground_tile/Env_Desert.png",
+    "Env_Desert.512.png": "textures/ENV/Ground_tile/Env_Desert.512.png",
+}
+
+
+type chsTileTexProps = {
+    url: string;
+    tile_size?: number;
+    height_amp?: number;
+    height_offset?: number;
+    shadow_mix?: number;
+    contrast?: number;
+    tint?: string;
+};
+
+const default_chsTileTexProps: chsTileTexProps = {
+    url: "textures/ENV/Ground_tile/Env_Rock.png",
+    tile_size: 20,
+    height_amp: 1.0,
+    height_offset: 0.0,
+    shadow_mix: 0.5,
+    contrast: 1.0,
+    tint: "#ff8844",
+};
+
+const chsTileTex = (_props: chsTileTexProps) => {
+    const props = { ...default_chsTileTexProps, ..._props };
 
     // filename without extension
     const name = useMemo(() => {
-        const file = url.split('/').pop() ?? "Texture";
+        const file = props.url.split('/').pop() ?? "Texture";
         return file.split('.').slice(0, -1).join('.');
-    }, [url]);
+    }, [props.url]);
 
-
-    const controlled = useControls("TerrainTex", {
-        [name]: folder({
-            tile_size: { value: 20.0, min: 1, max: 50, step: .01 },
-            height_amp: { value: 1.0, min: 0.0, max: 5.0, step: .01 },
-            height_offset: { value: 0.0, min: -2.0, max: 2.0, step: .01 },
-            shadow_mix: { value: 0.0, min: 0.0, max: 1.0, step: .01 },
-            contrast: { value: 1.0, min: 0.0, max: 3.0, step: .01 },
-            tint: "#ff8844",
+    const [controlled, set] = useControls(() => ({
+        TerrainTex: folder({
+            [name]: folder({
+                url: { value: props.url, options: CHS_Textures },
+                tile_size: { value: props.tile_size!, min: 1, max: 50, step: .01 },
+                height_amp: { value: props.height_amp!, min: 0.0, max: 5.0, step: .01 },
+                height_offset: { value: props.height_offset!, min: -2.0, max: 2.0, step: .01 },
+                shadow_mix: { value: props.shadow_mix!, min: 0.0, max: 1.0, step: .01 },
+                contrast: { value: props.contrast!, min: 0.0, max: 3.0, step: .01 },
+                tint: "#ff8844",
+            })
         })
-    });
+    }));
+
+    const tex = useLoader(THREE.TextureLoader, controlled.url);
+
+    useEffect(() => {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.colorSpace = THREE.NoColorSpace;
+        tex.minFilter = THREE.NearestFilter;
+        tex.magFilter = THREE.NearestFilter;
+    }, [controlled.url])
+
+
+    useEffect(() => {
+        set({
+            tile_size: props.tile_size,
+            height_amp: props.height_amp,
+            height_offset: props.height_offset,
+            shadow_mix: props.shadow_mix,
+            contrast: props.contrast,
+            tint: props.tint,
+        });
+    }, [props.tile_size, props.height_amp, props.height_offset, props.shadow_mix, props.contrast, props.tint, set]);
 
     const uniforms = useMemo(
         () => ({
@@ -563,12 +576,10 @@ const lz_tile_tex = (url: string) => {
         uniforms.tint.value.set(controlled.tint);
     }, [controlled])
 
-
-
-    const [sample_color_wp, height, lp_final,tex_sample] = useMemo(() => {
+    const [sample_color_wp, height, lp_final, tex_sample] = useMemo(() => {
 
         const wp = modelWorldMatrix.mul(vec4(positionLocal, 1));
-        const tex_sample = texture(tex, wp.xz.div(uniforms.tile_size));   
+        const tex_sample = texture(tex, wp.xz.div(uniforms.tile_size));
 
         const color = uniforms.contrast.mix(0.5, tex_sample.x)
             .mul(uniforms.tint).
@@ -578,7 +589,7 @@ const lz_tile_tex = (url: string) => {
         const new_wp = wp.setY(heihgt);
         const lp_final = modelWorldMatrixInverse.mul(new_wp).xyz;
 
-        return [color, heihgt, lp_final,tex_sample];
+        return [color, heihgt, lp_final, tex_sample];
 
     }, [tex, uniforms])
 
