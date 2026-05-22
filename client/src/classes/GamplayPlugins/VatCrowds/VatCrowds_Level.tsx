@@ -63,7 +63,7 @@ export function Vat_Character({
 
         shadow_material.colorNode = outline_material.colorNode;
         shadow_material.positionNode = outline_material.positionNode!.setY(float(0))
-            .add(vec3(outline_material.positionNode!.y.mul(0.5), 0, 0));
+            .add(vec3(outline_material.positionNode!.y.mul(-0.5), 0, 0));
 
 
         return [material, outline_material, shadow_material];
@@ -362,6 +362,51 @@ export function VatCrowds_Level() {
 
 
 
+/*
+// Low Poly Model TEst
+export function LowPolyMolly() {
+
+    // Load GLTF
+    const gltf_model = useGLTF("models/Char/LowPoly/LowPollyMech.glb")
+    // Get first meshas
+    const mesh = useMemo(() => { return gltf_model.meshes[Object.keys(gltf_model.meshes)[0]] }, [gltf_model])
+    const geometry = useMemo(() => mesh.geometry, [mesh]);
+
+    const [mat, outline_material, shadow_material] = useMemo(() => {
+        const material = new THREE.MeshStandardNodeMaterial();
+        const outline_material = new THREE.MeshStandardNodeMaterial();
+        const shadow_material = new THREE.MeshStandardNodeMaterial();
+        material.side = THREE.DoubleSide;
+        material.colorNode = vec3(0.0);
+        material.emissiveNode = vertexColor() .mul(0.75);        
+        //material.colorNode = vertexColor().mul(2);
+
+
+        outline_material.side = THREE.BackSide;
+        outline_material.colorNode = vec3(0.0);
+
+        
+        outline_material.positionNode =positionLocal.add(normalLocal.mul(0.01));
+
+        //shadow_material.colorNode = outline_material.colorNode;
+        //shadow_material.positionNode = outline_material.positionNode!.setY(float(0)).add(vec3(outline_material.positionNode!.y.mul(0.5), 0, 0));
+
+
+        return [material, outline_material, shadow_material];
+    }, []);
+
+    return <>
+        <mesh scale={2} geometry={geometry} material={mat} />
+        <mesh scale={2} geometry={geometry} material={outline_material} />a
+    </>
+}
+*/
+
+
+
+
+
+
 
 // Split this class into different pieces:
 export function TexturedTerrain() {
@@ -427,9 +472,9 @@ export function TexturedTerrain() {
     const material = useMemo(() => {
         const mat = new THREE.MeshStandardNodeMaterial();
         mat.side = THREE.DoubleSide
-        
+
         mat.colorNode = vec3(0.0);
-      
+
 
         // NEW WAY
         mat.emissiveNode = tile_tex2.sample_color_wp;
