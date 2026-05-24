@@ -23,6 +23,7 @@ import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen"
 import { PP_Vignette } from "../../PostProcessing/Effects/PP_Dof"
 import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
 import { useGLTF } from "@react-three/drei"
+import { RingBufferTest } from "./RingBuffer"
 
 
 type VatCharacterProps = {
@@ -348,18 +349,18 @@ export function VatCrowds_Level() {
             </>}
 
             {/** <Vat_Character />*/}
-            {1 && <VatCharacterScatter />}
+            {0 && <VatCharacterScatter />}
 
             {1 && <TexturedTerrain />}
 
             {0 && <LowPolyMolly />}
+
+            {<RingBufferTest/>}
         </TerrainProvider>
 
         {0 && <SimpleBackground />}
     </>
 }
-
-
 
 
 
@@ -403,9 +404,6 @@ export function LowPolyMolly() {
         <mesh scale={2} geometry={geometry} material={shadow_material} />
     </>
 }
-
-
-
 
 
 

@@ -136,8 +136,5 @@ export class IndexBuffer {
             });
         })().compute(this.count);
     }
-
-
-
-
+    
 }

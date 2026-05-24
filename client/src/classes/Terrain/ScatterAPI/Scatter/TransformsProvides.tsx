@@ -241,12 +241,12 @@ export function createGridTransforms(props: GridScatterProps) {
 }
 
 // transforms Buffer Context -------------------------------------------------
-interface TransformsBufferContextType {
+export interface TransformsBufferContextType {
     transformsBufferNode: StorageBufferNode,
     count: number,
 }
 
-const useTransformsBufferContext = createContext<TransformsBufferContextType | undefined>(undefined);
+export const useTransformsBufferContext = createContext<TransformsBufferContextType | undefined>(undefined);
 export function useTransformsBuffer(): TransformsBufferContextType {
     const ctx = useContext(useTransformsBufferContext);
     if (!ctx) { throw new Error("useProject must be used within ProjectProvider"); }
