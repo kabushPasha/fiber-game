@@ -104,16 +104,15 @@ const App = () => {
                 antialias: false,
               } as any)
 
-              renderer.setPixelRatio(1)
-
-
+              renderer.setPixelRatio(1)             
               await renderer.init()
-
 
               return renderer
             }}
             style={{ background: "black" }}
             key={level}
+            //shadows={{ type: THREE.BasicShadowMap }}
+            
           >
             <Stats />
 

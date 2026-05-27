@@ -308,15 +308,17 @@ type InstancedMeshSimpleProps = PropsWithChildren<{
     geometry?: THREE.BufferGeometry;
     material?: THREE.Material;
     count?: number;
+    castShadow? : boolean;
 }>;
 
-export function InstancedMeshSimple({ children, geometry, material,count }: InstancedMeshSimpleProps) {
+export function InstancedMeshSimple({ children, geometry, material,count,castShadow }: InstancedMeshSimpleProps) {
     const transformsBuffer = useTransformsBuffer();
 
     return <instancedMesh
         args={[geometry, material, count ?? transformsBuffer.count]}
         position={[0, 0, 0]}
         frustumCulled={false}
+        castShadow={castShadow}
     >
         {children}
     </instancedMesh>;

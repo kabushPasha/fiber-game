@@ -252,7 +252,8 @@ export function Immortal({
     useEffect(() => {
         scene.traverse((obj: any) => {
             if (obj.isSkinnedMesh) {
-                obj.material = customMaterial
+                obj.material = customMaterial;
+                (obj as THREE.SkinnedMesh).castShadow = true
 
                 const existing = obj.parent?.getObjectByName(
                     obj.name + "_outline"
@@ -292,7 +293,7 @@ export function Immortal({
 
     return <ParentWorldPositionConstraint>
         <group ref={groupRef}>
-            <primitive object={scene} scale={scale} rotation={[0, Math.PI, 0]} />
+            <primitive object={scene} scale={scale} rotation={[0, Math.PI, 0]}/>
         </group>
     </ParentWorldPositionConstraint>;
 

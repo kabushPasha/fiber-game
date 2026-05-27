@@ -22,7 +22,7 @@ import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessin
 import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen"
 import { PP_Vignette } from "../../PostProcessing/Effects/PP_Dof"
 import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara"
-import { useGLTF } from "@react-three/drei"
+import { Helper, useGLTF } from "@react-three/drei"
 import { RingBufferTest } from "./RingBuffer"
 
 
@@ -74,8 +74,8 @@ export function Vat_Character({
 
     return <>
         <InstancedMeshSimple geometry={vatChar.geometry} material={mat} count={count} />
-        <InstancedMeshSimple geometry={vatChar.geometry} material={outline_material} count={count} />
-        <InstancedMeshSimple geometry={vatChar.geometry} material={shadow_material} count={count} />
+        <InstancedMeshSimple geometry={vatChar.geometry} material={outline_material} count={count} castShadow={false}/>
+        { true && <InstancedMeshSimple geometry={vatChar.geometry} material={shadow_material} count={count} />}
     </>
 }
 
@@ -317,7 +317,7 @@ export function VatCrowds_Level() {
 
         <CameraUniformsProvider>
             <WebGPUPostProcessingProvider >
-                <PP_Vignette />                
+                <PP_Vignette />
                 {0 && <>
                     <PP_Sharpen kernelSize={1} strength={0.1} enabled={false} />
                     <PP_Kuwahara />
@@ -325,15 +325,12 @@ export function VatCrowds_Level() {
             </WebGPUPostProcessingProvider>
         </CameraUniformsProvider>
 
-        <group name="Lights">
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[10, 5, 0]} intensity={0.5} />
-        </group>
 
         <TerrainProvider textureUrl="textures/HFs/height.png" hf_height={0}>
 
             <Player camera_props={{ defaultZ: 40, default_pitch: 45, default_yaw: 180, head_y: 2.75 }} show_sphere={false}>
                 <ParentWorldPositionConstraint>
+
                 </ParentWorldPositionConstraint>
                 {1 && <MoveByVel speed={0.5} />}
                 {0 && <Jump />}
@@ -349,16 +346,80 @@ export function VatCrowds_Level() {
             </>}
 
             {/** <Vat_Character />*/}
-            {0 && <VatCharacterScatter />}
+            {1 && <VatCharacterScatter />}
 
+
+            {/** <Vat_Character />*/}
             {1 && <TexturedTerrain />}
 
             {0 && <LowPolyMolly />}
 
-            {<RingBufferTest/>}
+            {0 && <RingBufferTest />}
+
+
+
+            {0 && <PlayerFollowingLightWithShadows />}
+
+
         </TerrainProvider>
 
         {0 && <SimpleBackground />}
+    </>
+}
+
+
+export default function PlayerFollowingLightWithShadows() {
+    const lightRef = useRef<THREE.DirectionalLight>(null!);
+
+    const offset = new THREE.Vector3(50, 50, 0);
+    const player = usePlayer()
+
+    const renderer = useWebGPURenderer()
+
+    useEffect(() => {
+        const cam = lightRef.current.shadow.camera;
+        cam.zoom = 0.05;
+        cam.updateProjectionMatrix();
+
+        console.log(lightRef.current.shadow);
+        const shadow_res = 512;
+        lightRef.current.shadow.mapSize.width = shadow_res;
+        lightRef.current.shadow.mapSize.height = shadow_res;
+        lightRef.current.shadow.blurSamples = 1;
+
+        renderer.shadowMap.type = 0;
+        console.log("Renderer", renderer);
+
+        //lightRef.current.shadow.map!.depthTexture!.magFilter = THREE.LinearFilter;
+        //lightRef.current.shadow.map!.depthTexture!.minFilter = THREE.LinearFilter;
+
+        const pars = {
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+            format: THREE.RGBAFormat
+        };
+
+        lightRef.current.shadow.map = new THREE.WebGLRenderTarget(shadow_res,shadow_res, pars);
+
+
+
+    }, [])
+
+    useFrame(() => {
+        if (player.player == null) return;
+        lightRef.current.position.copy(player.playerWorldPosition.add(offset));
+        lightRef.current.target = player.player;
+
+
+    })
+
+    return <>
+        <ambientLight intensity={0.0} />
+        <directionalLight castShadow position={offset} ref={lightRef} intensity={2.0}>
+            <orthographicCamera attach='shadow-camera'>
+                <Helper type={THREE.CameraHelper} />
+            </orthographicCamera>
+        </directionalLight>
     </>
 }
 
@@ -404,8 +465,6 @@ export function LowPolyMolly() {
         <mesh scale={2} geometry={geometry} material={shadow_material} />
     </>
 }
-
-
 
 
 
@@ -486,7 +545,12 @@ export function TexturedTerrain() {
 
         const mask = delta_height_mask(tile_tex1.height, tile_tex2.height, uniforms.parallax_height);
         const mixed_cd = mask.mix(tile_tex1.sample_color_wp, tile_tex2.sample_color_wp);
-        mat.emissiveNode = mixed_cd;
+        mat.emissiveNode = mixed_cd.mul(0.5);
+
+        //mat.emissiveNode = vec3(0.0);
+        //mat.colorNode = mixed_cd;
+
+        //mat.positionNode = positionLocal.sub(vec3(0,0,0.1));
 
 
         /*
