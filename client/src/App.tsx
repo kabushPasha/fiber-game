@@ -54,6 +54,7 @@ import { SatinLevel } from "./classes/Effects/SimulationGrids/SatinFlow"
 import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
 import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
+import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -80,8 +81,6 @@ const App = () => {
     setLevel(-1)
     setTimeout(() => setLevel(level), 0)
   }, [])
-
-
 
   return (
     <>
@@ -145,7 +144,7 @@ const App = () => {
                   {level == 7 && <GlowSwirl />}
                   {level == 8 && <MultiplayerTestLevel />}
                   {level == 9 && <KnightLevel />}
-                  {level == 10 && <VatCrowds_Level />}
+                  {level == 10 && <VatCrowds_LevelGame />}
 
                 </KeyboardControls>
               </MouseLockProvider>

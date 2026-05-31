@@ -1,5 +1,6 @@
 import { useControls, folder } from "leva";
 import type { TerrainProps } from "./TerrainProvider";
+import { useEffect } from "react";
 
 
 
@@ -8,11 +9,11 @@ type TerrainControlsResolved =
     Required<Pick<TerrainProps, "hf_size" | "hf_height" | "color">>;
 
 const TerrainControlsDefaults: TerrainProps = {
-    textureUrl:"",
+    textureUrl: "",
     hf_size: 512,
     hf_height: 25,
     showUI: true,
-    color:"#627d6b",
+    color: "#627d6b",
 };
 
 export function useTerrainControlsUI(
@@ -23,23 +24,38 @@ export function useTerrainControlsUI(
 
     if (!props.showUI) return props as TerrainControlsResolved;
 
-    const controlled = useControls("Terrain", {
-        "Heightfield": folder({
-            hf_size: {
-                value: props.hf_size as number,
-                min: 1,
-                max: 5000,
-                step: 1
-            },
-            hf_height: {
-                value: props.hf_height as number,
-                min: 0,
-                max: 500,
-                step: 1
-            },
-            color: { value: props.color as string}
-        }, { collapsed: true })
-    });
+    const [controlled, set, _] = useControls(
+        () => ({
+            Terrain: folder({
+                "Heightfield": folder({
+                    hf_size: {
+                        value: props.hf_size as number,
+                        min: 1,
+                        max: 5000,
+                        step: 1
+                    },
+                    hf_height: {
+                        value: props.hf_height as number,
+                        min: 0,
+                        max: 500,
+                        step: 1
+                    },
+                    color: { value: props.color as string }
+                }, { collapsed: true })
+            })
+        })
+    );
+
+    
+    useEffect(() => {
+        set({ 
+            hf_size:props.hf_size, 
+            hf_height:props.hf_height,
+            color:props.color,
+         });
+    }, [props, set]);
+    
+
 
     return { ...props, ...controlled };
 }

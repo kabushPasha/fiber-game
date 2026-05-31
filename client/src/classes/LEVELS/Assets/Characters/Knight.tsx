@@ -195,7 +195,7 @@ export function Immortal({
         }
     }, [animations, actions])
 
-    console.log("NAMES", names);
+    //console.log("NAMES", names);
 
     const player = usePlayer()
 

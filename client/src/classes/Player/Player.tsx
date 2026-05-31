@@ -2,14 +2,13 @@ import { Sphere, useKeyboardControls } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import { useEffect, useRef, type ReactNode } from "react"
 import * as THREE from "three"
-import { useUI } from "../../components/UIScreenContext"
-import { CrosshairDot } from "../../components/CrosshairDot"
 import { GameObject3D } from "../GameObjectContext"
 import { LZ_CameraSwitcher } from "../ParentConstraints/SmoothChild"
 import { useMouseLock } from "./MouseLock"
 import { LZ_CamerOrientationController, type LZ_CamerOrientationControllerProps } from "./CameraController"
 import { usePlayer } from "./PlayerContext"
 import { PixelCameraSnap } from "../LEVELS/Assets/Characters/Knight"
+import { CrosshairComponent } from "./UI/Crosshair"
 
 
 const SPEED = 10
@@ -18,10 +17,11 @@ const SPRINT_SPEED = 25 // sprint speed
 interface PlayerProps {
   children?: ReactNode,
   camera_props?: LZ_CamerOrientationControllerProps,
-  show_sphere? : boolean,
+  show_sphere?: boolean,
+  show_crosshair?: boolean
 }
 
-export function Player({ children, camera_props,show_sphere=true }: PlayerProps) {
+export function Player({ children, camera_props, show_sphere = true, show_crosshair = false, }: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
   // Register Our Player
   const { setPlayer } = usePlayer()
@@ -29,7 +29,6 @@ export function Player({ children, camera_props,show_sphere=true }: PlayerProps)
     if (playerRef.current) setPlayer(playerRef.current)
   }, [playerRef, setPlayer])
 
-  const { mount } = useUI()
   const [, get] = useKeyboardControls()
   const { } = useThree()
 
@@ -77,34 +76,6 @@ export function Player({ children, camera_props,show_sphere=true }: PlayerProps)
 
   }, -10)
 
-  useEffect(() => {
-    const unmount = mount(() =>
-      <>
-        <CrosshairDot size={6} color="white" opacity={0.5} />
-        <div
-          style={{
-            position: "fixed",     // stays in place even when scrolling
-            bottom: 0,             // align to bottom
-            left: 0,               // align to left
-            padding: "10px",       // optional padding
-            color: "#ffffff9a",        // text color
-            fontSize: "24px",
-            zIndex: 1000           // make sure it's on top
-          }}
-        >
-          Controls:<br />
-          WASD - Move<br />
-          SHIFT - Sprint<br />
-          MouseScroll - Zoom IN/OUT<br />
-          L - Select Level<br />
-          F - Change Camera(if availible) <br />
-        </div>
-      </>
-
-    )
-    return unmount
-  }, [])
-
 
   useEffect(() => {
     if (!playerRef.current.userData.vel)
@@ -112,17 +83,23 @@ export function Player({ children, camera_props,show_sphere=true }: PlayerProps)
   }, [playerRef])
 
   return (
-    <GameObject3D ref={playerRef} name="Player">
-      <PixelCameraSnap>
-        {children}
+    <>
+      {show_crosshair && <CrosshairComponent />}
 
-        <LZ_CamerOrientationController {...camera_props}>
-          <LZ_CameraSwitcher {...camera_props} />
-        </LZ_CamerOrientationController>
+      <GameObject3D ref={playerRef} name="Player">
+        <PixelCameraSnap>
+          {children}
 
-        {show_sphere && <Sphere scale={0.5} />}
-        
-      </PixelCameraSnap>
-    </GameObject3D>
+          <LZ_CamerOrientationController {...camera_props}>
+            <LZ_CameraSwitcher {...camera_props} />
+          </LZ_CamerOrientationController>
+
+          {show_sphere && <Sphere scale={0.5} />}
+
+
+        </PixelCameraSnap>
+      </GameObject3D>
+
+    </>
   )
 }

@@ -368,6 +368,9 @@ export function VatCrowds_Level() {
 }
 
 
+
+
+
 export default function PlayerFollowingLightWithShadows() {
     const lightRef = useRef<THREE.DirectionalLight>(null!);
 
@@ -422,10 +425,6 @@ export default function PlayerFollowingLightWithShadows() {
         </directionalLight>
     </>
 }
-
-
-
-
 
 // Low Poly Model TEst
 export function LowPolyMolly() {
