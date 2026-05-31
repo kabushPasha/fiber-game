@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useThree } from "@react-three/fiber"
 
 type MouseDelta = { x: number; y: number }
@@ -8,6 +8,10 @@ type MouseLockContextType = {
   isLocked: boolean
   unlock: () => void
   lock: () => void
+
+
+  lockOnClick: boolean
+  setLockOnClick: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 const MouseLockContext = createContext<MouseLockContextType>(null!)
@@ -21,11 +25,17 @@ export function MouseLockProvider({ children }: { children: React.ReactNode }) {
 
   const [isLocked, setLocked] = useState(false)
 
+  const [lockOnClick, setLockOnClick] = useState(true)
+  const lockOnClickRef = useRef(true)
+  useEffect(() => { lockOnClickRef.current = lockOnClick }, [lockOnClick])
+
+
   useEffect(() => {
     oldCompute.current = get().events.compute
 
     const onClick = () => {
-      lock();
+      if (!lockOnClickRef.current) return
+      lock()
     }
 
     const onPointerLockChange = () => {
@@ -85,6 +95,7 @@ export function MouseLockProvider({ children }: { children: React.ReactNode }) {
   }
 
   const lock = () => {
+    if (!lockOnClickRef.current) return
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock().catch(err => {
         console.warn("Lock failed:", err);
@@ -94,8 +105,20 @@ export function MouseLockProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const value = useMemo(
+    () => ({
+        consumeDelta,
+        isLocked,
+        unlock,
+        lock,
+        lockOnClick,
+        setLockOnClick,
+    }),
+    [isLocked, lockOnClick]
+)
+
   return (
-    <MouseLockContext.Provider value={{ consumeDelta, isLocked, unlock, lock }}>
+    <MouseLockContext.Provider value={value}>
       {children}
     </MouseLockContext.Provider>
   )

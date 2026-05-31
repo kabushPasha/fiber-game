@@ -32,7 +32,7 @@ export function Player({ children, camera_props, show_sphere = true, show_crossh
   const [, get] = useKeyboardControls()
   const { } = useThree()
 
-  const { isLocked } = useMouseLock()
+  const { isLocked,lockOnClick } = useMouseLock()
 
   const currentSpeed = useRef(SPEED)
 
@@ -41,7 +41,7 @@ export function Player({ children, camera_props, show_sphere = true, show_crossh
   const player_right = new THREE.Vector3()
 
   useFrame((_, delta) => {
-    if (!isLocked) return
+    if (!(isLocked || !lockOnClick) ) return
 
     const { forward, backward, left, right, shift } = get()
 

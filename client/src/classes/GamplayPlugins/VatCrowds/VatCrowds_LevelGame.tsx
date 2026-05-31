@@ -12,7 +12,13 @@ import { TexturedTerrain, VatCharacterScatter } from "./VatCrowds_Level";
 
 
 export function VatCrowds_LevelGame() {
-
+    const mouseLock = useMouseLock()
+    
+    useEffect(() => {
+        console.log("change");
+        mouseLock.setLockOnClick(false)
+    },[])
+    
 
     return <>
 
