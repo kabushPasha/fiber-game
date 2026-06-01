@@ -132,7 +132,7 @@ export function LZ_PerspectiveCameraSmooth({
     <>
       <SmoothChild smooth={smooth}>
         <HeadBob>
-          <MaybeLateralTilt maxTilt={0.15} damping={6}>
+          <MaybeLateralTilt maxTilt={0.15} damping={6} enabled={false}>
             <primitive object={camera} />
           </MaybeLateralTilt>
         </HeadBob>

@@ -66,7 +66,7 @@ export const inputMap = [
   { name: "right", keys: ["ArrowRight", "d", "D", "В", "в"] },
   { name: "jump", keys: ["Space"] },
   { name: "shift", keys: ["Shift"] },
-  { name: "pause", keys: ["Backspace"] },
+  { name: "pause", keys: ["Backspace"] },  
 ]
 
 
@@ -74,7 +74,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 10 : 10)
+  const [level, setLevel] = useState(isDebug ? 11 : 10)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -129,8 +129,9 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(5)}>Level 5: Painterly Forest </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(6)}>Level 6: Comix Zone </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(7)}>Level 7: GlowField </button>
-                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>                    
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(10)}>Level 10: Horde Mode </button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(11)}>Level 11: Horde Mode Game</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -144,7 +145,8 @@ const App = () => {
                   {level == 7 && <GlowSwirl />}
                   {level == 8 && <MultiplayerTestLevel />}
                   {level == 9 && <KnightLevel />}
-                  {level == 10 && <VatCrowds_LevelGame />}
+                  {level == 10 && <VatCrowds_Level />}
+                  {level == 11 && <VatCrowds_LevelGame />}
 
                 </KeyboardControls>
               </MouseLockProvider>

@@ -6,6 +6,7 @@ import { usePlayer } from "./PlayerContext"
 type LateralTiltProps = {
   maxTilt?: number      // maximum tilt in radians
   damping?: number      // damping speed
+  lateral_tilt_enabled?: boolean
   children?: ReactNode
 }
 

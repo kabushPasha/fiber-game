@@ -22,6 +22,8 @@ export interface LZ_CamerOrientationControllerProps {
     ortho?: boolean
     can_switch_camera?: boolean
     head_y?: number
+
+    lateral_tilt_enabled?: boolean
 }
 export function LZ_CamerOrientationController({
     children,

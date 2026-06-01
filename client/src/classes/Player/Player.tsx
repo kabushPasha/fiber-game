@@ -18,10 +18,11 @@ interface PlayerProps {
   children?: ReactNode,
   camera_props?: LZ_CamerOrientationControllerProps,
   show_sphere?: boolean,
-  show_crosshair?: boolean
+  show_crosshair?: boolean  ,
+  create_camera?: boolean,
 }
 
-export function Player({ children, camera_props, show_sphere = true, show_crosshair = false, }: PlayerProps) {
+export function Player({ children, camera_props, show_sphere = true, show_crosshair = false, create_camera = true}: PlayerProps) {
   const playerRef = useRef<THREE.Group>(null!);
   // Register Our Player
   const { setPlayer } = usePlayer()
@@ -90,9 +91,9 @@ export function Player({ children, camera_props, show_sphere = true, show_crossh
         <PixelCameraSnap>
           {children}
 
-          <LZ_CamerOrientationController {...camera_props}>
+          {create_camera && <LZ_CamerOrientationController {...camera_props}>
             <LZ_CameraSwitcher {...camera_props} />
-          </LZ_CamerOrientationController>
+          </LZ_CamerOrientationController>}
 
           {show_sphere && <Sphere scale={0.5} />}
 
