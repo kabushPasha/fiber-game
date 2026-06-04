@@ -1,5 +1,5 @@
 // UIScreen.tsx
-import {  createContext,  useContext,  useState,  type ReactNode,  useRef } from "react"
+import { createContext, useContext, useState, type ReactNode, useRef, useCallback, useMemo } from "react"
 
 type UIEntry = {
   id: number
@@ -22,18 +22,23 @@ export const UIScreenProvider = ({ children }: { children: ReactNode }) => {
   const [elements, setElements] = useState<UIEntry[]>([])
   const idRef = useRef(0)
 
-  const mount = (component: () => ReactNode) => {
-    const id = idRef.current++
+  const mount = useCallback((component: () => ReactNode) => {
+    const id = idRef.current++;
 
-    setElements(prev => [...prev, { id, component }])
+    setElements(prev => [...prev, { id, component }]);
 
     return () => {
-      setElements(prev => prev.filter(e => e.id !== id))
-    }
-  }
+      setElements(prev => prev.filter(e => e.id !== id));
+    };
+  }, []);
+
+  const value = useMemo(
+    () => ({ mount }),
+    [mount]
+  );
 
   return (
-    <UIScreenContext.Provider value={{ mount }}>
+    <UIScreenContext.Provider value={ value }>
       {children}
 
       <div

@@ -1,42 +1,55 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { createContext, useContext, useEffect, useMemo,   type PropsWithChildren } from "react";
 import { Pixelated } from "../../../components/Pixelated";
 import { ImmortalLeva } from "../../LEVELS/Assets/Characters/Knight";
 import { useMouseLock } from "../../Player/MouseLock";
 import { Player } from "../../Player/Player";
 import { GroundClamp, MoveByVel } from "../../Player/PlayerPhysics";
 import { TerrainProvider } from "../../Terrain/TerrainProvider";
-import { RingBufferTest } from "./RingBuffer";
-import { MoveByOrient, NgbGrid_Collide, TexturedTerrain, Vat_Character } from "./VatCrowds_Level";
+import { createPositionsBuffer, createTransformsBuffer, createVelocityBuffer, RingBufferTest, type FloatBuffer } from "./RingBuffer";
+import {   TexturedTerrain, Vat_Character } from "./VatCrowds_Level";
 import { useFrame, useThree } from "@react-three/fiber";
 import { GameObject3D } from "../../GameObjectContext";
 import { degToRad } from "three/src/math/MathUtils.js";
-import { GridScatter, TransformsBufferProvider, useTransformsBuffer, WrapAroundPlayerGPU } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
-import { atomicAdd, If, instanceIndex, storage, vec4 } from "three/tsl";
+import {  SnappedRelativePosition } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
+import { atomicAdd, deltaTime,  If, instanceIndex,  mix,  PI2, rand, storage, vec2, vec3 } from "three/tsl";
 import { usePlayer } from "../../Player/PlayerContext";
 import { Fn } from "three/src/nodes/TSL.js";
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow";
-import { StorageBufferAttribute } from "three/webgpu";
+import { StorageBufferAttribute, StorageInstancedBufferAttribute } from "three/webgpu";
 import { useUI } from "../../../components/UIScreenContext";
-import { Badge, ProgressBar } from "react-bootstrap";
-
+import {  ProgressBar } from "react-bootstrap";
+import { useTransformsBufferContext} from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
+import * as THREE from "three/webgpu";
 
 // playerStore.ts
 import { create } from "zustand";
+import { NgbGrid_Collide2D } from "./Horde/2dNbrGrid";
 
 type PlayerStore = {
     hp: number;
+    run: number;
     damage: (amount: number) => void;
     heal: (amount: number) => void;
     setHp: (hp: number) => void;
+    restart: () => void;
 };
 
 export const usePlayerStore = create<PlayerStore>((set) => ({
     hp: 100,
-
+    run: 0,
     damage: (amount) =>
-        set((state) => ({
-            hp: Math.max(0, state.hp - amount),
-        })),
+        set((state) => {
+            const hp = Math.max(0, state.hp - amount);
+
+            if (hp === 0) {
+                return {
+                    hp: 100,
+                    run: state.run + 1,
+                };
+            }
+
+            return { hp };
+        }),
 
     heal: (amount) =>
         set((state) => ({
@@ -44,14 +57,17 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
         })),
 
     setHp: (hp) => set({ hp }),
+
+    restart: () =>
+        set((state) => ({
+            run: state.run + 1,
+        })),
 }));
 
 
 
 export function VatCrowds_LevelGame() {
     const mouseLock = useMouseLock()
-
-    const [run, setRun] = useState(0);
 
     useEffect(() => {
         console.log("change");
@@ -60,7 +76,6 @@ export function VatCrowds_LevelGame() {
 
     return <>
         <Pixelated resolution={512} enabled={true} />
-        <LevelResetHandler setRun={setRun} />
 
         <TerrainProvider textureUrl="textures/HFs/height.png" hf_height={0}>
             <Player show_sphere={false} create_camera={false}>
@@ -74,7 +89,12 @@ export function VatCrowds_LevelGame() {
             </Player>
 
             {/** <Vat_Character />*/}
-            {1 && <SurvivorsCharacterScatter />}
+            <HordeSolver >
+                <Vat_Character count={700} />
+                <Vat_Character count={200} offset={700} url="models/Char/VatChar/OrkKing.glb" />
+            </HordeSolver>
+
+            {1 && <PlayerHP_UI />}
 
 
             {/** <Vat_Character />*/}
@@ -112,105 +132,150 @@ export function LevelResetHandler({ setRun }: LevelResetHandlerProps) {
 export function BasicPerspCamera() {
     const { camera } = useThree()
     return <GameObject3D name="PlayerNeck" rotation={[degToRad(-60), 0, 0]}>
-        <primitive object={camera} position={[0, 0, 40]} />
+        <primitive object={camera} position={[0, 0, 60]} />
     </GameObject3D>
 }
 
-
-
-
-
-
-export function SurvivorsCharacterScatter() {
-    const damage = usePlayerStore((s) => s.damage);
-
-    return <GridScatter
-        name={"Warriors"}
-        spacing={10}
-        cellCount={30}
-        scale={2}
-        rotation_random={1}
-        offset_random={3}
-        scale_random={0.3}
-        shuffele={true}
-    >
-        <TransformsBufferProvider>
-            <Vat_Character count={700} />
-            <Vat_Character count={200} offset={700} url="models/Char/VatChar/OrkKing.glb" />
-
-            <MoveByOrient speed={3} />
-
-            <WrapAroundPlayerGPU />
-
-            <NgbGrid_Collide />
-
-            <PlayerHitCounter onHit={(hits) => { damage(hits * 50); }} />
-
-            {1 && <PlayerHP_UI />}
-
-        </TransformsBufferProvider>
-    </GridScatter>
+// HORDER Context -------------------------------------------------
+export interface HordeContextType {
+    pos_buffer: FloatBuffer,
+}
+export const useHordeContext = createContext<HordeContextType | undefined>(undefined);
+export function useHorde(): HordeContextType {
+    const ctx = useContext(useHordeContext);
+    if (!ctx) { throw new Error("useProject must be used within Horde Provider"); }
+    return ctx;
 }
 
+// HORDER Solver --------------------------------------------------
+export function HordeSolver({ children }: PropsWithChildren) {
+    const renderer = useWebGPURenderer()
+    const count = 1000;
 
-type PlayerHitCounterProps = {
-    onHit?: (hits: number) => void;
-};
-
-export function PlayerHitCounter({ onHit }: PlayerHitCounterProps) {
-    const [hitCounter, hitCounterAtt] = useMemo(() => {
-        const hitCounterAtt = new StorageBufferAttribute(new Uint32Array(1), 1);
-        const hitCounterStorage = storage(
-            hitCounterAtt
-            , 'uint', 1
-        ).setPBO(true).toAtomic()
-
-        return [hitCounterStorage, hitCounterAtt]
-    }, [])
-
-    const { transformsBufferNode, count } = useTransformsBuffer();
+    const run = usePlayerStore((s) => s.run);
 
     const player = usePlayer()
+    const damage = usePlayerStore((s) => s.damage);
+    const transformsBuffer = createTransformsBuffer(count);
+    const pos_buffer = createPositionsBuffer(count);
+    const vel_buffer = createVelocityBuffer(count);
 
-    const instanceMatrix = useMemo(() => {
-        return transformsBufferNode.element(instanceIndex)
-    }, [transformsBufferNode])
 
+    const spawnTimer = useMemo(() => {
+        // Spawn Timer
+        const spawnTimerAttribute = new StorageInstancedBufferAttribute(new Float32Array(count), 1);
+        const spawnTimerBuffer = storage(spawnTimerAttribute).setPBO(true)
 
-    const computeHits = useMemo(() => {
+        const age = spawnTimerBuffer.element(instanceIndex);
+        const active = age.greaterThanEqual(0);
+
+        return { spawnTimerAttribute, spawnTimerBuffer, age, active }
+    }, [count])
+
+    const playerHitCounter = useMemo(() => {
+        const hitCounterAtt = new StorageBufferAttribute(new Uint32Array(1), 1);
+        const hitCounterStorage = storage(hitCounterAtt, 'uint', 1).setPBO(true).toAtomic()
+
+        const resetHits = () => {
+            hitCounterAtt.array[0] = 0;
+            hitCounterAtt.needsUpdate = true;
+        }
+
+        const readHits = async () => {
+            const data = await renderer.getArrayBufferAsync(hitCounterAtt);
+            const hits = new Uint32Array(data)[0];
+            return hits;
+        }
+
+        return { hitCounterStorage, hitCounterAtt, resetHits, readHits }
+    }, [])
+
+    //Reset
+    useEffect(() => {
+        // Init Values
+        console.log("reset");
+        const values = Array.from({ length: count }, (_, i) => -i * 0.2);
+        spawnTimer.spawnTimerAttribute.array.set(values)
+        spawnTimer.spawnTimerAttribute.needsUpdate = true;
+
+        transformsBuffer.reset();
+    }, [spawnTimer,run])
+
+    // update Fn
+    const computeUpdate = useMemo(() => {
+        const creature_speed = 3.;
+        const turn_speed = 20.0;
+        const spawn_radius = 40.0;
+        const wrap_radius = 200;
+
         return Fn(() => {
             If(instanceIndex.lessThan(count), () => {
-                const worldPos = instanceMatrix.mul(vec4(0, 0, 0, 1));
+                const dt = deltaTime;
+                spawnTimer.age.addAssign(dt);
 
-                If(worldPos.sub(player.tsl_PlayerWorldPosition).length().lessThan(1),
-                    () => { atomicAdd(hitCounter.element(0), 1) }
-                );
+                If(spawnTimer.active, () => {
 
+                    // Spawn Event
+                    If(spawnTimer.age.sub(dt).lessThanEqual(0), () => {
+                        pos_buffer.element.assign(player.tsl_PlayerWorldPosition.add(
+                            random_2d_dir().mul(spawn_radius)
+                        ));
+                        vel_buffer.element.assign(random_2d_dir(vec2(instanceIndex, 3)).mul(creature_speed));
+                        transformsBuffer.utils.toUnitmatrix(2);
+                    })
+
+                    // Rotate Towards Player            
+                    const toPlayer = player.tsl_PlayerWorldPosition.sub(pos_buffer.element).normalize();
+                    const turnSpeed = dt.mul(turn_speed);
+                    const newForward = mix(vel_buffer.element, toPlayer, turnSpeed).normalize().mul(vel_buffer.element.length());
+                    vel_buffer.element.assign(newForward);
+
+                    // Move POS by VEL
+                    pos_buffer.element.addAssign(vel_buffer.element.mul(deltaTime));
+                    // Wrap Around Player
+                    const player_relative_pos = SnappedRelativePosition(pos_buffer.element, player.tsl_PlayerWorldPosition, wrap_radius);
+                    const wrapped_world = player_relative_pos.add(player.tsl_PlayerWorldPosition);
+                    pos_buffer.element.assign(wrapped_world);
+
+                    // Damage Player
+                    If(pos_buffer.element.sub(player.tsl_PlayerWorldPosition).length().lessThan(1),
+                        () => { atomicAdd(playerHitCounter.hitCounterStorage.element(0), 1) }
+                    );
+
+                    // Set Transform If Alive                
+                    transformsBuffer.utils.setPosition(pos_buffer.element);
+                    transformsBuffer.utils.orientFromVel(vel_buffer.element);
+                })
             });
-        })().compute(count)
-    }, [instanceMatrix, player.tsl_PlayerWorldPosition, hitCounter])
+        })().compute(count);
+    }, [count, player.tsl_PlayerWorldPosition, spawnTimer]);
 
-
-    const renderer = useWebGPURenderer()
 
     useFrame(async (_, delta) => {
-        hitCounterAtt.array[0] = 0;
-        hitCounterAtt.needsUpdate = true;
-        renderer.compute(computeHits);
-        const data = await renderer.getArrayBufferAsync(hitCounterAtt);
-        const hits = new Uint32Array(data)[0];
-        //console.log(hits);
-        onHit?.(hits * delta);
+        playerHitCounter.resetHits();
+        renderer.compute(computeUpdate)
+        const hits = await playerHitCounter.readHits();
+        damage(hits * 50 * delta);
     })
 
-    return null;
+
+    return <useTransformsBufferContext.Provider value={transformsBuffer}>
+        <useHordeContext.Provider value={{ pos_buffer }}>
+            <NgbGrid_Collide2D />
+            {children}
+        </useHordeContext.Provider>
+    </useTransformsBufferContext.Provider>;
 }
+
+
+
 
 export function PlayerHP_UI() {
     const ui = useUI();
 
     useEffect(() => {
         const unmount = ui.mount(() => <PlayerHPContent />);
+        console.log("Mount UI");
         return unmount;
     }, [ui]);
 
@@ -238,4 +303,13 @@ function PlayerHPContent() {
             />
         </div>
     );
+}
+
+
+export const random_2d_dir = (uv: THREE.Node = instanceIndex) => {
+    return vec3(
+        rand(uv).mul(PI2).sin(),
+        0,
+        rand(uv).mul(PI2).cos()
+    )
 }
