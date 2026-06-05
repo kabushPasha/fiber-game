@@ -7,8 +7,8 @@ import { atomicLoad, float, If, instanceIndex, int, ivec2, uniform, vec3, vec4 }
 import { Fn } from "three/src/nodes/TSL.js"
 import * as THREE from "three/webgpu";
 import { useFrame } from "@react-three/fiber"
-import { useHorde } from "../VatCrowds_LevelGame"
 
+/*
 type NgbGridCollideProps = {
     size?: number
     cells?: number
@@ -112,6 +112,8 @@ export function NgbGrid_Collide2D({
     )
 }
 
+*/
+
 export const pbdRepelCompute = Fn((
     [posBuffer, grid, count, radius, strength]: [THREE.StorageBufferNode, NeighbourGrid2D, THREE.UniformNode<number>, number, number]
 ) => {
@@ -158,3 +160,14 @@ export const pbdRepelCompute = Fn((
         pos.addAssign(vec4(correction, 0.0))
     })
 })
+
+
+
+
+export function NbrGridFollowPlayer({nbr_grid}:{nbr_grid:NeighbourGrid2D}) {
+    const player = usePlayer();
+    useEffect(() => {
+        nbr_grid.gridCenterUniform.value = player.playerWorldPosition;        
+    }, [player])
+    return null;
+}

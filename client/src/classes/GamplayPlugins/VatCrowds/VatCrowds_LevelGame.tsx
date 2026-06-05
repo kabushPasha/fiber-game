@@ -1,68 +1,29 @@
-import { createContext, useContext, useEffect, useMemo,   type PropsWithChildren } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, type PropsWithChildren } from "react";
 import { Pixelated } from "../../../components/Pixelated";
 import { ImmortalLeva } from "../../LEVELS/Assets/Characters/Knight";
 import { useMouseLock } from "../../Player/MouseLock";
 import { Player } from "../../Player/Player";
 import { GroundClamp, MoveByVel } from "../../Player/PlayerPhysics";
 import { TerrainProvider } from "../../Terrain/TerrainProvider";
-import { createPositionsBuffer, createTransformsBuffer, createVelocityBuffer, RingBufferTest, type FloatBuffer } from "./RingBuffer";
-import {   TexturedTerrain, Vat_Character } from "./VatCrowds_Level";
-import { useFrame, useThree } from "@react-three/fiber";
-import { GameObject3D } from "../../GameObjectContext";
-import { degToRad } from "three/src/math/MathUtils.js";
-import {  SnappedRelativePosition } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
-import { atomicAdd, deltaTime,  If, instanceIndex,  mix,  PI2, rand, storage, vec2, vec3 } from "three/tsl";
+import { createFloatBuffer, createPositionsBuffer, createRingBuffer, createTransformsBuffer, createVelocityBuffer, useTimer, type FloatBuffer } from "./RingBuffer";
+import { TexturedTerrain, Vat_Character } from "./VatCrowds_Level";
+import { useFrame } from "@react-three/fiber";
+import { InstancedMeshSimple, InstancedTransformMaterial, SnappedRelativePosition } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
+import { atomicAdd, deltaTime, If, instanceIndex, mix, storage, vec2 } from "three/tsl";
 import { usePlayer } from "../../Player/PlayerContext";
 import { Fn } from "three/src/nodes/TSL.js";
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow";
 import { StorageBufferAttribute, StorageInstancedBufferAttribute } from "three/webgpu";
-import { useUI } from "../../../components/UIScreenContext";
-import {  ProgressBar } from "react-bootstrap";
-import { useTransformsBufferContext} from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
+import { useTransformsBufferContext } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
 import * as THREE from "three/webgpu";
 
-// playerStore.ts
-import { create } from "zustand";
-import { NgbGrid_Collide2D } from "./Horde/2dNbrGrid";
 
-type PlayerStore = {
-    hp: number;
-    run: number;
-    damage: (amount: number) => void;
-    heal: (amount: number) => void;
-    setHp: (hp: number) => void;
-    restart: () => void;
-};
-
-export const usePlayerStore = create<PlayerStore>((set) => ({
-    hp: 100,
-    run: 0,
-    damage: (amount) =>
-        set((state) => {
-            const hp = Math.max(0, state.hp - amount);
-
-            if (hp === 0) {
-                return {
-                    hp: 100,
-                    run: state.run + 1,
-                };
-            }
-
-            return { hp };
-        }),
-
-    heal: (amount) =>
-        set((state) => ({
-            hp: state.hp + amount,
-        })),
-
-    setHp: (hp) => set({ hp }),
-
-    restart: () =>
-        set((state) => ({
-            run: state.run + 1,
-        })),
-}));
+import { NbrGridFollowPlayer,  pbdRepelCompute } from "./Horde/2dNbrGrid";
+import { CursorGroundHit, CursorGroundMarker } from "./Horde/CursorGroundIntersector";
+import { usePlayerStore } from "./Horde/PlayerStore_Horde";
+import { BasicPerspCamera } from "./Horde/BasicPerspCamera";
+import { PlayerHP_UI } from "./Horde/PlayerHP_UI";
+import { random_2d_dir } from "./Horde/horde_tsl_utils";
 
 
 
@@ -100,52 +61,17 @@ export function VatCrowds_LevelGame() {
             {/** <Vat_Character />*/}
             {1 && <TexturedTerrain />}
 
-            {0 && <RingBufferTest />}
+            {1 && <BasicProjectile />}
 
         </TerrainProvider >
+
+        <CursorGroundHit />
+        <CursorGroundMarker />
+
     </>
 }
 
-type LevelResetHandlerProps = {
-    setRun: React.Dispatch<React.SetStateAction<number>>;
-};
 
-export function LevelResetHandler({ setRun }: LevelResetHandlerProps) {
-    const hp = usePlayerStore((s) => s.hp);
-    const setHp = usePlayerStore((s) => s.setHp);
-
-    useEffect(() => {
-        if (hp <= 0) {
-            console.log("Player died");
-
-            // Reset player state
-            setHp(100);
-
-            // Reset level here
-            setRun((prev) => (prev + 1));
-        }
-    }, [hp, setHp]);
-
-    return null;
-}
-
-export function BasicPerspCamera() {
-    const { camera } = useThree()
-    return <GameObject3D name="PlayerNeck" rotation={[degToRad(-60), 0, 0]}>
-        <primitive object={camera} position={[0, 0, 60]} />
-    </GameObject3D>
-}
-
-// HORDER Context -------------------------------------------------
-export interface HordeContextType {
-    pos_buffer: FloatBuffer,
-}
-export const useHordeContext = createContext<HordeContextType | undefined>(undefined);
-export function useHorde(): HordeContextType {
-    const ctx = useContext(useHordeContext);
-    if (!ctx) { throw new Error("useProject must be used within Horde Provider"); }
-    return ctx;
-}
 
 // HORDER Solver --------------------------------------------------
 export function HordeSolver({ children }: PropsWithChildren) {
@@ -160,6 +86,7 @@ export function HordeSolver({ children }: PropsWithChildren) {
     const pos_buffer = createPositionsBuffer(count);
     const vel_buffer = createVelocityBuffer(count);
 
+    const horde_nbr_grid = usePlayerStore.getState().horde_nbr_grid;
 
     const spawnTimer = useMemo(() => {
         // Spawn Timer
@@ -199,7 +126,7 @@ export function HordeSolver({ children }: PropsWithChildren) {
         spawnTimer.spawnTimerAttribute.needsUpdate = true;
 
         transformsBuffer.reset();
-    }, [spawnTimer,run])
+    }, [spawnTimer, run])
 
     // update Fn
     const computeUpdate = useMemo(() => {
@@ -250,66 +177,133 @@ export function HordeSolver({ children }: PropsWithChildren) {
         })().compute(count);
     }, [count, player.tsl_PlayerWorldPosition, spawnTimer]);
 
+    // Fill NBR Grid
+    const fillGridCompute = useMemo(() => {
+        return Fn(() => {
+            If(instanceIndex.lessThan(pos_buffer.count), () => {
+                If(spawnTimer.active, () => {
+                    const offset = pos_buffer.element;
+                    horde_nbr_grid.insertParticle(offset, instanceIndex)
+                })
+            })
+        })().compute(pos_buffer.count);
+    }, [horde_nbr_grid, pos_buffer, spawnTimer])
+
+    const pbdCompute = useMemo(() => {
+        return pbdRepelCompute(
+            pos_buffer.bufferNode,
+            horde_nbr_grid,
+            pos_buffer.count,
+            2.0,
+            0.2
+        ).compute(pos_buffer.count);
+    }, [horde_nbr_grid, pos_buffer])
+
 
     useFrame(async (_, delta) => {
+        // Reset Player Hits
         playerHitCounter.resetHits();
+        // Sim Horde
         renderer.compute(computeUpdate)
+        // PBD Pass
+        await renderer.computeAsync(horde_nbr_grid.clearCompute())
+        await renderer.computeAsync(fillGridCompute)
+        await renderer.computeAsync(horde_nbr_grid.computeMirror())
+        await renderer.computeAsync(pbdCompute)
+        // Read Hits
         const hits = await playerHitCounter.readHits();
         damage(hits * 50 * delta);
     })
 
-
     return <useTransformsBufferContext.Provider value={transformsBuffer}>
-        <useHordeContext.Provider value={{ pos_buffer }}>
-            <NgbGrid_Collide2D />
+
+            <primitive object={horde_nbr_grid.createDebugMesh()} />
+            <NbrGridFollowPlayer nbr_grid={horde_nbr_grid} />
+
             {children}
-        </useHordeContext.Provider>
     </useTransformsBufferContext.Provider>;
 }
 
 
+export function BasicProjectile({ children }: PropsWithChildren) {
+    const size = 32;
+    const transformsBuffer = createTransformsBuffer(size);
+    const pos_buffer = createPositionsBuffer(size);
+    const vel_buffer = createVelocityBuffer(size);
+
+    const alive_buffer = createFloatBuffer(size, 1, Uint8Array);
+    const age_buffer = createFloatBuffer(size, 1, Float32Array);
 
 
-export function PlayerHP_UI() {
-    const ui = useUI();
+    const player = usePlayer()
+    const renderer = useWebGPURenderer();
 
+    const onSpawn = useCallback(() => {
+        pos_buffer.element.assign(player.tsl_PlayerWorldPosition);
+        transformsBuffer.utils.toUnitmatrix();
+        transformsBuffer.utils.setPosition(pos_buffer.element);
+
+        const to_cursor_vel = usePlayerStore.getState().cursorHitUniform.sub(
+            player.tsl_PlayerWorldPosition).normalize().mul(50)
+        vel_buffer.element.assign(to_cursor_vel);
+        transformsBuffer.utils.orientFromVel(vel_buffer.element);
+        age_buffer.element.assign(0.0);
+        alive_buffer.element.assign(1.0);
+    }, [])
+
+    const ringBuffer = createRingBuffer({ size, onSpawn });
+
+    // Spawn on E
     useEffect(() => {
-        const unmount = ui.mount(() => <PlayerHPContent />);
-        console.log("Mount UI");
-        return unmount;
-    }, [ui]);
+        const handleKey = (e: KeyboardEvent) => { if (e.code == "KeyE") { ringBuffer.spawnCount(1); } }
+        window.addEventListener("keydown", handleKey)
+        return () => window.removeEventListener("keydown", handleKey)
+    }, [])
 
-    return null;
-}
+    // Spawn on Timew
+    useTimer(0.5, () => { ringBuffer.spawnCount(1); });
 
-function PlayerHPContent() {
-    const hp = usePlayerStore((s) => s.hp);
+    //move by vel
+    const computeUpdate = useCallback(() => {
+        const max_age = 0.5;
 
-    return (
-        <div
-            style={{
-                position: "absolute",
-                bottom: 25,
-                left: 25,
-                zIndex: 9999,
-                color: "#ff3e3e",
-                width: "50%",
-            }}
-        >
-            <ProgressBar
-                now={hp}
-                label={hp.toFixed(1)}
-                variant="danger"
-            />
-        </div>
-    );
-}
+        const fn = Fn(() => {
+            // Process Only Alive ones
+            If(alive_buffer.element.notEqual(0), () => {
+                // Increment Age
+                age_buffer.element.addAssign(deltaTime);
+                If(age_buffer.element.greaterThan(max_age), () => {
+                    //vel_buffer.element.mulAssign(0);
+                    alive_buffer.element.assign(0);
+                    transformsBuffer.utils.toUnitmatrix(0.0);
+                })
 
+                // Move POS by VEL
+                pos_buffer.element.addAssign(vel_buffer.element.mul(deltaTime));
+                // DRAG VEL
+                //vel_buffer.element.mulAssign(0.99);
+                // move pos to transforms buffer
+                transformsBuffer.utils.setPosition(pos_buffer.element);
+                // Orient only if we have vel
+                /*
+                If(vel_buffer.element.length().greaterThan(0), () => {
+                    transformsBuffer.utils.orientFromVel(vel_buffer.element);})
+                */
+            })
 
-export const random_2d_dir = (uv: THREE.Node = instanceIndex) => {
-    return vec3(
-        rand(uv).mul(PI2).sin(),
-        0,
-        rand(uv).mul(PI2).cos()
-    )
+        });
+        return renderer.compute(fn().compute(size))
+    }, [pos_buffer, vel_buffer, size, renderer])
+
+    useFrame(() => {
+        computeUpdate();
+    })
+
+    return <useTransformsBufferContext.Provider value={transformsBuffer}>
+        {children}
+        <InstancedMeshSimple >
+            <boxGeometry />
+            <InstancedTransformMaterial />
+        </InstancedMeshSimple>
+    </useTransformsBufferContext.Provider>;
 }

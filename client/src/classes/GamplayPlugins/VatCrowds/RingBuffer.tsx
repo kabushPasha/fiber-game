@@ -52,8 +52,17 @@ export function useTimer(timer_delta: number, callback: () => void) {
     })
 }
 
-export function createFloatBuffer(count: number, item_size: number) {
-    const bufferAttribute = useMemo(() => { return new StorageInstancedBufferAttribute(new Float32Array(count * item_size), item_size); }, [count])
+type BufferArrayConstructor =
+    | Float32ArrayConstructor
+    | Int32ArrayConstructor
+    | Uint32ArrayConstructor
+    | Int16ArrayConstructor
+    | Uint16ArrayConstructor
+    | Int8ArrayConstructor
+    | Uint8ArrayConstructor;
+
+export function createFloatBuffer(count: number, item_size: number,ArrayType: BufferArrayConstructor = Float32Array) {
+    const bufferAttribute = useMemo(() => { return new StorageInstancedBufferAttribute(new ArrayType(count * item_size), item_size); }, [count])
     const bufferNode = useMemo(() => storage(bufferAttribute).setPBO(true), [bufferAttribute]);
     const element = useMemo(() => { return bufferNode.element(instanceIndex) }, [bufferNode])
     const reset = useCallback(() => {
