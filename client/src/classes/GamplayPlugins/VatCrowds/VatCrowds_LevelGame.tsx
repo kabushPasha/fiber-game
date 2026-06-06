@@ -1,15 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useMemo, type PropsWithChildren } from "react";
 import { Pixelated } from "../../../components/Pixelated";
 import { ImmortalLeva } from "../../LEVELS/Assets/Characters/Knight";
 import { useMouseLock } from "../../Player/MouseLock";
 import { Player } from "../../Player/Player";
 import { GroundClamp, MoveByVel } from "../../Player/PlayerPhysics";
 import { TerrainProvider } from "../../Terrain/TerrainProvider";
-import { createFloatBuffer, createPositionsBuffer, createRingBuffer, createTransformsBuffer, createVelocityBuffer, useTimer, type FloatBuffer } from "./RingBuffer";
+import { createFloatBufferMemo, createRingBuffer, createTransformsBufferMemo, useTimer } from "./RingBuffer";
 import { TexturedTerrain, Vat_Character } from "./VatCrowds_Level";
 import { useFrame } from "@react-three/fiber";
 import { InstancedMeshSimple, InstancedTransformMaterial, SnappedRelativePosition } from "../../Terrain/ScatterAPI/Scatter/TransformsProvides";
-import { atomicAdd, deltaTime, If, instanceIndex, mix, storage, vec2 } from "three/tsl";
+import { atomicAdd, atomicLoad, atomicStore, atomicSub, deltaTime, float, If, instanceIndex, int, ivec2, Loop, mix, storage, vec2, vec3, vec4 } from "three/tsl";
 import { usePlayer } from "../../Player/PlayerContext";
 import { Fn } from "three/src/nodes/TSL.js";
 import { useWebGPURenderer } from "../../Effects/SimulationGrids/SatinFlow";
@@ -18,12 +18,13 @@ import { useTransformsBufferContext } from "../../Terrain/ScatterAPI/Scatter/Tra
 import * as THREE from "three/webgpu";
 
 
-import { NbrGridFollowPlayer,  pbdRepelCompute } from "./Horde/2dNbrGrid";
+import { NbrGridFollowPlayer, pbdRepelCompute } from "./Horde/2dNbrGrid";
 import { CursorGroundHit, CursorGroundMarker } from "./Horde/CursorGroundIntersector";
-import { usePlayerStore } from "./Horde/PlayerStore_Horde";
+import { useHordeStore } from "./Horde/PlayerStore_Horde";
 import { BasicPerspCamera } from "./Horde/BasicPerspCamera";
 import { PlayerHP_UI } from "./Horde/PlayerHP_UI";
 import { random_2d_dir } from "./Horde/horde_tsl_utils";
+import type { NeighbourGrid2D } from "../../Terrain/ECS/NbrGrid2D";
 
 
 
@@ -68,7 +69,23 @@ export function VatCrowds_LevelGame() {
         <CursorGroundHit />
         <CursorGroundMarker />
 
+        <PlayerDataUpdater />
     </>
+}
+
+
+export function PlayerDataUpdater() {
+    const player = usePlayer()
+    const playerData = useHordeStore.getState().playerData;
+
+    useEffect(() => {
+        playerData.player = player.player;
+        playerData.playerWorldPosition = player.playerWorldPosition;
+        playerData.tsl_PlayerWorldPosition = player.tsl_PlayerWorldPosition;
+        playerData.tsl_PlayerVelocity = player.tsl_PlayerVelocity;
+    }, [player])
+
+    return null
 }
 
 
@@ -76,17 +93,15 @@ export function VatCrowds_LevelGame() {
 // HORDER Solver --------------------------------------------------
 export function HordeSolver({ children }: PropsWithChildren) {
     const renderer = useWebGPURenderer()
-    const count = 1000;
 
-    const run = usePlayerStore((s) => s.run);
+    const run = useHordeStore((s) => s.run);
+    //const player = usePlayer()
+    const player = useHordeStore().playerData;
+    const damage = useHordeStore((s) => s.damage);
 
-    const player = usePlayer()
-    const damage = usePlayerStore((s) => s.damage);
-    const transformsBuffer = createTransformsBuffer(count);
-    const pos_buffer = createPositionsBuffer(count);
-    const vel_buffer = createVelocityBuffer(count);
-
-    const horde_nbr_grid = usePlayerStore.getState().horde_nbr_grid;
+    const horde = useHordeStore.getState().horde;
+    const horde_nbr_grid = horde.nbr_grid;
+    const count = horde.count;
 
     const spawnTimer = useMemo(() => {
         // Spawn Timer
@@ -125,7 +140,7 @@ export function HordeSolver({ children }: PropsWithChildren) {
         spawnTimer.spawnTimerAttribute.array.set(values)
         spawnTimer.spawnTimerAttribute.needsUpdate = true;
 
-        transformsBuffer.reset();
+        horde.transformsBuffer.reset();
     }, [spawnTimer, run])
 
     // update Fn
@@ -144,34 +159,48 @@ export function HordeSolver({ children }: PropsWithChildren) {
 
                     // Spawn Event
                     If(spawnTimer.age.sub(dt).lessThanEqual(0), () => {
-                        pos_buffer.element.assign(player.tsl_PlayerWorldPosition.add(
+                        horde.pos_buffer.element.assign(player.tsl_PlayerWorldPosition.add(
                             random_2d_dir().mul(spawn_radius)
                         ));
-                        vel_buffer.element.assign(random_2d_dir(vec2(instanceIndex, 3)).mul(creature_speed));
-                        transformsBuffer.utils.toUnitmatrix(2);
+                        horde.vel_buffer.element.assign(random_2d_dir(vec2(instanceIndex, 3)).mul(creature_speed));
+                        horde.transformsBuffer.utils.toUnitmatrix(2);
+                        //atomicStore(horde.hp_buffer.element(instanceIndex), 1);
                     })
 
+
+
                     // Rotate Towards Player            
-                    const toPlayer = player.tsl_PlayerWorldPosition.sub(pos_buffer.element).normalize();
+                    const toPlayer = player.tsl_PlayerWorldPosition.sub(horde.pos_buffer.element).normalize();
                     const turnSpeed = dt.mul(turn_speed);
-                    const newForward = mix(vel_buffer.element, toPlayer, turnSpeed).normalize().mul(vel_buffer.element.length());
-                    vel_buffer.element.assign(newForward);
+                    const newForward = mix(horde.vel_buffer.element, toPlayer, turnSpeed).normalize().mul(horde.vel_buffer.element.length());
+                    horde.vel_buffer.element.assign(newForward);
 
                     // Move POS by VEL
-                    pos_buffer.element.addAssign(vel_buffer.element.mul(deltaTime));
+                    horde.pos_buffer.element.addAssign(horde.vel_buffer.element.mul(deltaTime));
                     // Wrap Around Player
-                    const player_relative_pos = SnappedRelativePosition(pos_buffer.element, player.tsl_PlayerWorldPosition, wrap_radius);
+                    const player_relative_pos = SnappedRelativePosition(horde.pos_buffer.element, player.tsl_PlayerWorldPosition, wrap_radius);
                     const wrapped_world = player_relative_pos.add(player.tsl_PlayerWorldPosition);
-                    pos_buffer.element.assign(wrapped_world);
+                    horde.pos_buffer.element.assign(wrapped_world);
 
                     // Damage Player
-                    If(pos_buffer.element.sub(player.tsl_PlayerWorldPosition).length().lessThan(1),
+                    If(horde.pos_buffer.element.sub(player.tsl_PlayerWorldPosition).length().lessThan(1),
                         () => { atomicAdd(playerHitCounter.hitCounterStorage.element(0), 1) }
                     );
 
                     // Set Transform If Alive                
-                    transformsBuffer.utils.setPosition(pos_buffer.element);
-                    transformsBuffer.utils.orientFromVel(vel_buffer.element);
+                    horde.transformsBuffer.utils.setPosition(horde.pos_buffer.element);
+                    horde.transformsBuffer.utils.orientFromVel(horde.vel_buffer.element);
+
+
+                    // Death Event
+                    /*
+                    const hp = float(atomicLoad(horde.hp_buffer.element(instanceIndex)))
+                    If(hp.lessThanEqual(0), () => {
+                        spawnTimer.age.assign(-10)
+                        horde.transformsBuffer.utils.toUnitmatrix(0);s
+                    });
+                    */
+
                 })
             });
         })().compute(count);
@@ -180,24 +209,24 @@ export function HordeSolver({ children }: PropsWithChildren) {
     // Fill NBR Grid
     const fillGridCompute = useMemo(() => {
         return Fn(() => {
-            If(instanceIndex.lessThan(pos_buffer.count), () => {
+            If(instanceIndex.lessThan(horde.pos_buffer.count), () => {
                 If(spawnTimer.active, () => {
-                    const offset = pos_buffer.element;
+                    const offset = horde.pos_buffer.element;
                     horde_nbr_grid.insertParticle(offset, instanceIndex)
                 })
             })
-        })().compute(pos_buffer.count);
-    }, [horde_nbr_grid, pos_buffer, spawnTimer])
+        })().compute(horde.pos_buffer.count);
+    }, [horde_nbr_grid, horde.pos_buffer, spawnTimer])
 
     const pbdCompute = useMemo(() => {
         return pbdRepelCompute(
-            pos_buffer.bufferNode,
+            horde.pos_buffer.bufferNode,
             horde_nbr_grid,
-            pos_buffer.count,
+            horde.pos_buffer.count,
             2.0,
             0.2
-        ).compute(pos_buffer.count);
-    }, [horde_nbr_grid, pos_buffer])
+        ).compute(horde.pos_buffer.count);
+    }, [horde_nbr_grid, horde.pos_buffer])
 
 
     useFrame(async (_, delta) => {
@@ -215,43 +244,39 @@ export function HordeSolver({ children }: PropsWithChildren) {
         damage(hits * 50 * delta);
     })
 
-    return <useTransformsBufferContext.Provider value={transformsBuffer}>
+    return <useTransformsBufferContext.Provider value={horde.transformsBuffer}>
 
-            <primitive object={horde_nbr_grid.createDebugMesh()} />
-            <NbrGridFollowPlayer nbr_grid={horde_nbr_grid} />
+        <primitive object={horde_nbr_grid.createDebugMesh()} />
+        <NbrGridFollowPlayer nbr_grid={horde_nbr_grid} />
 
-            {children}
+        {children}
     </useTransformsBufferContext.Provider>;
 }
 
 
 export function BasicProjectile({ children }: PropsWithChildren) {
-    const size = 32;
-    const transformsBuffer = createTransformsBuffer(size);
-    const pos_buffer = createPositionsBuffer(size);
-    const vel_buffer = createVelocityBuffer(size);
+    const proj_data = useHordeStore.getState().projectiles;
+    const horde = useHordeStore.getState().horde;
 
-    const alive_buffer = createFloatBuffer(size, 1, Uint8Array);
-    const age_buffer = createFloatBuffer(size, 1, Float32Array);
+    const count = proj_data.count;
+    const transformsBuffer = proj_data.transformsBuffer;
+    const pos_buffer = proj_data.pos_buffer;
+    const vel_buffer = proj_data.vel_buffer;
 
+    const alive_buffer = proj_data.alive_buffer;
+    const age_buffer = proj_data.age_buffer;
 
     const player = usePlayer()
     const renderer = useWebGPURenderer();
 
     const onSpawn = useCallback(() => {
-        pos_buffer.element.assign(player.tsl_PlayerWorldPosition);
-        transformsBuffer.utils.toUnitmatrix();
-        transformsBuffer.utils.setPosition(pos_buffer.element);
-
-        const to_cursor_vel = usePlayerStore.getState().cursorHitUniform.sub(
+        const to_cursor_vel = useHordeStore.getState().cursorHitUniform.sub(
             player.tsl_PlayerWorldPosition).normalize().mul(50)
-        vel_buffer.element.assign(to_cursor_vel);
-        transformsBuffer.utils.orientFromVel(vel_buffer.element);
-        age_buffer.element.assign(0.0);
-        alive_buffer.element.assign(1.0);
+
+        proj_data.utils.initFromPosAndVel(player.tsl_PlayerWorldPosition, to_cursor_vel);
     }, [])
 
-    const ringBuffer = createRingBuffer({ size, onSpawn });
+    const ringBuffer = createRingBuffer({ size: count, onSpawn });
 
     // Spawn on E
     useEffect(() => {
@@ -289,15 +314,44 @@ export function BasicProjectile({ children }: PropsWithChildren) {
                 If(vel_buffer.element.length().greaterThan(0), () => {
                     transformsBuffer.utils.orientFromVel(vel_buffer.element);})
                 */
+
+
+
+                // Collide with enemies
+
+                const grid = horde.nbr_grid;
+                const cell2 = grid.posToIndex2TSL(pos_buffer.element);
+                const linear = grid.index2ToLinearTSL(cell2)
+                const base = grid.getCellBaseIndex(linear)
+                // iterate fixed max per cell
+                const countInCell = atomicLoad(grid.gridCounts.element(linear))
+                If(countInCell.greaterThan(0), () => {
+                    alive_buffer.element.assign(0);
+                    transformsBuffer.utils.toUnitmatrix(0.0);
+                })
+
+                /*
+                for (let i = 0; i < grid.maxPerCell; i++) {
+                    If(int(i).lessThan(countInCell), () => {
+                        const otherIndex = grid.gridParticles.element(base.add(int(i)))
+                        //const otherPos = horde.pos_buffer.bufferNode.element(otherIndex)                        
+                        atomicSub(horde.hp_buffer.element(otherIndex), 1);
+                    })
+                }
+                */
+
+
+
+
             })
 
         });
-        return renderer.compute(fn().compute(size))
-    }, [pos_buffer, vel_buffer, size, renderer])
+        return renderer.compute(fn().compute(count))
+    }, [pos_buffer, vel_buffer, count, renderer])
 
     useFrame(() => {
         computeUpdate();
-    })
+    }, -5)
 
     return <useTransformsBufferContext.Provider value={transformsBuffer}>
         {children}
@@ -306,4 +360,57 @@ export function BasicProjectile({ children }: PropsWithChildren) {
             <InstancedTransformMaterial />
         </InstancedMeshSimple>
     </useTransformsBufferContext.Provider>;
+}
+
+
+
+
+
+export const projHit = (
+    pos: THREE.Node,
+    posBuffer: THREE.StorageBufferNode,
+    grid: NeighbourGrid2D,
+    count: number,
+    radius: number,
+    strength: number
+
+) => {
+
+    If(instanceIndex.lessThan(count), () => {
+        const cell2 = grid.posToIndex2TSL(pos)
+
+        const size = 1;
+        pos.assign(vec3(0, 0, 0));
+
+        for (let oy = -size; oy <= size; oy++) {
+            for (let ox = -size; ox <= size; ox++) {
+
+                const neighborCell2 = cell2.add(ivec2(ox, oy));
+                const linear = grid.index2ToLinearTSL(neighborCell2)
+                const base = grid.getCellBaseIndex(linear)
+
+                // iterate fixed max per cell
+                const countInCell = atomicLoad(grid.gridCounts.element(linear))
+                for (let i = 0; i < grid.maxPerCell; i++) {
+                    If(int(i).lessThan(countInCell), () => {
+                        const otherIndex = grid.gridParticles.element(base.add(int(i)))
+                        const otherPos = posBuffer.element(otherIndex)
+
+                        const dir = pos.xyz.sub(otherPos.xyz).mul(vec3(1, 0, 1))
+                        const dist = dir.length()
+
+                        If(dist.lessThan(float(radius)), () => {
+                            const push = dir.normalize()
+                                .mul(float(radius).sub(dist))
+                                .mul(strength)
+
+                            pos.addAssign(push)
+                            pos.assign(vec3(0, 0, 0));
+                        })
+                    })
+                }
+            }
+        }
+    })
+
 }

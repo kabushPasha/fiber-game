@@ -1,12 +1,9 @@
-import { folder, useControls } from "leva"
-import { useEffect, useMemo } from "react"
-import { useWebGPURenderer } from "../../../Effects/SimulationGrids/SatinFlow"
+import { useEffect} from "react"
 import { usePlayer } from "../../../Player/PlayerContext"
 import { NeighbourGrid2D } from "../../../Terrain/ECS/NbrGrid2D"
-import { atomicLoad, float, If, instanceIndex, int, ivec2, uniform, vec3, vec4 } from "three/tsl"
+import { atomicLoad, float, If, instanceIndex, int, ivec2,  vec3, vec4 } from "three/tsl"
 import { Fn } from "three/src/nodes/TSL.js"
 import * as THREE from "three/webgpu";
-import { useFrame } from "@react-three/fiber"
 
 /*
 type NgbGridCollideProps = {

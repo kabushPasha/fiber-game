@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three/webgpu";
-import { usePlayerStore } from "./PlayerStore_Horde";
+import { useHordeStore } from "./PlayerStore_Horde";
 
 
 export function CursorGroundHit() {
@@ -12,7 +12,7 @@ export function CursorGroundHit() {
     const hit = useMemo(() => new THREE.Vector3(), []);
 
     useFrame(() => {
-        const store = usePlayerStore.getState();
+        const store = useHordeStore.getState();
 
         ndc.set(pointer.x, pointer.y, 0.5);
         ndc.unproject(camera);
@@ -39,7 +39,7 @@ export function CursorGroundHit() {
 export function CursorGroundMarker() {
     const ref = useRef<THREE.Mesh>(null);
     useFrame(() => {
-        const pos = usePlayerStore.getState().cursorHit;
+        const pos = useHordeStore.getState().cursorHit;
         if (ref.current) { ref.current.position.copy(pos); }
     });
     return (

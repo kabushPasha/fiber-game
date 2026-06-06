@@ -61,83 +61,107 @@ type BufferArrayConstructor =
     | Int8ArrayConstructor
     | Uint8ArrayConstructor;
 
-export function createFloatBuffer(count: number, item_size: number,ArrayType: BufferArrayConstructor = Float32Array) {
-    const bufferAttribute = useMemo(() => { return new StorageInstancedBufferAttribute(new ArrayType(count * item_size), item_size); }, [count])
-    const bufferNode = useMemo(() => storage(bufferAttribute).setPBO(true), [bufferAttribute]);
-    const element = useMemo(() => { return bufferNode.element(instanceIndex) }, [bufferNode])
-    const reset = useCallback(() => {
-        bufferAttribute.array.fill(0);
-        bufferAttribute.needsUpdate = true;
-    }, [bufferAttribute]);
+export function createFloatBuffer(
+  count: number,
+  item_size: number,
+  ArrayType: BufferArrayConstructor = Float32Array
+) {
+  const bufferAttribute = new StorageInstancedBufferAttribute(
+    new ArrayType(count * item_size),
+    item_size
+  );
 
-    return {
-        bufferAttribute,
-        bufferNode,
-        element,
-        count,
-        reset
-    }
+  const bufferNode = storage(bufferAttribute).setPBO(true);
+  const element = bufferNode.element(instanceIndex);
+
+  const reset = () => {
+    bufferAttribute.array.fill(0);
+    bufferAttribute.needsUpdate = true;
+  };
+
+  return {
+    count,
+    bufferAttribute,
+    bufferNode,
+    element,
+    reset,
+  };
 }
 
-export type FloatBuffer = ReturnType<typeof createFloatBuffer>;
+export function createFloatBufferMemo(
+  count: number,
+  item_size: number,
+  ArrayType: BufferArrayConstructor = Float32Array
+) {
+  return useMemo(
+    () => createFloatBuffer(count, item_size, ArrayType),
+    [count, item_size, ArrayType]
+  );
+}
+
+export type FloatBuffer = ReturnType<typeof createFloatBufferMemo>;
 
 export function createTransformsBuffer(count: number) {
-    const buffer = createFloatBuffer(count, 16);
+  const buffer = createFloatBuffer(count, 16);
 
-    const utils = useMemo(() => {
-        const toUnitmatrix = (scale = 1) => {
-            buffer.element.element(int(0)).assign(vec4(scale, 0, 0, 0));
-            buffer.element.element(int(1)).assign(vec4(0, scale, 0, 0));
-            buffer.element.element(int(2)).assign(vec4(0, 0, scale, 0));
-            buffer.element.element(int(3)).assign(vec4(0, 0, 0, scale));
-        }
+  const toUnitmatrix = (scale = 1) => {
+    buffer.element.element(int(0)).assign(vec4(scale, 0, 0, 0));
+    buffer.element.element(int(1)).assign(vec4(0, scale, 0, 0));
+    buffer.element.element(int(2)).assign(vec4(0, 0, scale, 0));
+    buffer.element.element(int(3)).assign(vec4(0, 0, 0, scale));
+  };
 
-        const setPosition = (pos: THREE.Node) => {
-            buffer.element.element(int(3)).assign(vec4(pos, 1));
-        }
+  const setPosition = (pos: THREE.Node) => {
+    buffer.element.element(int(3)).assign(vec4(pos, 1));
+  };
 
-        const orientFromVel = (vel: THREE.Node) => {
-            const forward = vel.normalize();
-            const up = vec3(0, 1, 0);
-            const right = up.cross(forward).normalize();
+  const orientFromVel = (vel: THREE.Node) => {
+    const forward = vel.normalize();
+    const up = vec3(0, 1, 0);
+    const right = up.cross(forward).normalize();
 
-            const rightCol = buffer.element.element(int(0));
-            const upCol = buffer.element.element(int(1));
-            const forwardCol = buffer.element.element(int(2));
+    const rightCol = buffer.element.element(int(0));
+    const upCol = buffer.element.element(int(1));
+    const forwardCol = buffer.element.element(int(2));
 
-            const scaleX = rightCol.length();
-            const scaleY = upCol.length();
-            const scaleZ = forwardCol.length();
+    const scaleX = rightCol.length();
+    const scaleY = upCol.length();
+    const scaleZ = forwardCol.length();
 
-            buffer.element.element(int(0)).assign(vec4(right, 0).mul(scaleX));
-            buffer.element.element(int(1)).assign(vec4(up, 0).mul(scaleY));
-            buffer.element.element(int(2)).assign(vec4(forward, 0).mul(scaleZ));
-        }
+    buffer.element.element(int(0)).assign(vec4(right, 0).mul(scaleX));
+    buffer.element.element(int(1)).assign(vec4(up, 0).mul(scaleY));
+    buffer.element.element(int(2)).assign(vec4(forward, 0).mul(scaleZ));
+  };
 
-        return { toUnitmatrix, setPosition, orientFromVel };
-    }, [])
+  return {
+    ...buffer,
+    transformsBufferNode: buffer.bufferNode,
+    instanceMatrix: buffer.element,
+    utils: {
+      toUnitmatrix,
+      setPosition,
+      orientFromVel,
+    },
+  };
+}
 
-    return {
-        ...buffer,
-        transformsBufferNode: buffer.bufferNode,
-        instanceMatrix: buffer.element,
-        utils,
-    }
+export function createTransformsBufferMemo(count: number) {
+  return useMemo(() => createTransformsBuffer(count), [count]);
 }
 
 export function createPositionsBuffer(count: number) {
-    return createFloatBuffer(count, 3);
+    return createFloatBufferMemo(count, 3);
 }
 export function createVelocityBuffer(count: number) {
     // Move Pos By VEL?
     // DRAG ??    
 
-    return createFloatBuffer(count, 3);
+    return createFloatBufferMemo(count, 3);
 }
 // Implementations
 export function RingBuffer({ children }: PropsWithChildren) {
     const size = 32;
-    const transformsBuffer = createTransformsBuffer(size);
+    const transformsBuffer = createTransformsBufferMemo(size);
     const pos_buffer = createPositionsBuffer(size);
     const vel_buffer = createVelocityBuffer(size);
     const player = usePlayer()

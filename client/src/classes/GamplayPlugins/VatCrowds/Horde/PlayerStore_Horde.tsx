@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import * as THREE from "three/webgpu";
-import { uniform } from "three/tsl";
+import { storage, uniform } from "three/tsl";
 import { NeighbourGrid2D } from "../../../Terrain/ECS/NbrGrid2D";
+import { createFloatBuffer, createTransformsBuffer } from "../RingBuffer";
 
-type PlayerStore = {
+type HordeStore = {
     hp: number;
     run: number;
     damage: (amount: number) => void;
@@ -14,10 +15,12 @@ type PlayerStore = {
     cursorHit: THREE.Vector3;
     cursorHitUniform: THREE.UniformNode<THREE.Vector3>;
 
-    horde_nbr_grid: NeighbourGrid2D;
+    horde: HordeBuffers;
+    projectiles: ProjectilesBuffers;
+    playerData: PlayerData;
 };
 
-export const usePlayerStore = create<PlayerStore>((set) => ({
+export const useHordeStore = create<HordeStore>((set) => ({
     hp: 100,
     run: 0,
     damage: (amount) =>
@@ -49,5 +52,88 @@ export const usePlayerStore = create<PlayerStore>((set) => ({
     cursorHit: new THREE.Vector3(),
     cursorHitUniform: uniform(new THREE.Vector3(0, 0, 1)),
 
-    horde_nbr_grid: new NeighbourGrid2D(100, 20, 32)
+    horde: createHordeBuffers(1000),
+    projectiles: createPojectilesBuffer(32),
+    playerData: createPlayerData(),
 }));
+
+
+//--------------------------------------------------
+
+export function createHordeBuffers(
+    count: number,
+) {
+    return {
+        pos_buffer: createFloatBuffer(count, 3),
+        vel_buffer: createFloatBuffer(count, 3),
+        transformsBuffer: createTransformsBuffer(count),
+        nbr_grid: new NeighbourGrid2D(100, 20, 32),
+        count: count,
+        hp_buffer: storage(
+            new THREE.StorageBufferAttribute(count, 1), 'uint', 1
+        ).setPBO(true).toAtomic()
+    }
+}
+
+export type HordeBuffers = ReturnType<typeof createHordeBuffers>;
+
+
+export function createPojectilesBuffer(
+    count: number,
+) {
+    const transformsBuffer = createTransformsBuffer(count)
+    const pos_buffer = createFloatBuffer(count, 3)
+    const vel_buffer = createFloatBuffer(count, 3)
+
+    const alive_buffer = createFloatBuffer(count, 1, Uint8Array)
+    const age_buffer = createFloatBuffer(count, 1, Float32Array)
+
+
+    return {
+        transformsBuffer,
+        pos_buffer,
+        vel_buffer,
+
+        alive_buffer,
+        age_buffer,
+
+        count: count,
+
+        utils: {
+            initFromPosAndVel: (pos: THREE.Node, vel: THREE.Node) => {
+                pos_buffer.element.assign(pos);
+                transformsBuffer.utils.toUnitmatrix();
+                transformsBuffer.utils.setPosition(pos_buffer.element);
+                vel_buffer.element.assign(vel);
+                transformsBuffer.utils.orientFromVel(vel_buffer.element);
+                age_buffer.element.assign(0.0);
+                alive_buffer.element.assign(1.0);
+            }
+        }
+
+
+    }
+}
+
+export type ProjectilesBuffers = ReturnType<typeof createPojectilesBuffer>;
+
+
+// --------------------------------
+
+type PlayerData = {
+    player: THREE.Group | null;
+    playerWorldPosition: THREE.Vector3;
+
+    tsl_PlayerWorldPosition: THREE.UniformNode<THREE.Vector3>;
+    tsl_PlayerVelocity: THREE.UniformNode<THREE.Vector3>;
+
+};
+
+export function createPlayerData(): PlayerData {
+    return {
+        player: null,
+        playerWorldPosition: new THREE.Vector3(),
+        tsl_PlayerWorldPosition: uniform(new THREE.Vector3(0, 0, 0)),
+        tsl_PlayerVelocity: uniform(new THREE.Vector3(0, 0, 0)),
+    }
+}

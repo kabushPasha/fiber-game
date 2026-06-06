@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useUI } from "../../../../components/UIScreenContext";
-import { usePlayerStore } from "./PlayerStore_Horde";
+import { useHordeStore } from "./PlayerStore_Horde";
 import { ProgressBar } from "react-bootstrap";
 
 
@@ -18,7 +18,7 @@ export function PlayerHP_UI() {
 }
 
 function PlayerHPContent() {
-    const hp = usePlayerStore((s) => s.hp);
+    const hp = useHordeStore((s) => s.hp);
 
     return (
         <div
