@@ -8,7 +8,7 @@ export class NeighbourGrid2D {
     cellSize: number
     totalCells: number
     maxPerCell: number
-    gridCenterUniform = uniform(vec3(0, 0,0))
+    gridCenterUniform = uniform(vec3(0, 0, 0))
 
     gridCounts
     gridParticles
@@ -100,6 +100,26 @@ export class NeighbourGrid2D {
         })
     }
 
+    fillGrid_PosFlag(
+        pos: THREE.Node,
+        count: number,
+        add_to_grid?: THREE.Node
+    ) {
+        return Fn(() => {
+            If(instanceIndex.lessThan(count), () => {
+
+                if (add_to_grid) {
+                    If(add_to_grid, () => {
+                        this.insertParticle(pos, instanceIndex);
+                    });
+                } else {
+                    this.insertParticle(pos, instanceIndex);
+                }
+
+            });
+        })().compute(count);
+    }
+
     createCellTransforms() {
         const transforms = new Float32Array(this.totalCells * 16)
 
@@ -134,7 +154,7 @@ export class NeighbourGrid2D {
 
         mat.positionNode =
             this.cellTransformsBuffer
-                .element(instanceIndex)                
+                .element(instanceIndex)
                 .mul(positionLocal.mul(0.9).mul(vec3(1, scale, 1)))
                 .add(vec3(this.gridCenterUniform, 0))
         return mat

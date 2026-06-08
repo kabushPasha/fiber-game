@@ -74,8 +74,8 @@ export function Vat_Character({
 
     return <>
         <InstancedMeshSimple geometry={vatChar.geometry} material={mat} count={count} />
-        <InstancedMeshSimple geometry={vatChar.geometry} material={outline_material} count={count} castShadow={false}/>
-        { true && <InstancedMeshSimple geometry={vatChar.geometry} material={shadow_material} count={count} />}
+        { 1 && <InstancedMeshSimple geometry={vatChar.geometry} material={outline_material} count={count} castShadow={false}/>}
+        { 1 && <InstancedMeshSimple geometry={vatChar.geometry} material={shadow_material} count={count} />}
     </>
 }
 

@@ -55,6 +55,7 @@ import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
 import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
+import { Walker3DLevel } from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -74,7 +75,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 11 : 10)
+  const [level, setLevel] = useState(isDebug ? 12 : 11)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -132,6 +133,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>                    
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(10)}>Level 10: Horde Mode </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(11)}>Level 11: Horde Mode Game</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(11)}>Level 12: 3D_WalkerLevel</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -147,6 +149,7 @@ const App = () => {
                   {level == 9 && <KnightLevel />}
                   {level == 10 && <VatCrowds_Level />}
                   {level == 11 && <VatCrowds_LevelGame />}
+                  {level == 12 && <Walker3DLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>

@@ -87,6 +87,19 @@ export function createPojectilesBuffer(
 
     const alive_buffer = createFloatBuffer(count, 1, Uint8Array)
     const age_buffer = createFloatBuffer(count, 1, Float32Array)
+    const nbr_grid = new NeighbourGrid2D(100, 20, 32)
+
+    /*const fill_grid_compute = () => {
+        return Fn(() => {
+            If(instanceIndex.lessThan(pos_buffer.count), () => {
+                If(alive_buffer.element.notEqual(0), () => {                    
+                    nbr_grid.insertParticle(pos_buffer.element, instanceIndex)
+                })
+            })
+        })().compute(count);
+    }*/
+
+    const fill_grid_compute = nbr_grid.fillGrid_PosFlag(pos_buffer.element, count, alive_buffer.element.notEqual(0));
 
 
     return {
@@ -96,6 +109,7 @@ export function createPojectilesBuffer(
 
         alive_buffer,
         age_buffer,
+        nbr_grid,
 
         count: count,
 
@@ -108,7 +122,8 @@ export function createPojectilesBuffer(
                 transformsBuffer.utils.orientFromVel(vel_buffer.element);
                 age_buffer.element.assign(0.0);
                 alive_buffer.element.assign(1.0);
-            }
+            },
+            fill_grid_compute
         }
 
 

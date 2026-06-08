@@ -176,6 +176,7 @@ export function Immortal({
 
     //const { scene, nodes, animations } = useGLTF("models/Char/immortal_rig.glb")
     const { scene, animations } = useGLTF(path)
+    // @ts-ignore
     const { actions, names } = useAnimations(animations, groupRef);
     //console.log(nodes, animations)
 

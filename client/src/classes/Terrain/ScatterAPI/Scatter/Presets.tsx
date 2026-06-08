@@ -164,3 +164,26 @@ export function PinesMaterial({ color = "#738b8b", texture_url = "models/PineTre
 
     return <primitive object={material} attach="material" />
 }
+
+
+
+export function SimpleInstanceMaterial() {
+    const { transformsBufferNode } = useTransformsBuffer();
+
+
+    const instanceMatrix = useMemo(() => {
+        return transformsBufferNode.element(instanceIndex)
+    }, [transformsBufferNode])
+
+    const material = useMemo(() => {
+        const mat = new THREE.MeshStandardNodeMaterial();
+        // Calculate Position
+        const pos_ws = instanceMatrix.mul(vec4(positionLocal.mul(0.5), 1));
+        mat.positionNode = pos_ws;
+        mat.emissiveNode = rand(instanceIndex.add(100)).mix(vec3(0.5),vec3(0.25));
+
+        return mat;
+    }, [instanceMatrix] );
+
+    return <primitive object={material} attach="material" />
+}
