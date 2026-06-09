@@ -25,7 +25,7 @@ export function Walker3d_Camera() {
     }, []);
 
 
-    useFrame((_, delta) => {
+    useFrame((_, ) => {
         if (!rootRef.current || !neckRef.current) return
         if (!isLocked) return
 
@@ -49,7 +49,7 @@ export function Walker3d_Camera() {
 
 
     return <group ref={rootRef} name={"PlayerRoot"}>
-        <GameObject3D name="PlayerNeck" rotation={[degToRad(-60), 0, 0]} ref={neckRef}>
+        <GameObject3D name="PlayerNeck" rotation={[degToRad(0), 0, 0]} ref={neckRef} position={[0,1,0]}>
             <primitive object={camera} position={[0, 0, 0]} />
         </GameObject3D>
     </group>

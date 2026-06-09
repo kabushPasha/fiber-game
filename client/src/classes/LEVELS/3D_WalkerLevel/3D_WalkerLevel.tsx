@@ -6,12 +6,10 @@ import { useEffect } from "react";
 import * as THREE from "three/webgpu";
 import { CameraUniformsProvider } from "../../PostProcessing/cameraUniformsContext";
 import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessingContext";
-import { PP_FogPass } from "../../PostProcessing/Effects/PP_FogPass";
 import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen";
-import { PP_DoF, PP_Scanline, PP_Vignette } from "../../PostProcessing/Effects/PP_Dof";
-import { PP_ColorGrading } from "../../PostProcessing/Effects/PP_ColorGrading";
-import { PP_LUT } from "../../PostProcessing/Effects/PP_3DLUTPass";
+import {  PP_Vignette } from "../../PostProcessing/Effects/PP_Dof";
 import { PP_PalDither } from "../../PostProcessing/Effects/PP_PalDither";
+import { SnowSpritesUI } from "../../Terrain/SnowSprites";
 
 
 
@@ -21,20 +19,16 @@ export function Walker3DLevel() {
 
 
     return <>
-        <CameraUniformsProvider>
-            <WebGPUPostProcessingProvider >
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    <PP_Sharpen strength={0.05} />
 
-                <PP_FogPass density={0.5 * 0.01} heightFalloff={0.01} />
-                <PP_Sharpen />
-                <PP_DoF />
-                <PP_ColorGrading />
-                <PP_LUT />
-                <PP_Vignette />
-                <PP_PalDither />
-                <PP_Scanline />
+                    <PP_Vignette />
+                    <PP_PalDither dither={0.01} palette="waldgeist-1x.png" />
 
-            </WebGPUPostProcessingProvider>
-        </CameraUniformsProvider>
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
 
 
         <Pixelated resolution={512} enabled={true} />
@@ -49,6 +43,8 @@ export function Walker3DLevel() {
 
             <Level />
         </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03}/>}
     </>
 }
 
@@ -67,40 +63,78 @@ export function Ground() {
 
 
 export function Level() {
-    const { scene } = useGLTF("models/Level/test2.glb");
-    const { scene: scene2 } = useGLTF("models/Level/test3.glb");
+    //const { scene } = useGLTF("models/Level/test2.glb");
+    const scene = useGLTF("models/Level/test2.glb");
+    const render_scene = useGLTF("models/Level/test2_rend.glb");
 
-    console.log("Loaded Scene", scene2);
-    /*
+    console.log("Loaded Scene", scene);
+
+
+
+    // Make textures Use linear mapping
     useEffect(() => {
-        console.log("scene",scene);
 
-        const material = new THREE.MeshBasicMaterial({
-            vertexColors: true,
-            side: THREE.DoubleSide,
-        });
-
-        scene.traverse((obj) => {
+        scene.scene.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {
-                obj.material = material;
-                obj.castShadow = true;
-                obj.receiveShadow = true;
+                if (obj.material.map instanceof THREE.Texture) {
+                    obj.material.map.magFilter = THREE.NearestFilter;
+                    obj.material.map.minFilter = THREE.NearestFilter;
+                    obj.material.map.generateMipmaps = false;
+                    obj.material.map.needsUpdate = true;
+                }
+
+                obj.layers.enable(2);
+                obj.layers.enable(2);
             }
         });
 
-        return () => {
-            material.dispose();
-        };
     }, [scene]);
-    */
+
+
+
+    useEffect(() => {
+        const music = new Audio("sfx/Guitar_main_STRETCH.mp3");
+
+        music.loop = true;
+        music.volume = 0.5;
+
+        const startMusic = async () => {
+            try {
+                await music.play();
+
+                // Remove listeners once playback succeeds
+                window.removeEventListener("pointerdown", startMusic);
+                window.removeEventListener("keydown", startMusic);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        window.addEventListener("pointerdown", startMusic);
+        window.addEventListener("keydown", startMusic);
+
+        return () => {
+            window.removeEventListener("pointerdown", startMusic);
+            window.removeEventListener("keydown", startMusic);
+
+            music.pause();
+            music.currentTime = 0;
+        };
+    }, []);
+
+
+
+
 
     return (
         <>
             <RigidBody type="fixed" colliders="trimesh">
-                <primitive object={scene} />
+                <primitive object={scene.scene} />
             </RigidBody>
 
-            {0 && <primitive object={scene2} />}
+
+            <primitive object={render_scene.scene} />
+
 
         </>
     );
