@@ -142,6 +142,8 @@ export function Walker3D_Player() {
                     <meshStandardMaterial wireframe color="orange" />
                 </mesh>*/}
 
+                { 0 && <pointLight intensity={10} decay={1.5}/>}
+
                 <Walker3d_Camera />
             </RigidBody>
 

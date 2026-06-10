@@ -12,22 +12,33 @@ interface PP_FogPassProps {
     showUI?: boolean;
     enabled?: boolean;
     color?: string;
+    start_distance? : number;
 }
 
 export function PP_FogPass(props: PP_FogPassProps) {
     const { scenePass } = useWebGPUPostProcessing();
     const { camera } = useThree();
 
-    const { density, heightFalloff, enabled, color } = useFogPassControls(props);
+    const { density, heightFalloff, enabled, color,start_distance } = useFogPassControls(props);
 
     const uniforms = useMemo(
         () => ({
             density: uniform(density),
             heightFalloff: uniform(heightFalloff),
-            color: uniform(vec3(0.3, 0.6, 0.9))
+            color: uniform(vec3(0.3, 0.6, 0.9)),
+            start_distance: uniform(start_distance),
         }),
         []
     );
+
+    useEffect(() => {
+        uniforms.density.value = density;
+        uniforms.heightFalloff.value = heightFalloff;
+        const c = new THREE.Color(color);
+        uniforms.color.value.set(c.r, c.g, c.b);
+        uniforms.start_distance.value = start_distance;
+    }, [density, heightFalloff, color,start_distance])
+
 
     const effect = useCallback((inputNode: any) => {
         if (!scenePass) return null;
@@ -40,21 +51,16 @@ export function PP_FogPass(props: PP_FogPassProps) {
             depth,
             camera as THREE.PerspectiveCamera,
             uniforms.heightFalloff,
-            uniforms.density
+            uniforms.density,
+            uniforms.start_distance
         ).mul(1);
 
         return mix(inputNode, uniforms.color, fog);
-        //return fog;
 
     }, [scenePass, camera, enabled]); // NOT density
 
-    useEffect(() => {
-        uniforms.density.value = density;
-        uniforms.heightFalloff.value = heightFalloff;
-        const c = new THREE.Color(color);
-        uniforms.color.value.set(c.r, c.g, c.b);
-    }, [density, heightFalloff, color])
-    
+
+
     PostProcessingEffect(effect);
 
 
@@ -64,7 +70,7 @@ export function PP_FogPass(props: PP_FogPassProps) {
 
 
 export function useFogPassControls(_props: PP_FogPassProps) {
-    const props = { density: 0.0025, heightFalloff: 0.01, showUI: true, enabled: true, color: "#9bcaf8", ..._props };
+    const props = { density: 0.0025, heightFalloff: 0.01, start_distance:20,showUI: true, enabled: true, color: "#9bcaf8", ..._props };
 
     if (!props.showUI) return props;
 
@@ -72,9 +78,11 @@ export function useFogPassControls(_props: PP_FogPassProps) {
         PostProcess: folder({
             fog: folder({
                 enabled: true,
-                density: { value: props.density, min: 0, max: 0.05, step: 0.0001 },
+                density: { value: props.density, min: 0, max: 0.2, step: 0.0001 },
+                start_distance: { value: props.start_distance, min: 0, max: 100, step: 0.0001 },
                 heightFalloff: { value: props.heightFalloff, min: 0, max: 0.1, step: 0.001 },
-                color: { value: props.color }
+                
+                color: { value: props.color }                
             }, { collapsed: true }),
         })
     }

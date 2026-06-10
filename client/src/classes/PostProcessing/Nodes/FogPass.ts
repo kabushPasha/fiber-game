@@ -15,11 +15,14 @@ class FogOperatorNode extends TempNode {
   public heightFalloff: ReturnType<typeof uniform>;
   public density: ReturnType<typeof uniform>;
 
+  public startDistance: ReturnType<typeof uniform>;
+
   constructor(
     textureNode: TextureNode,
     camera: PerspectiveCamera,
     heightFalloff?: UniformNode<number>,
-    density?: UniformNode<number>
+    density?: UniformNode<number>,
+    startDistance?: UniformNode<number>
   ) {
     super('vec4');
 
@@ -29,6 +32,7 @@ class FogOperatorNode extends TempNode {
 
     this.heightFalloff = heightFalloff ?? uniform(0.01);
     this.density = density ?? uniform(0.0025);
+    this.startDistance = startDistance ?? uniform(10.0);
   }
 
   updateBefore(): void {
@@ -56,8 +60,16 @@ class FogOperatorNode extends TempNode {
       // Adjusted density
       const adjustedDensity = this.density.mul(heightFactor);
 
-      // Exponential fog factor
-      const fogFactor = clamp(sub(1.0, exp(viewDepth.negate().mul(adjustedDensity))), 0.0, 1.0);
+      // Exponential fog factor      
+      //const fogFactor = clamp(sub(1.0, exp(viewDepth.negate().mul(adjustedDensity))), 0.0, 1.0);
+
+      const fogDistance = viewDepth.sub(this.startDistance).max(0.0);
+
+      const fogFactor = clamp(
+        sub(1.0, exp(fogDistance.negate().mul(adjustedDensity))),
+        0.0,
+        1.0
+      );
 
       return vec4(fogFactor);
     });
@@ -72,11 +84,15 @@ export const FogNode = (
   node: Node,
   camera: PerspectiveCamera,
   heightFalloff?: UniformNode<number>,
-  density?: UniformNode<number>
+  density?: UniformNode<number>,
+  startDistance?: UniformNode<number>
 ): Node =>
-  nodeObject(new FogOperatorNode(
-    convertToTexture(node),
-    camera,
-    heightFalloff,
-    density
-  ));
+  nodeObject(
+    new FogOperatorNode(
+      convertToTexture(node),
+      camera,
+      heightFalloff,
+      density,
+      startDistance
+    )
+  );

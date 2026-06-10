@@ -108,8 +108,10 @@ export function SnowSprites({
         const material = new THREE.SpriteNodeMaterial({
             sizeAttenuation: true,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            depthWrite: false,       
+            transparent:true,
         });
+
 
         const position = instancedBufferAttribute(positionAttribute);
 
@@ -173,6 +175,7 @@ export function SnowSprites({
         sprite.count = count;
         sprite.frustumCulled = false;
         sprite.raycast = () => {}; 
+        
 
         return sprite;
 

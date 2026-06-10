@@ -1,15 +1,23 @@
 import { createContext, useContext, useRef, useMemo, type ReactNode, useEffect } from "react";
 import * as THREE from "three/webgpu";
 import { useThree, useFrame } from "@react-three/fiber";
-import { pass, mrt, output, metalness, emissive, normalView } from "three/tsl";
+import { pass, mrt, output, metalness, emissive, normalView, directionToColor, velocity, sample, colorToDirection } from "three/tsl";
 
 
+
+export type PrePassData = {
+    prePass: THREE.PassNode;
+    prePassNormal: THREE.Node;
+    prePassDepth: THREE.TextureNode;
+    prePassVelocity: THREE.TextureNode;
+};
 
 interface WebGPUPostProcessingContextValue {
     postProcessing: THREE.PostProcessing | null;
     scenePass: THREE.PassNode | null;
     effectsRef: ((currentNode: any) => any)[]
     runEffects: () => void;
+    prePassData: PrePassData | null;
 }
 
 const WebGPUPostProcessingContext = createContext<WebGPUPostProcessingContextValue | null>(null);
@@ -28,6 +36,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     const { gl: renderer, scene, camera } = useThree();
     const postProcessingRef = useRef<THREE.PostProcessing | null>(null);
     const scenePassRef = useRef<THREE.PassNode | null>(null);
+    const prePassRef = useRef<PrePassData | null>(null);
 
     // Registry of mounted effects
     const effectsRef = useRef<((currentNode: any) => any)[]>([]);
@@ -56,11 +65,11 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
         //console.log("CAM CHANGED", camera);
         if (!renderer || !scene || !camera) return;
 
+        // Main Pass
         const scenePass = pass(scene, camera, {
             minFilter: THREE.LinearFilter,
             magFilter: THREE.LinearFilter,
         });
-
 
         scenePass.setMRT(
             mrt({
@@ -70,6 +79,30 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
                 emissive: emissive,
             })
         );
+
+        // Pre Pass
+        const prePass = pass(scene, camera)
+        prePass.name = 'Pre-Pass';
+        prePass.transparent = false;
+        prePass.setMRT(mrt({
+            output: directionToColor(normalView),
+            velocity: velocity
+        }));
+        const prePassNormal = sample((uv) => {
+            return colorToDirection(prePass.getTextureNode().sample(uv));
+        });
+        const prePassDepth = prePass.getTextureNode('depth').toInspector('Depth', () => prePass.getLinearDepthNode());
+        const prePassVelocity = prePass.getTextureNode('velocity').toInspector('Velocity');
+        const normalTexture = prePass.getTexture('output');
+        normalTexture.type = THREE.UnsignedByteType;
+        const prePassData: PrePassData = {
+            prePass,
+            prePassNormal,
+            prePassDepth,
+            prePassVelocity
+        };
+        prePassRef.current = prePassData;
+
 
         // PostProcessing setup
         // @ts-ignore
@@ -101,6 +134,7 @@ export function WebGPUPostProcessingProvider({ children }: Props) {
     const value = useMemo(() => ({
         postProcessing: postProcessingRef.current,
         scenePass: scenePassRef.current,
+        prePassData: prePassRef.current,
         effectsRef: effectsRef.current,
         runEffects
     }), [postProcessingRef.current, scenePassRef.current]);
@@ -125,7 +159,7 @@ export function PostProcessingEffect(effectFn: (currentNode: any) => any) {
             effectsRef.push(() => { });
         }
 
-        return () => {            
+        return () => {
             if (id.current) effectsRef[id.current] = () => { };
         }
     }, [])
