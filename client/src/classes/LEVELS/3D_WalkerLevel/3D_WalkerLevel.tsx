@@ -1,11 +1,11 @@
 import { Physics, RigidBody } from "@react-three/rapier";
 import { Pixelated } from "../../../components/Pixelated";
 import { Walker3D_Player } from "./classes/Player3DWalker";
-import { useGLTF } from "@react-three/drei";
+import { Box, useGLTF } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three/webgpu";
 import { CameraUniformsProvider } from "../../PostProcessing/cameraUniformsContext";
-import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessingContext";
+import { NormalView, WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessingContext";
 import { PP_Sharpen } from "../../PostProcessing/Effects/PP_Sharpen";
 import { PP_Vignette } from "../../PostProcessing/Effects/PP_Dof";
 import { PP_PalDither } from "../../PostProcessing/Effects/PP_PalDither";
@@ -13,8 +13,7 @@ import { SnowSpritesUI } from "../../Terrain/SnowSprites";
 import { PP_FogPass } from "../../PostProcessing/Effects/PP_FogPass";
 import { PP_ColorGrading } from "../../PostProcessing/Effects/PP_ColorGrading";
 import { PP_Ao, PP_SSGI } from "../../PostProcessing/Effects/PP_Ao";
-import { InstanceMesh } from "../../Terrain/ECS/ECS_Base";
-import { bufferAttribute, float, instanceIndex, int, normalLocal, positionLocal, storage } from "three/tsl";
+import { AutoLattice, Lattice } from "./classes/LatticeGrid";
 
 
 
@@ -25,20 +24,20 @@ export function Walker3DLevel() {
             <CameraUniformsProvider>
                 <WebGPUPostProcessingProvider >
 
-                    {1 && <PP_SSGI />}
+                    {0 && <PP_SSGI />}
                     {1 && <PP_Ao />}
-                    <PP_Sharpen strength={0.05} />
-
+                    {1 && <PP_Sharpen strength={0.05} />}
 
                     <PP_ColorGrading />
 
-                    <PP_Vignette />
+                    {1 && <PP_Vignette />}
 
 
-                    <PP_PalDither dither={0.01} palette="waldgeist-1x.png" />
-                    <PP_FogPass heightFalloff={0} start_distance={5} density={0.01} />
+                    {1 && <PP_PalDither dither={0.01} palette="waldgeist-1x.png" />}
+                    {1 && <PP_FogPass heightFalloff={0} start_distance={5} density={0.01} />}
 
 
+                    {0 && <NormalView />}
                 </WebGPUPostProcessingProvider>
             </CameraUniformsProvider>}
 
@@ -46,13 +45,13 @@ export function Walker3DLevel() {
         <Pixelated resolution={512} enabled={true} />
 
         {1 && <>
-            <ambientLight intensity={1.0} />
-            <directionalLight position={[5, 10, 5]} intensity={0} />
+            <ambientLight intensity={1.0} />            
         </>}
 
         <Physics gravity={[0, -9.81, 0]}>
             <Walker3D_Player />
-            <Level />
+            {0 && <Level />}
+            {1 && <JapLevel/>}
         </Physics>
 
         {0 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
@@ -60,86 +59,6 @@ export function Walker3DLevel() {
 }
 
 
-export function Ground() {
-    return (
-        <RigidBody type="fixed" collisionGroups={2}>
-            <mesh receiveShadow position={[0, -0.5, 0]}>
-                <boxGeometry args={[50, 1, 50]} />
-                <meshStandardMaterial color="lightgreen" />
-            </mesh>
-        </RigidBody>
-    );
-}
-
-
-export function Lattice() {
-    const lattice = useGLTF("models/Level/lattice2.glb");
-    const window = useGLTF("models/Level/window.glb");
-    console.log("Loaded LATTICE", lattice.meshes.file1.geometry);
-
-    const [mat, count] = useMemo(() => {
-        const mat = new THREE.MeshStandardNodeMaterial()
-        const pos_att = lattice.meshes.file1.geometry.attributes.position as THREE.BufferAttribute
-        const posBuffer = storage(pos_att, 'vec4', pos_att.count);
-
-        const N_att = lattice.meshes.file1.geometry.attributes.normal as THREE.BufferAttribute
-        const NBuffer = storage(N_att, 'vec3', N_att.count);
-
-        const srcIndex = lattice.meshes.file1.geometry.index!;
-        const count = srcIndex.count / 6;
-        const indexStorage = new THREE.StorageBufferAttribute(srcIndex.array.slice(), 1);
-        const index_buffer = storage(indexStorage, 'uint');
-
-        const index = instanceIndex.mul(6);
-        const i0 = index_buffer.element(index);
-        const i1 = index_buffer.element(index.add(2));
-        const i2 = index_buffer.element(index.add(3));
-        const i3 = index_buffer.element(index.add(5));
-
-        const p0 = posBuffer.element(i0)
-        const p1 = posBuffer.element(i1)
-        const p2 = posBuffer.element(i3)
-        const p3 = posBuffer.element(i2)
-
-        const P = positionLocal.y.mix(
-            positionLocal.x.mix(p1, p0),
-            positionLocal.x.mix(p3, p2))
-
-        const N = positionLocal.y.mix(
-            positionLocal.x.mix(NBuffer.element(i1), NBuffer.element(i0)),
-            positionLocal.x.mix(NBuffer.element(i2), NBuffer.element(i3)))
-
-
-        mat.positionNode = P.add(N.mul(positionLocal.z).mul(1));
-
-
-
-
-        // Normal Transformation
-        const Tu = p1.sub(p0).mix(p3.sub(p2), positionLocal.y);
-        const Tv = p2.sub(p0).mix(p3.sub(p1), positionLocal.x);
-        const Tw = Tu.cross(Tv).normalize();
-        const srcN = normalLocal;
-        const worldN = Tu.mul(srcN.x).add(Tv.mul(srcN.y)).add(Tw.mul(srcN.z)).normalize();
-        mat.normalNode = worldN;
-
-        mat.colorNode = float(0.25);
-
-
-
-        return [mat, count];
-    }, [lattice]);
-
-
-    return <>
-        {0 && <primitive object={lattice.scene} />}
-        <instancedMesh args={[window.meshes.file1.geometry, mat, count]} frustumCulled={false}>
-            {0 && <sphereGeometry />}
-
-        </instancedMesh>
-    </>
-
-}
 
 
 export function Level() {
@@ -152,28 +71,26 @@ export function Level() {
     //console.log("Loaded Scene dynamic", dynamic_obj);
 
 
-
-
-
     // Make textures Use linear mapping
     useEffect(() => {
         applyNearestTextureFilter(scene.scene);
         applyNearestTextureFilter(render_scene.scene);
         applyNearestTextureFilter(render_scene.scene);
-    }, [scene,render_scene,dynamic_obj]);
+    }, [scene, render_scene, dynamic_obj]);
 
     // Add To Collider Layer
     useEffect(() => {
         scene.scene.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {
                 obj.layers.enable(2);
+                //obj.layers.set(2);
             }
         });
     }, [scene]);
 
 
 
-
+    // Musinc
     useEffect(() => {
         const music = new Audio("sfx/Guitar_main_STRETCH.mp3");
 
@@ -220,15 +137,13 @@ export function Level() {
 
     return (
         <>
-            <Lattice />
+            {0 && <Lattice />}
             <RigidBody type="fixed" colliders="trimesh">
                 {1 && <primitive object={scene.scene} />}
             </RigidBody>
 
 
-            <primitive object={render_scene.scene} />
-            {/*<primitive object={dynamic_obj.scene} />*/}
-
+            {1 && <primitive object={render_scene.scene} />}
 
 
             {dynamic_meshes.map((mesh, i) => (
@@ -264,8 +179,40 @@ export function Level() {
 }
 
 
+export function JapLevel() {
+    //const scene = useGLTF("models/Level/jap/collider.glb");
+    //const render = useGLTF("models/Level/jap/render.glb");
+
+    const scene = useGLTF("models/Level/jap/jpa_collider.glb");
+    const render = useGLTF("models/Level/jap/jpa_ren.glb");
 
 
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(scene.scene);
+    }, [scene]);
+
+    // Add To Collider Layer
+    useEffect(() => {
+        scene.scene.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                obj.layers.enable(2);
+                obj.layers.set(2);
+            }
+        });
+    }, [scene]);
+
+    return <>
+        <RigidBody type="fixed" colliders="trimesh">
+            {1 && <primitive object={scene.scene} />}
+
+            {0 && <AutoLattice gltfPath="models/Level/jap/geo.glb" />}
+        </RigidBody>
+        {1 && <primitive object={render.scene} />}
+        <directionalLight position={[5, 10, 5]} intensity={2} />
+    </>
+
+}
 
 
 
