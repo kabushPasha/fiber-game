@@ -55,7 +55,7 @@ import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
 import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
-import { Walker3DLevel } from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
+import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, InnerNestLevel, JapanLevel, NestLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -75,7 +75,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 12 : 12)
+  const [level, setLevel] = useState(isDebug ? 18 : 12)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -133,7 +133,13 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(9)}>Level 9: Pixel Knight </button>                    
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(10)}>Level 10: Horde Mode </button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(11)}>Level 11: Horde Mode Game</button>
-                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(12)}>Level 12: 3D_WalkerLevel</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(12)}>Level 12: BrickHalls</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(13)}>Level 13: Dojo</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(14)}>Level 14: Nest</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(15)}>Level 15: Inner Nest</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(16)}>Level 16: CUbe</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(17)}>Level 17: CUbe Corridors</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(18)}>Level 18: City</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -149,7 +155,14 @@ const App = () => {
                   {level == 9 && <KnightLevel />}
                   {level == 10 && <VatCrowds_Level />}
                   {level == 11 && <VatCrowds_LevelGame />}
-                  {level == 12 && <Walker3DLevel />}
+                  {level == 12 && <BrickHallsLevel />}
+                  {level == 13 && <JapanLevel />}
+                  {level == 14 && <NestLevel />}
+                  {level == 15 && <InnerNestLevel />}
+                  {level == 16 && <CubeLevel />}
+                  {level == 17 && <CubeCorridorLevel />}
+                  {level == 18 && <CityLevel />}
+
 
                 </KeyboardControls>
               </MouseLockProvider>

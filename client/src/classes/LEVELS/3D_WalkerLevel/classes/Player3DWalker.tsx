@@ -112,7 +112,7 @@ export function Walker3D_Player() {
         if (hits.length > 0) {
             const hit = hits[0];
             //console.log(hit.distance);
-            if (hit.face && hit.object instanceof THREE.Mesh && (hit.distance<1.0)) {
+            if (hit.face && hit.object instanceof THREE.Mesh && (hit.distance<2.0)) {
                 const normal = hit.normal;
                 if (normal)
                     world.gravity = { x: -normal.x * 10, y: -normal.y * 10, z: -normal.z * 10 };
