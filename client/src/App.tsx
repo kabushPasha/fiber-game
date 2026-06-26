@@ -55,7 +55,7 @@ import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
 import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
-import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, InnerNestLevel, JapanLevel, NestLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
+import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, InnerNestLevel, JapanLevel, LightmapLevel, NestLevel, RootsLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -75,7 +75,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 18 : 12)
+  const [level, setLevel] = useState(isDebug ? 20 : 12)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -140,6 +140,8 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(16)}>Level 16: CUbe</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(17)}>Level 17: CUbe Corridors</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(18)}>Level 18: City</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(19)}>Level 19: Lightmap</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(20)}>Level 20: Roots</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -162,7 +164,8 @@ const App = () => {
                   {level == 16 && <CubeLevel />}
                   {level == 17 && <CubeCorridorLevel />}
                   {level == 18 && <CityLevel />}
-
+                  {level == 19 && <LightmapLevel />}
+                  {level == 20 && <RootsLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>

@@ -5,10 +5,17 @@ import {
     useRapier,
 } from "@react-three/rapier";
 import * as THREE from "three/webgpu";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useKeyboardControls } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Walker3d_Camera } from "./Camera3dWalker";
+
+function playFootstep() {
+    const audio = new Audio("sfx/Platformer/GrassStep.mp3");
+    audio.volume = 0.5;
+    audio.playbackRate = 0.9 + Math.random() * 0.2;
+    audio.play();
+}
 
 
 export function Walker3D_Player() {
@@ -16,6 +23,26 @@ export function Walker3D_Player() {
 
     const { world } = useRapier();
     const [, get] = useKeyboardControls();
+
+    const canJump = useRef(true)
+    const airTime = useRef(0)
+
+    const lastStepPosition = useRef(new THREE.Vector3());
+    const stepDistance = useRef(0);
+
+    // Create Wind
+    const windAudio = useRef<HTMLAudioElement | null>(null);
+    useEffect(() => {
+        const audio = new Audio("sfx/Platformer/Wind.mp3");
+        audio.loop = true;
+        audio.volume = 0;
+        audio.playbackRate = 2.0;
+        windAudio.current = audio;
+        return () => {
+            audio.pause();
+            audio.src = "";
+        };
+    }, []);
 
 
     useFrame(({ camera, scene }, delta) => {
@@ -56,9 +83,7 @@ export function Walker3D_Player() {
 
         if (moveDir.lengthSq() > 0) {
             moveDir.normalize();
-
-            newVel
-                .addScaledVector(moveDir, moveSpeed)
+            newVel.addScaledVector(moveDir, moveSpeed)
         }
 
         // preserve vertical motion
@@ -67,17 +92,26 @@ export function Walker3D_Player() {
         rb.setLinvel(newVel, true);
 
         // jump
-        if (jump && Math.abs(verticalSpeed) < 0.05) {
+        if (jump && canJump.current) {
             rb.applyImpulse(
                 {
-                    x: up.x * 4,
-                    y: up.y * 4,
-                    z: up.z * 4,
+                    x: up.x * 10,
+                    y: up.y * 10,
+                    z: up.z * 10,
                 },
                 true
             );
-        }
+            canJump.current = false;
 
+            const audio = new Audio("sfx/JumpAir.mp3");
+            audio.playbackRate = .75 + Math.random();
+            audio.volume = .5;
+            audio.play();
+
+            const audio2 = new Audio("sfx/Platformer/WhooshFast.mp3");
+            audio2.volume = .25;
+            audio2.play();
+        }
 
         // ----------------------------
         // RAYCAST
@@ -104,24 +138,65 @@ export function Walker3D_Player() {
         }
         */
 
-        // THREE Raycaster        
+        // THREE Raycaster       
         const raycaster = new THREE.Raycaster();
         raycaster.layers.set(2);
-        raycaster.set(new THREE.Vector3(pos.x, pos.y, pos.z), cameraUp.clone().negate());        
+        raycaster.set(new THREE.Vector3(pos.x, pos.y, pos.z), cameraUp.clone().negate());
         const hits = raycaster.intersectObject(scene, true);
         if (hits.length > 0) {
             const hit = hits[0];
             //console.log(hit.distance);
-            if (hit.face && hit.object instanceof THREE.Mesh && (hit.distance<2.0)) {
+            if (hit.face && hit.object instanceof THREE.Mesh && (hit.distance < 2.0)) {
                 const normal = hit.normal;
-                if (normal)
-                    world.gravity = { x: -normal.x * 10, y: -normal.y * 10, z: -normal.z * 10 };
+                if (normal) world.gravity = { x: -normal.x * 10, y: -normal.y * 10, z: -normal.z * 10 };
             }
         }
 
 
         alignBodyToUp(rb, up, delta, 5);
-        //alignBodyToUp2(rb, up, delta, 4, 15);        
+        //alignBodyToUp2(rb, up, delta, 4, 15);   
+
+
+        //Increment Air TIME
+        airTime.current += delta;
+
+        // Wind Amp
+        if (windAudio.current) {
+            const volume = THREE.MathUtils.clamp(airTime.current / 0.5, 0, 1);
+            windAudio.current.volume = volume * volume;
+            if (volume > 0 && windAudio.current.paused) {
+                windAudio.current.play();
+            }
+        }
+
+
+        // Step Sounds
+        if (lastStepPosition.current.lengthSq() === 0) {
+            lastStepPosition.current.set(pos.x, pos.y, pos.z);
+        }
+
+        const grounded = airTime.current < 0.1;
+        if (grounded && moveDir.lengthSq() > 0) {
+            const currentPos = new THREE.Vector3(
+                pos.x,
+                pos.y,
+                pos.z
+            );
+            const distance = currentPos.distanceTo(lastStepPosition.current);
+            stepDistance.current += distance;
+            lastStepPosition.current.copy(currentPos);
+            // distance between footsteps
+            const stepLength = 4;
+            if (stepDistance.current > stepLength) {
+                playFootstep();
+                stepDistance.current = 0;
+            }
+        }
+        else {
+            //lastStepPosition.current.set(pos.x,pos.y,pos.z);
+        }
+
+
 
     });
 
@@ -134,15 +209,48 @@ export function Walker3D_Player() {
                 position={[0, 2, 0]}
                 enabledRotations={[false, false, false]}
                 gravityScale={1}
+
+
+                onCollisionEnter={() => {
+                    //console.log("collision enter:", e);
+
+                    /*
+                    const N = e.manifold.normal();
+                    const NVec = new THREE.Vector3(N.x, N.y, N.z);                    
+                    const gravity = new THREE.Vector3(world.gravity.x,world.gravity.y,world.gravity.z).normalize();
+                    console.log("dot:", NVec.dot(gravity));
+                    */
+
+                    // RESET JUMP
+                    if (!canJump.current) canJump.current = true;
+
+                    // PLAY SOUND ON FALL                    
+                    if (airTime.current > 0.75) {
+                        const audio = new Audio("sfx/Platformer/EarthCling.mp3");
+                        audio.playbackRate = 2.0;
+                        audio.volume = .5;
+                        audio.play();
+                        airTime.current = 0.0;
+                    }
+
+                }}
+                onCollisionExit={() => {
+                    //console.log("collision exit:", e);
+                }}
+                onContactForce={() => {
+                    //console.log("contact force:", e);
+                    airTime.current = 0.0;
+                }}
+
             >
-                <CapsuleCollider args={[0.5, 0.4]} />
+                <CapsuleCollider args={[0.8, 0.4]} />
 
                 {/* <mesh castShadow>
                     <capsuleGeometry args={[0.4, 1, 8, 16]} />
                     <meshStandardMaterial wireframe color="orange" />
                 </mesh>*/}
 
-                { 0 && <pointLight intensity={10} decay={1.5}/>}
+                {0 && <pointLight intensity={10} decay={1.5} />}
 
                 <Walker3d_Camera />
             </RigidBody>
@@ -312,7 +420,6 @@ export function alignBodyToUp2(
         true
     );
 }
-
 
 export function getInterpolatedNormal(
     hit: THREE.Intersection,
