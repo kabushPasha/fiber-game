@@ -180,7 +180,7 @@ export function NestLevel() {
 import { create } from "zustand";
 import { useUI } from "../../../components/UIScreenContext";
 import { useLoader } from "@react-three/fiber";
-import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";
+
 
 type GameState = {
     collected: number;
@@ -890,5 +890,69 @@ function RootsGeo() {
             <primitive object={scene.scene} />
         </RigidBody>
         {1 && <primitive object={scene_cd.scene} />}
+    </>
+}
+
+
+export function MiningCavesLevel() {
+    return <>
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    {1 && <PP_Ao />}
+                    {1 && <PP_Sharpen strength={0.05} />}
+                    <PP_ColorGrading />
+
+                    {1 && <PP_RimLight amp={0.5} />}
+                    {1 && <PP_Vignette />}
+                    {1 && <PP_PalDither dither={0.01} palette="waldgeist-1x.png" />}
+
+                    {1 && <PP_FogPass heightFalloff={0.01} start_distance={55} density={0.01} color="#2a4b6c" />}
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
+
+        <Pixelated resolution={512} enabled={true} />
+        <ambientLight intensity={1.00} />
+
+        <Physics gravity={[0, -9.81, 0]}>
+            <Walker3D_Player />
+            <MiningCavesGeo />
+        </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
+    </>
+}
+
+function MiningCavesGeo() {
+    const scene = useGLTF("models/Level/jap/Level_Caves.glb");
+    //const scene = useGLTF("models/Level/jap/DressingCell.glb");
+
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(scene.scene);
+        console.log(scene);
+
+        for (const mat of Object.values(scene.materials)) {
+            mat.side = THREE.DoubleSide;
+            mat.needsUpdate = true;
+        }
+    }, [scene]);
+
+    // Add To Collider Layer
+    useEffect(() => {
+        scene.scene.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                //obj.layers.enable(2);
+                //obj.layers.set(2);
+            }
+        });
+    }, [scene]);
+
+
+    return <>
+        <RigidBody type="fixed" colliders="trimesh">
+            <primitive object={scene.scene} />
+        </RigidBody>
     </>
 }
