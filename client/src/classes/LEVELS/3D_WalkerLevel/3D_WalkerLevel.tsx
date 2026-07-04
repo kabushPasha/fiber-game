@@ -1,4 +1,4 @@
-import { BallCollider, Physics, RigidBody } from "@react-three/rapier";
+import { BallCollider, CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { Pixelated } from "../../../components/Pixelated";
 import { Walker3D_Player } from "./classes/Player3DWalker";
 import { Sphere, useGLTF } from "@react-three/drei";
@@ -180,6 +180,9 @@ export function NestLevel() {
 import { create } from "zustand";
 import { useUI } from "../../../components/UIScreenContext";
 import { useLoader } from "@react-three/fiber";
+import { PP_Xdog } from "../../PostProcessing/Effects/Kuwahara/PP_XDog";
+import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";
+import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara";
 
 
 type GameState = {
@@ -925,8 +928,6 @@ export function MiningCavesLevel() {
 
 function MiningCavesGeo() {
     const scene = useGLTF("models/Level/jap/Level_Caves.glb");
-    //const scene = useGLTF("models/Level/jap/DressingCell.glb");
-
 
     // Make textures Use linear mapping
     useEffect(() => {
@@ -954,5 +955,243 @@ function MiningCavesGeo() {
         <RigidBody type="fixed" colliders="trimesh">
             <primitive object={scene.scene} />
         </RigidBody>
+    </>
+}
+
+export function DungeonInstancedLevel() {
+    return <>
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    {1 && <PP_Ao enabled={true} />}
+                    {<PP_PixelHighlights kernelSize={1} threshold={0.5} strength={0.5} />}
+                    {0 && <PP_Sharpen strength={0.05} />}
+                    <PP_ColorGrading />
+
+                    {1 && <PP_RimLight amp={1} power={0.75} />}
+                    {0 && <PP_Xdog />}
+                    {1 && <PP_Vignette />}
+
+                    {1 && <PP_PalDither dither={0.01} palette="24-ghostly-spooky-colors-and-gold-1x.png" />}
+
+                    {1 && <PP_FogPass heightFalloff={0.01} start_distance={10} density={0.05} color="#6db3fa" />}
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
+
+        <Pixelated resolution={512} enabled={true} />
+        <ambientLight intensity={1.00} />
+
+        <Physics gravity={[0, -9.81, 0]}>
+            <Walker3D_Player />
+            <DungeonInstancedLevelGeo />
+        </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
+    </>
+}
+
+function DungeonInstancedLevelGeo() {
+    const scene = useGLTF("models/Level/jap/DungeonKit_Collider.glb");
+    const render_scene = useGLTF("models/Level/jap/DungeonKit_Render.glb.instanced.glb");
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(scene.scene);
+        console.log(scene);
+
+        for (const mat of Object.values(scene.materials)) {
+            mat.side = THREE.DoubleSide;
+            mat.needsUpdate = true;
+        }
+    }, [scene]);
+
+    // Add To Collider Layer
+    useEffect(() => {
+        scene.scene.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                //obj.layers.enable(2);
+                obj.layers.set(3);
+            }
+        });
+    }, [scene]);
+
+
+    return <>
+        <RigidBody type="fixed" colliders="trimesh">
+            <primitive object={scene.scene} />
+        </RigidBody>
+        {1 && <primitive object={render_scene.scene} />}
+    </>
+}
+
+
+
+
+export function VillaLevel() {
+    return <>
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    {1 && <PP_Ao enabled={true} />}
+                    {0 && <PP_PixelHighlights kernelSize={1} threshold={0.5} strength={0.5} />}
+                    {0 && <PP_Sharpen strength={0.05} />}
+                    <PP_ColorGrading />
+
+                    {1 && <PP_RimLight amp={1} power={0.75} />}
+                    {0 && <PP_Kuwahara />}
+                    {1 && <PP_Vignette />}
+
+                    {1 && <PP_PalDither dither={0.01} palette="earthy-1x.png" />}
+
+                    {1 && <PP_FogPass heightFalloff={0.01} start_distance={10} density={0.01} color="#6db3fa" />}
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
+
+        <Pixelated resolution={512} enabled={true} />
+        <ambientLight intensity={1.0} />
+        {0 && <directionalLight position={[5, 10, 5]} intensity={1} />}
+
+        <Physics gravity={[0, -9.81, 0]}>
+            <Walker3D_Player />
+            <VillaLevelGeo />
+        </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
+    </>
+}
+
+function VillaLevelGeo() {
+    const scene = useGLTF("models/Level/INSTANCE/villa_C.glb");
+    const render_scene = useGLTF("models/Level/INSTANCE/villa.o.glb");
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(scene.scene);
+        console.log(scene);
+
+        for (const mat of Object.values(scene.materials)) {
+            mat.side = THREE.DoubleSide;
+            mat.needsUpdate = true;
+        }
+    }, [scene]);
+
+    // Add To Collider Layer
+    useEffect(() => {
+        scene.scene.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                //obj.layers.enable(2);
+                //obj.layers.set(3);
+            }
+        });
+    }, [scene]);
+
+
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(render_scene.scene);
+
+        render_scene.scene.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+
+            if (Array.isArray(obj.material)) {
+                obj.material.forEach((mat) => {
+                    mat.side = THREE.DoubleSide;
+                    mat.needsUpdate = true;
+                });
+            } else if (obj.material) {
+                obj.material.side = THREE.DoubleSide;
+                obj.material.needsUpdate = true;
+            }
+        });
+    }, [render_scene]);
+
+
+    return <>
+        <RigidBody type="fixed" colliders="trimesh">
+            <primitive object={scene.scene} />
+        </RigidBody>
+        {1 && <primitive object={render_scene.scene} />}
+    </>
+}
+
+
+
+
+export function TextureDungeonLevel() {
+    return <>
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    {0 && <PP_Ao enabled={true} />}
+                    {0 && <PP_PixelHighlights kernelSize={1} threshold={0.5} strength={0.5} />}
+                    {0 && <PP_Sharpen strength={0.05} />}
+                    <PP_ColorGrading />
+
+                    {0 && <PP_RimLight amp={1} power={0.75} />}
+                    {0 && <PP_Kuwahara />}
+                    {1 && <PP_Vignette />}
+
+                    {0 && <PP_PalDither dither={0.01} palette="earthy-1x.png" />}
+
+                    {1 && <PP_FogPass heightFalloff={0.01} start_distance={10} density={0.01} color="#6db3fa" />}
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
+
+        <Pixelated resolution={512} enabled={true} />
+        <ambientLight intensity={1.5} />
+        {0 && <directionalLight position={[5, 10, 5]} intensity={1} />}
+
+        <Physics gravity={[0, -9.81, 0]}>
+            <Walker3D_Player />
+            <TextureDungeonLevelGeo />
+        </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
+    </>
+}
+
+function TextureDungeonLevelGeo() {
+    const render_scene = useGLTF("models/Level/jap/TexturedDungeon.glb");
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(render_scene.scene);
+
+        render_scene.scene.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+
+            const materials = Array.isArray(obj.material)
+                ? obj.material
+                : [obj.material];
+
+            materials.forEach((mat) => {
+                if (!mat) return;
+
+                mat.side = THREE.DoubleSide;
+
+                if (mat.map) {
+                    mat.transparent = true;
+                    //mat.alphaMap = mat.map; // reuse diffuse texture
+                    mat.alphaTest = 0.5;    // discard transparent pixels
+                    // mat.depthWrite = false; // optional for blended transparency
+                }
+
+                mat.needsUpdate = true;
+            });
+        });
+    }, [render_scene]);
+
+
+    return <>
+
+        <RigidBody type="fixed" colliders="trimesh">
+            <RigidBody type="fixed">
+                <CuboidCollider args={[50, 0.5, 50]} position={[0, -0.5, 0]} />
+            </RigidBody>
+
+        </RigidBody>
+
+        {1 && <primitive object={render_scene.scene} scale={2} />}
     </>
 }

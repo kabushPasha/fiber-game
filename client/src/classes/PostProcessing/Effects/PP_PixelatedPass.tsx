@@ -6,53 +6,73 @@ import { float, getViewPosition, mix, screenSize, screenUV, texture, uniform, ve
 import { Fn } from "three/src/nodes/TSL.js";
 import { folder, useControls } from "leva";
 
+type PP_PixelHighlightsProps = {
+    enabled?: boolean;
+    kernelSize?: number;
+    threshold?: number;
+    strength?: number;
+};
 
-export function PP_PixelHighlights() {
+
+export function PP_PixelHighlights(
+    {
+        enabled = true,
+        kernelSize = 2,
+        threshold = 1.0,
+        strength = 0.2,
+    }: PP_PixelHighlightsProps
+) {
     const { scenePass } = useWebGPUPostProcessing();
 
-    const { enabled, kernelSize, threshold, strength,debug } = useControls("Render", {
-        PostProcess: folder({
-            PixelEdges: folder({
-                enabled: true,
-                debug: false,
-                kernelSize: {
-                    value: 2,
-                    min: 1,
-                    max: 5,
-                    step: 1
-                },
-                threshold: {
-                    value: 1,
-                    min: 0,
-                    max: 2,
-                    step: 0.001
-                },
-                strength: {
-                    value: 0.2,
-                    min: 0,
-                    max: 1,
-                    step: 0.01
-                }
+    const [controls, set, _] = useControls(() => ({
+        Render: folder({
+            PostProcess: folder({
+                PixelEdges: folder({
+                    enabled: enabled,
+                    debug: false,
+                    kernelSize: {
+                        value: kernelSize,
+                        min: 1,
+                        max: 5,
+                        step: 1
+                    },
+                    threshold: {
+                        value: threshold,
+                        min: 0,
+                        max: 2,
+                        step: 0.001
+                    },
+                    strength: {
+                        value: strength,
+                        min: 0,
+                        max: 1,
+                        step: 0.01
+                    }
+                })
             })
         })
-    },{collapsed : true}
+    })
     );
 
+    useEffect(() => {
+        set({ kernelSize, threshold, strength });
+    }, [kernelSize, threshold, strength, set]);
+
     const uniforms = useMemo(() => ({
-        threshold: uniform(threshold),
-        strength: uniform(strength),
+        threshold: uniform(controls.threshold),
+        strength: uniform(controls.strength),
     }), []);
 
     useEffect(() => {
-        uniforms.threshold.value = threshold;
-        uniforms.strength.value = strength;
-    }, [kernelSize, threshold, strength]);
+        uniforms.threshold.value = controls.threshold;
+        uniforms.strength.value = controls.strength;
+    }, [controls.kernelSize, controls.threshold, controls.strength]);
 
 
     // PP Pass ---------------
     const effect = useCallback((inputNode: any) => {
         if (!scenePass) return null;
-        if (!enabled) return inputNode;
+        if (!controls.enabled) return inputNode;
 
         const depth = scenePass.getTextureNode("normal");
         const e = vec2(1.0).div(screenSize.xy);
@@ -61,17 +81,17 @@ export function PP_PixelHighlights() {
             depth,
             screenUV,
             e,
-            kernelSize * 2 + 1
+            controls.kernelSize * 2 + 1
         ).step(uniforms.threshold).length().abs();
 
 
-        if(debug) return lap;
+        if (controls.debug) return lap;
         return mix(
             inputNode,
             vec3(0, 0, 0),
             lap.abs().mul(uniforms.strength)
         );
-    }, [scenePass, enabled, kernelSize,debug]);
+    }, [scenePass, controls.enabled, controls.kernelSize, controls.debug]);
 
 
     PostProcessingEffect(effect);

@@ -8,15 +8,30 @@ import { traa } from "three/examples/jsm/tsl/display/TRAANode.js";
 import { folder, useControls } from "leva";
 import { float, uniform } from "three/tsl";
 
-export function PP_Ao() {
+type PP_AoProps = {
+    enabled?: boolean;
+};
+
+
+
+export function PP_Ao({
+    enabled = true,
+}: PP_AoProps) {
     const pp = useWebGPUPostProcessing();
-    const controls = useControls("Render", {
-        PostProcess: folder({
-            AO: folder({
-                enabled: false,
+    const [controls, set, _] = useControls(() => ({
+        Render: folder(
+            {
+                PostProcess: folder({
+                    AO: folder({
+                        enabled: enabled,
+                    })
+                })
             })
-        })
-    });
+    }));
+
+    useEffect(() => {
+        set({ enabled });
+    }, [enabled, set]);
 
 
     const { camera } = useThree()

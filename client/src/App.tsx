@@ -55,7 +55,7 @@ import { DryIceLevel } from "./classes/Effects/SimulationGrids/DryIce"
 import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Water"
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
-import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, InnerNestLevel, JapanLevel, LightmapLevel, MiningCavesLevel, NestLevel, RootsLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
+import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, DungeonInstancedLevel, InnerNestLevel, JapanLevel, LightmapLevel, MiningCavesLevel, NestLevel, RootsLevel, TextureDungeonLevel, VillaLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -75,7 +75,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 21 : 12)
+  const [level, setLevel] = useState(isDebug ? 24 : 12)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -143,6 +143,9 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(19)}>Level 19: Lightmap</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(20)}>Level 20: Roots</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(21)}>Level 21: MineCaves</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(22)}>Level 22: DungeonInstanced</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(23)}>Level 23: Villa</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(24)}>Level 24: TexDungeon</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -168,6 +171,9 @@ const App = () => {
                   {level == 19 && <LightmapLevel />}
                   {level == 20 && <RootsLevel />}
                   {level == 21 && <MiningCavesLevel />}
+                  {level == 22 && <DungeonInstancedLevel />}
+                  {level == 23 && <VillaLevel />}
+                  {level == 24 && <TextureDungeonLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>
