@@ -2,7 +2,7 @@ import { BallCollider, CuboidCollider, Physics, RigidBody } from "@react-three/r
 import { Pixelated } from "../../../components/Pixelated";
 import { Walker3D_Player } from "./classes/Player3DWalker";
 import { Sphere, useGLTF } from "@react-three/drei";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three/webgpu";
 import { CameraUniformsProvider } from "../../PostProcessing/cameraUniformsContext";
 import { WebGPUPostProcessingProvider } from "../../PostProcessing/PostProcessingContext";
@@ -15,6 +15,15 @@ import { PP_ColorGrading } from "../../PostProcessing/Effects/PP_ColorGrading";
 import { PP_Ao } from "../../PostProcessing/Effects/PP_Ao";
 import { AutoLattice, Lattice } from "./classes/LatticeGrid";
 import { PP_RimLight } from "../../PostProcessing/Effects/PP_RimLight";
+
+import { create } from "zustand";
+import { useUI } from "../../../components/UIScreenContext";
+import { useLoader } from "@react-three/fiber";
+import { PP_Xdog } from "../../PostProcessing/Effects/Kuwahara/PP_XDog";
+import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";
+import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara";
+import { useFrame } from "@react-three/fiber";
+import { Collectible3D, useCollectiblesStore } from "./classes/CollectiblesManager";
 
 
 
@@ -77,8 +86,6 @@ export function JapanLevel() {
     </>
 }
 
-
-
 const positions = [
     [5.96, 18.659, -8.101],
     [13.827, 53.274, -13.111],
@@ -132,7 +139,6 @@ const positions = [
     [0.006, 7.763, -0.58]
 ]
 
-
 export function NestLevel() {
     //reset State
     const reset = useGameStore((s) => s.reset);
@@ -177,12 +183,8 @@ export function NestLevel() {
 }
 
 
-import { create } from "zustand";
-import { useUI } from "../../../components/UIScreenContext";
-import { useLoader } from "@react-three/fiber";
-import { PP_Xdog } from "../../PostProcessing/Effects/Kuwahara/PP_XDog";
-import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";
-import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara";
+
+
 
 
 type GameState = {
@@ -989,7 +991,6 @@ export function DungeonInstancedLevel() {
         {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
     </>
 }
-
 function DungeonInstancedLevelGeo() {
     const scene = useGLTF("models/Level/jap/DungeonKit_Collider.glb");
     const render_scene = useGLTF("models/Level/jap/DungeonKit_Render.glb.instanced.glb");
@@ -1059,7 +1060,6 @@ export function VillaLevel() {
         {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
     </>
 }
-
 function VillaLevelGeo() {
     const scene = useGLTF("models/Level/INSTANCE/villa_C.glb");
     const render_scene = useGLTF("models/Level/INSTANCE/villa.o.glb");
@@ -1194,4 +1194,233 @@ function TextureDungeonLevelGeo() {
 
         {1 && <primitive object={render_scene.scene} scale={2} />}
     </>
+}
+
+
+
+export function LabrinthLevel() {
+    return <>
+        {1 &&
+            <CameraUniformsProvider>
+                <WebGPUPostProcessingProvider >
+                    {0 && <PP_Ao enabled={true} />}
+                    {0 && <PP_PixelHighlights kernelSize={1} threshold={0.5} strength={0.5} />}
+                    {0 && <PP_Sharpen strength={0.05} />}
+                    <PP_ColorGrading />
+
+                    {0 && <PP_RimLight amp={1} power={0.75} />}
+                    {0 && <PP_Kuwahara />}
+                    {1 && <PP_Vignette />}
+
+                    {0 && <PP_PalDither dither={0.01} palette="earthy-1x.png" />}
+
+                    {1 && <PP_FogPass heightFalloff={0.01} start_distance={10} density={0.01} color="#6db3fa" />}
+                </WebGPUPostProcessingProvider>
+            </CameraUniformsProvider>}
+
+        <Pixelated resolution={512} enabled={true} />
+        <ambientLight intensity={1.5} />
+        {0 && <directionalLight position={[5, 10, 5]} intensity={1} />}
+
+        <Physics gravity={[0, -9.81, 0]}>
+            <Walker3D_Player />
+            <LabrinthLevelGeo />
+        </Physics>
+
+        {1 && <SnowSpritesUI active={true} showControls={true} count={5000} areaSize={30} height={100} fallSpeed={0.3} size={0.03} />}
+    </>
+}
+const labrinth_positions = [
+    [24, 0, 8],
+    [-8, 0, -16],
+    [-24, 0, -8],
+    [-8, 0, -24],
+    [40, 0, 24],
+    [72, 0, 24],
+    [136, 0, -16],
+    [120, 0, -64],
+    [120, 0, -72],
+    [168, 0, -72],
+    [168, 0, -56],
+    [112, 0, -80],
+    [168, 0, -104],
+    [176, 0, 0],
+    [192, 0, 8],
+    [200, 0, -24],
+    [184, 0, -48],
+    [176, 0, -56],
+    [144, 0, -32],
+    [160, 0, -24],
+    [208, 0, -72],
+    [144, 0, -112],
+    [128, 0, -96],
+    [120, 0, -40],
+    [88, 0, -40],
+    [112, 0, -64],
+    [104, 0, -40],
+    [80, 0, -32],
+    [72, 0, -32],
+]
+
+
+
+function LabrinthLevelGeo() {
+    const render_scene = useGLTF("models/Level/jap/Labrinth.glb");
+
+    // Make textures Use linear mapping
+    useEffect(() => {
+        applyNearestTextureFilter(render_scene.scene);
+
+        render_scene.scene.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+
+            const materials = Array.isArray(obj.material)
+                ? obj.material
+                : [obj.material];
+
+            materials.forEach((mat) => {
+                if (!mat) return;
+
+                mat.side = THREE.DoubleSide;
+
+                if (mat.map) {
+                    mat.transparent = true;
+                    mat.alphaTest = 0.5;
+                }
+
+                mat.needsUpdate = true;
+            });
+        });
+    }, [render_scene]);
+
+    return <>
+        {1 &&
+            <RigidBody type="fixed" colliders="trimesh">
+                <primitive object={render_scene.scene} />
+            </RigidBody>
+        }
+
+
+        <RigidBody type="fixed">
+            <CuboidCollider args={[50, 0.5, 50]} position={[0, -0.5, 0]} />
+        </RigidBody>
+
+
+        <Collectible position={[0, 0, -5]} />
+
+        {labrinth_positions.map((pos, i) => (
+            <Collectible3D key={i} position={pos as [number, number, number]} type="test" />
+        ))}
+
+
+
+        <Collectible3D position={new THREE.Vector3(0, 0, -5)} type="test" />
+        <Collectible3D position={new THREE.Vector3(0, 0, -10)} type="test" />
+
+        <LineRecorder />
+        <DistanceCompas />
+    </>
+}
+
+
+
+
+type CompasState = {
+    distance: number | undefined;
+};
+
+export const useCompasStateStore = create<CompasState>(() => ({
+    distance: undefined,
+}));
+
+export function DistanceCompas() {
+    const getNearestCollectible = useCollectiblesStore((s) => s.getNearestCollectible);
+    const worldPos = useRef(new THREE.Vector3());
+
+    useFrame(({ camera }) => {
+        camera.getWorldPosition(worldPos.current);
+        worldPos.current.y = 0.1;
+        const nearest = getNearestCollectible(worldPos.current);
+        if (!nearest) {
+            useCompasStateStore.setState({ distance: undefined });
+            return;
+        }
+        useCompasStateStore.setState({
+            distance: nearest.position.distanceTo(worldPos.current)
+        });
+    });
+
+    const ui = useUI();
+
+    useEffect(() => {
+        const unmount = ui.mount(() => <DistanceCompasUI />);
+        return unmount;
+    }, [ui]);
+
+    return null;
+}
+
+function DistanceCompasUI() {
+    const distance = useCompasStateStore((s) => s.distance);
+
+    return (
+        <>
+            {distance && <div
+                style={{
+                    position: "absolute",
+                    bottom: 45,
+                    left: 25,
+                    zIndex: 9999,
+                    color: "#ff3e3e",
+                    width: "50%",
+
+                    fontSize: "48px",
+                    fontWeight: "bold",
+                    textShadow: "2px 2px 4px black",
+                }}
+            >
+                {distance?.toFixed(2)}m
+
+            </div>}
+        </>
+    );
+}
+
+
+
+export function LineRecorder() {
+    const [points, setPoints] = useState<THREE.Vector3[]>([]);
+    const worldPos = useRef(new THREE.Vector3());
+
+    const threshold = 0.5; // world units
+
+    useFrame(({ camera }) => {
+        camera.getWorldPosition(worldPos.current);
+        worldPos.current.y = 0.1;
+
+        setPoints((prev) => {
+            if (prev.length === 0) {
+                return [worldPos.current.clone()];
+            }
+
+            const last = prev[prev.length - 1];
+
+            if (last.distanceTo(worldPos.current) >= threshold) {
+                return [...prev, worldPos.current.clone()];
+            }
+
+            return prev;
+        });
+    });
+
+    const line = useMemo(() => {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: "red" });
+
+        return new THREE.Line(geometry, material);
+    }, [points]);
+
+    if (points.length < 2) return null;
+
+    return <primitive object={line} />;
 }
