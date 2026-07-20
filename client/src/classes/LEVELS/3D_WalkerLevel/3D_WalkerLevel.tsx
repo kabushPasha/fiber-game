@@ -19,8 +19,8 @@ import { PP_RimLight } from "../../PostProcessing/Effects/PP_RimLight";
 import { create } from "zustand";
 import { useUI } from "../../../components/UIScreenContext";
 import { useLoader } from "@react-three/fiber";
-import { PP_Xdog } from "../../PostProcessing/Effects/Kuwahara/PP_XDog";
-import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";
+import { PP_Xdog } from "../../PostProcessing/Effects/Kuwahara/PP_XDog";``
+import { PP_PixelHighlights } from "../../PostProcessing/Effects/PP_PixelatedPass";``
 import { PP_Kuwahara } from "../../PostProcessing/Effects/Kuwahara/PP_SimpleKuwahara";
 import { useFrame } from "@react-three/fiber";
 import { Collectible3D, useCollectiblesStore } from "./classes/CollectiblesManager";

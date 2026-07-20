@@ -56,6 +56,7 @@ import { DynamicWaterSystemToggle } from "./classes/Effects/SimulationGrids/Wate
 import { VatCrowds_Level } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_Level"
 import { VatCrowds_LevelGame } from "./classes/GamplayPlugins/VatCrowds/VatCrowds_LevelGame"
 import { BrickHallsLevel, CityLevel, CubeCorridorLevel, CubeLevel, DungeonInstancedLevel, InnerNestLevel, JapanLevel, LabrinthLevel, LightmapLevel, MiningCavesLevel, NestLevel, RootsLevel, TextureDungeonLevel, VillaLevel} from "./classes/LEVELS/3D_WalkerLevel/3D_WalkerLevel"
+import { TiledGrid2dTestLevel } from "./classes/LEVELS/2dTiledGridDundeons/2dTiledGrid_TestLevel"
 
 
 extend({ MeshStandardNodeMaterial })
@@ -76,7 +77,7 @@ const App = () => {
   const isDebug = import.meta.env.DEV;
 
   const [loading, setLoading] = useState(true);
-  const [level, setLevel] = useState(isDebug ? 25 : 12)
+  const [level, setLevel] = useState(isDebug ? 26 : 12)
 
   const pickLevel = useCallback((level: number) => {
     setLoading(true)
@@ -148,6 +149,7 @@ const App = () => {
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(23)}>Level 23: Villa</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(24)}>Level 24: TexDungeon</button>
                     <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(25)}>Level 25: Labrinth</button>
+                    <button className="btn btn-primary  btn-sm" onClick={() => pickLevel(26)}>Level 26: GridDungeon</button>
                   </UI_Panel>
 
                   {/** LEVELS */}
@@ -177,6 +179,7 @@ const App = () => {
                   {level == 23 && <VillaLevel />}
                   {level == 24 && <TextureDungeonLevel />}
                   {level == 25 && <LabrinthLevel />}
+                  {level == 26 && <TiledGrid2dTestLevel />}
 
                 </KeyboardControls>
               </MouseLockProvider>
