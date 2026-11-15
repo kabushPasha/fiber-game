@@ -7,6 +7,16 @@ import { Fn, texture, uniform, vec2, vec3 } from "three/tsl";
 import type { Node } from "three/webgpu";
 import type { ShaderNodeFn } from "three/src/nodes/TSL.js";
 import { useTerrainControlsUI } from "./TerrainControlsLeva";
+import { EXRLoader } from "three/examples/jsm/Addons.js";
+
+/**
+ * To read EXR it hould have 4 channels, not 1
+ * Also percision can be 16bit int
+ * 
+ * 
+ */
+
+
 
 /** CONTEXT */
 export type TerrainData = {
@@ -21,6 +31,7 @@ export type TerrainData = {
     tsl_sampleHeight: ShaderNodeFn<[Node]>
     tsl_sampleN: ShaderNodeFn<[Node]>
     tsl_sampleColor: ShaderNodeFn<[Node]>
+    tsl_ws2sample: ShaderNodeFn<[Node]>
 };
 
 export const TerrainContext = createContext<TerrainData | null>(null);
@@ -45,7 +56,7 @@ export type TerrainProps = {
 
 export function TerrainProvider(_props: TerrainProps) {
 
-    const { textureUrl, hf_size, hf_height, children,color } = useTerrainControlsUI(_props);
+    const { textureUrl, hf_size, hf_height, children, color } = useTerrainControlsUI(_props);
 
     const uniforms = useMemo(
         () => ({
@@ -58,10 +69,19 @@ export function TerrainProvider(_props: TerrainProps) {
     useEffect(() => {
         const c = new THREE.Color(color);
         uniforms.color.value.set(c.r, c.g, c.b);
-    }, [ color])
+    }, [color])
 
 
-    const hf_tex = useLoader(TextureLoader, textureUrl);
+    //const hf_tex = useLoader(TextureLoader, textureUrl);
+    const isExr = /\.exr$/i.test(textureUrl.split(/[?#]/)[0]);
+
+    const hf_tex = useLoader(
+        isExr ? EXRLoader : TextureLoader,
+        textureUrl,
+        (loader) => { if (isExr) { (loader as EXRLoader).setDataType(THREE.FloatType); } }
+    ) as THREE.Texture;
+
+
     hf_tex.wrapS = THREE.RepeatWrapping;
     hf_tex.wrapT = THREE.RepeatWrapping;
     hf_tex.colorSpace = THREE.NoColorSpace;
@@ -74,7 +94,8 @@ export function TerrainProvider(_props: TerrainProps) {
     hf_nml.wrapT = THREE.RepeatWrapping;
     hf_nml.colorSpace = THREE.NoColorSpace;
 
-    const { width, height } = hf_tex.image as HTMLImageElement;
+    const image = hf_tex.image as { width: number; height: number; };
+    const { width, height } = image;
 
     const heights = useMemo(() => {
         return textureToHeightData(hf_tex);
@@ -154,6 +175,7 @@ export function TerrainProvider(_props: TerrainProps) {
             tsl_sampleHeight,
             tsl_sampleN,
             tsl_sampleColor,
+            tsl_ws2sample
         };
 
     }, [heights, width, height, hf_size, hf_height, hf_tex]);
@@ -168,30 +190,55 @@ export function TerrainProvider(_props: TerrainProps) {
 
 
 
-function textureToHeightData(hf_tex: THREE.Texture,): number[] {
-    const img = hf_tex.image as HTMLImageElement;
+function textureToHeightData(
+    hf_tex: THREE.Texture,
+    flipY = true
+): number[] {
+
+    const img = hf_tex.image as {
+        width: number;
+        height: number;
+        data?: Float32Array | Uint16Array | Uint8Array;
+    };
+
     const { width, height } = img;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    const heights = new Array<number>(width * height);
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not get 2D context");
+    let pixels: ArrayLike<number>;
+    let channels: number;
 
+    if (img.data) {
+        // EXR
+        pixels = img.data;
+        channels = img.data.length / (width * height);
+    } else {
+        // PNG
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
 
-    ctx.drawImage(img, 0, 0, width, height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Could not get 2D context");
 
-    const pixels = ctx.getImageData(0, 0, width, height).data;
-    const heights: number[] = new Array(width * height);
+        ctx.drawImage(img as HTMLImageElement, 0, 0);
 
-    for (let row = 0; row < height; row++) {
-        for (let col = 0; col < width; col++) {
-            const i = row * width + col;
-            const stride = i * 4;
-            const r = pixels[stride];
-            heights[i] = (r / 255);
+        pixels = ctx.getImageData(0, 0, width, height).data;
+        channels = 4;
+    }
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+
+            const sourceY = flipY ? height - 1 - y : y;
+
+            const sourceIndex = (sourceY * width + x) * channels;
+            const targetIndex = y * width + x;
+
+            heights[targetIndex] = pixels[sourceIndex] /
+                (img.data ? 1 : 255);
         }
     }
+
     return heights;
 }

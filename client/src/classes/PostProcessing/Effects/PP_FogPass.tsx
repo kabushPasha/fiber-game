@@ -31,7 +31,7 @@ export function PP_FogPass({
                 fog: folder({
                     enabled: enabled,
                     density: { value: density, min: 0, max: 0.2, step: 0.0001 },
-                    start_distance: { value: start_distance, min: 0, max: 100, step: 0.0001 },
+                    start_distance: { value: start_distance, min: 0, max: 300, step: 0.0001 },
                     heightFalloff: { value: heightFalloff, min: 0, max: 0.1, step: 0.001 },
                     color: { value: color }
                 }, { collapsed: true }),
